@@ -144,6 +144,10 @@ public class TabletInvertedIndex {
 
                                 if (checkNeedRecover(replica, backendTabletInfo.getVersion(),
                                         backendTabletInfo.getVersion_hash())) {
+                                    LOG.warn("replica {} of tablet {} on backend {} need recovery. "
+                                            + "replica in FE: {}, report version {}-{}",
+                                            replica, backendTabletInfo.getVersion(),
+                                            backendTabletInfo.getVersion_hash());
                                     tabletRecoveryMap.put(tabletMeta.getDbId(), tabletId);
                                 }
 
