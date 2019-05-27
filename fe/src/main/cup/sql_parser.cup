@@ -3781,7 +3781,7 @@ truncate_stmt ::=
     ;
 
 duplicate_stmt ::=
-    KW_DUPLICATE KW_TABLE base_table_ref:tblRef KW_AS ident:newTblName
+    KW_DUPLICATE KW_TABLE base_table_ref:tblRef KW_TO ident:newTblName
     {:
         RESULT = new DuplicateTableStmt(tblRef, newTblName);
     :}

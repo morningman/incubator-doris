@@ -156,13 +156,15 @@ public class CatalogManager {
             if (db.getTable(newTblName) != null) {
                 throw new DdlException("Table " + newTblName + " already exist");
             }
-            
-            copiedTbl.setName(newTblName);
 
             // use new partitions to replace the old ones.
             for (Partition newPartition : newPartitions) {
                 copiedTbl.replacePartition(newPartition);
             }
+
+            // must set table name after replace partition. because set name may change the partition name
+            // if table is unpartitioned
+            copiedTbl.setName(newTblName);
 
             // add table to database
             db.createTable(copiedTbl);

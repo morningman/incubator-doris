@@ -28,7 +28,7 @@ import org.apache.doris.qe.ConnectContext;
 
 import com.google.common.base.Joiner;
 
-// DUPLICATE TABLE tbl [PARTITION(p1, p2, ...)] AS new_tbl;
+// DUPLICATE TABLE tbl [PARTITION(p1, p2, ...)] TO new_tbl;
 public class DuplicateTableStmt extends DdlStmt {
 
     private TableRef tblRef;
@@ -76,7 +76,7 @@ public class DuplicateTableStmt extends DdlStmt {
             sb.append(Joiner.on(", ").join(tblRef.getPartitions()));
             sb.append(")");
         }
-        sb.append(" AS ").append(newTblName);
+        sb.append(" TO ").append(newTblName);
         return sb.toString();
     }
 
