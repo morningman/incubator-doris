@@ -48,6 +48,7 @@ import org.apache.doris.analysis.DropRepositoryStmt;
 import org.apache.doris.analysis.DropRoleStmt;
 import org.apache.doris.analysis.DropTableStmt;
 import org.apache.doris.analysis.DropUserStmt;
+import org.apache.doris.analysis.DuplicateTableStmt;
 import org.apache.doris.analysis.GrantStmt;
 import org.apache.doris.analysis.LinkDbStmt;
 import org.apache.doris.analysis.LoadStmt;
@@ -192,6 +193,8 @@ public class DdlExecutor {
             catalog.getTabletChecker().cancelRepairTable((AdminCancelRepairTableStmt) ddlStmt);
         } else if (ddlStmt instanceof AdminSetConfigStmt) {
             catalog.setConfig((AdminSetConfigStmt) ddlStmt);
+        } else if (ddlStmt instanceof DuplicateTableStmt) {
+            catalog.getCatalogManager().duplicateTable((DuplicateTableStmt) ddlStmt);
         } else {
             throw new DdlException("Unknown statement.");
         }

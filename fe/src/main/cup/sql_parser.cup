@@ -247,7 +247,8 @@ nonterminal StatementBase query, stmt, show_stmt, show_param, help_stmt, load_st
     show_routine_load_stmt, show_routine_load_task_stmt,
     describe_stmt, alter_stmt,
     use_stmt, kill_stmt, drop_stmt, recover_stmt, grant_stmt, revoke_stmt, create_stmt, set_stmt, sync_stmt, cancel_stmt, cancel_param, delete_stmt,
-    link_stmt, migrate_stmt, enter_stmt, unsupported_stmt, export_stmt, admin_stmt, truncate_stmt, import_columns_stmt, import_where_stmt;
+    link_stmt, migrate_stmt, enter_stmt, unsupported_stmt, export_stmt, admin_stmt, truncate_stmt, import_columns_stmt, import_where_stmt,
+    duplicate_stmt;
 
 nonterminal ImportColumnDesc import_column_desc;
 nonterminal List<ImportColumnDesc> import_column_descs;
@@ -552,6 +553,8 @@ stmt ::=
     | admin_stmt : stmt
     {: RESULT = stmt; :}
     | truncate_stmt : stmt
+    {: RESULT = stmt; :}
+    | duplicate_stmt: stmt
     {: RESULT = stmt; :}
     | /* empty: query only has comments */
     {:
@@ -3774,6 +3777,13 @@ truncate_stmt ::=
     KW_TRUNCATE KW_TABLE base_table_ref:tblRef
     {:
         RESULT = new TruncateTableStmt(tblRef);
+    :}
+    ;
+
+duplicate_stmt ::=
+    KW_DUPLICATE KW_TABLE base_table_ref:tblRef KW_AS ident:newTblName
+    {:
+        RESULT = new DuplicateTableStmt(tblRef, newTblName);
     :}
     ;
 

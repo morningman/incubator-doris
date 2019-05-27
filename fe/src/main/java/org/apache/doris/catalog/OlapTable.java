@@ -241,7 +241,8 @@ public class OlapTable extends Table {
         return null;
     }
 
-    public Status resetIdsForRestore(Catalog catalog, Database db, int restoreReplicationNum) {
+    public Status resetIdsForRestore(Catalog catalog, Database db, int restoreReplicationNum,
+            Map<String, Short> partRepNum) {
         // table id
         id = catalog.getNextId();
 
@@ -283,7 +284,7 @@ public class OlapTable extends Table {
                                                         rangePartitionInfo.idToDataProperty.remove(entry.getValue()));
                 rangePartitionInfo.idToReplicationNum.remove(entry.getValue());
                 rangePartitionInfo.idToReplicationNum.put(newPartId,
-                                                          (short) restoreReplicationNum);
+                        partRepNum == null ? (short) restoreReplicationNum : partRepNum.get(entry.getKey()));
                 rangePartitionInfo.getIdToRange().put(newPartId,
                                                       rangePartitionInfo.getIdToRange().remove(entry.getValue()));
 
@@ -295,7 +296,8 @@ public class OlapTable extends Table {
             for (Map.Entry<String, Long> entry : origPartNameToId.entrySet()) {
                 partitionInfo.idToDataProperty.put(newPartId, partitionInfo.idToDataProperty.remove(entry.getValue()));
                 partitionInfo.idToReplicationNum.remove(entry.getValue());
-                partitionInfo.idToReplicationNum.put(newPartId, (short) restoreReplicationNum);
+                partitionInfo.idToReplicationNum.put(newPartId,
+                        partRepNum == null ? (short) restoreReplicationNum : partRepNum.get(entry.getKey()));
                 idToPartition.put(newPartId, idToPartition.remove(entry.getValue()));
             }
         }
@@ -937,7 +939,7 @@ public class OlapTable extends Table {
     }
 
     /*
-     * this method is currently used for truncating table(partitions).
+     * this method is currently used for truncating/duplicate table(partitions).
      * the new partition has new id, so we need to change all 'id-related' members
      *
      * return the old partition.

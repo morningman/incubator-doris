@@ -582,7 +582,7 @@ public class RestoreJob extends AbstractJob {
                     }
                     
                     // reset all ids in this table
-                    Status st = remoteOlapTbl.resetIdsForRestore(catalog, db, restoreReplicationNum);
+                    Status st = remoteOlapTbl.resetIdsForRestore(catalog, db, restoreReplicationNum, null);
                     if (!st.ok()) {
                         status = st;
                         return;

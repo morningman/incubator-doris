@@ -363,6 +363,8 @@ public class Catalog {
 
     private RoutineLoadTaskScheduler routineLoadTaskScheduler;
 
+    private CatalogManager catalogManager;
+
     public List<Frontend> getFrontends(FrontendNodeType nodeType) {
         if (nodeType == null) {
             // get all
@@ -409,6 +411,10 @@ public class Catalog {
 
     public MetaReplayState getMetaReplayState() {
         return metaReplayState;
+    }
+
+    public CatalogManager getCatalogManager() {
+        return catalogManager;
     }
 
     private static class SingletonHolder {
@@ -486,6 +492,7 @@ public class Catalog {
         this.loadManager = new LoadManager(loadJobScheduler);
         this.routineLoadScheduler = new RoutineLoadScheduler(routineLoadManager);
         this.routineLoadTaskScheduler = new RoutineLoadTaskScheduler(routineLoadManager);
+        this.catalogManager = new CatalogManager(this);
     }
 
     public static void destroyCheckpoint() {
@@ -3231,21 +3238,21 @@ public class Catalog {
         }
     }
 
-    private Partition createPartitionWithIndices(String clusterName, long dbId, long tableId,
-                                                 long partitionId, String partitionName,
-                                                 Map<Long, Short> indexIdToShortKeyColumnCount,
-                                                 Map<Long, Integer> indexIdToSchemaHash,
-                                                 Map<Long, TStorageType> indexIdToStorageType,
-                                                 Map<Long, List<Column>> indexIdToSchema,
-                                                 KeysType keysType,
-                                                 DistributionInfo distributionInfo,
-                                                 TStorageMedium storageMedium,
-                                                 short replicationNum,
-                                                 Pair<Long, Long> versionInfo,
-                                                 Set<String> bfColumns,
-                                                 double bfFpp,
-                                                 Set<Long> tabletIdSet,
-                                                 boolean isRestore) throws DdlException {
+    public Partition createPartitionWithIndices(String clusterName, long dbId, long tableId,
+            long partitionId, String partitionName,
+            Map<Long, Short> indexIdToShortKeyColumnCount,
+            Map<Long, Integer> indexIdToSchemaHash,
+            Map<Long, TStorageType> indexIdToStorageType,
+            Map<Long, List<Column>> indexIdToSchema,
+            KeysType keysType,
+            DistributionInfo distributionInfo,
+            TStorageMedium storageMedium,
+            short replicationNum,
+            Pair<Long, Long> versionInfo,
+            Set<String> bfColumns,
+            double bfFpp,
+            Set<Long> tabletIdSet,
+            boolean isRestore) throws DdlException {
         // create base index first. use table id as base index id
         long baseIndexId = tableId;
         MaterializedIndex baseIndex = new MaterializedIndex(baseIndexId, IndexState.NORMAL);
@@ -5913,14 +5920,14 @@ public class Catalog {
             if (olapTable.getState() != OlapTableState.NORMAL) {
                 throw new DdlException("Table' state is not NORMAL: " + olapTable.getState());
             }
-            
+
             if (tblRef.getPartitions() != null && !tblRef.getPartitions().isEmpty()) {
-                for (String partName: tblRef.getPartitions()) {
+                for (String partName : tblRef.getPartitions()) {
                     Partition partition = olapTable.getPartition(partName);
                     if (partition == null) {
                         throw new DdlException("Partition " + partName + " does not exist");
                     }
-                    
+
                     origPartitions.put(partName, partition.getId());
                 }
             } else {
@@ -5928,13 +5935,13 @@ public class Catalog {
                     origPartitions.put(partition.getName(), partition.getId());
                 }
             }
-            
+
             copiedTbl = olapTable.selectiveCopy(origPartitions.keySet(), true);
 
         } finally {
             db.readUnlock();
         }
-        
+
         // 2. use the copied table to create partitions
         List<Partition> newPartitions = Lists.newArrayList();
         // tabletIdSet to save all newly created tablet ids.
@@ -5984,7 +5991,7 @@ public class Catalog {
             if (olapTable == null) {
                 throw new DdlException("Table[" + copiedTbl.getName() + "] is dropped");
             }
-            
+
             if (olapTable.getState() != OlapTableState.NORMAL) {
                 throw new DdlException("Table' state is not NORMAL: " + olapTable.getState());
             }
@@ -6031,7 +6038,7 @@ public class Catalog {
         } finally {
             db.writeUnlock();
         }
-        
+
         LOG.info("finished to truncate table {}, partitions: {}",
                 tblRef.getName().toSql(), tblRef.getPartitions());
     }
