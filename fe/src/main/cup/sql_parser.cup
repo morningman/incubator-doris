@@ -766,6 +766,10 @@ alter_table_clause ::=
     {:
         RESULT = new ColumnRenameClause(colName, newColName);
     :}
+    | KW_EXCHANGE KW_PARTITION ident:partitionName KW_WITH ident:tblName
+    {:
+        RESULT = new ExchangePartitionClause(partitionName, tblName); 
+    :}
     ;
 
 alter_system_clause ::=

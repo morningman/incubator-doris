@@ -629,7 +629,7 @@ public class OlapTable extends Table {
         throw new RuntimeException("Don't support anymore");
     }
 
-    public int getSignature(int signatureVersion, List<String> partNames) {
+    public int getSignature(int signatureVersion, List<String> partNames, boolean checkReplicaNum) {
         Adler32 adler32 = new Adler32();
         adler32.update(signatureVersion);
         final String charsetName = "UTF-8";
@@ -685,7 +685,9 @@ public class OlapTable extends Table {
             Collections.sort(partNames, String.CASE_INSENSITIVE_ORDER);
             for (String partName : partNames) {
                 Partition partition = getPartition(partName);
-                Preconditions.checkNotNull(partition, partName);
+                if (partition == null) {
+                    return -1;
+                }
                 adler32.update(partName.getBytes(charsetName));
                 LOG.debug("signature. partition name: {}", partName);
                 DistributionInfo distributionInfo = partition.getDistributionInfo();
@@ -697,6 +699,10 @@ public class OlapTable extends Table {
                               Util.schemaHash(0, hashDistributionInfo.getDistributionColumns(), null, 0));
                     adler32.update(hashDistributionInfo.getBucketNum());
                     LOG.debug("signature. bucket num: {}", hashDistributionInfo.getBucketNum());
+                }
+
+                if (checkReplicaNum) {
+                    adler32.update(partitionInfo.getReplicationNum(partition.getId()));
                 }
             }
 
@@ -995,5 +1001,39 @@ public class OlapTable extends Table {
             }
         }
         return true;
+    }
+
+    public void exchangePartition(long srcDbId, long destDbId, OlapTable destTbl, String partName) {
+        Partition srcPart = getPartition(partName);
+        Partition destPart = destTbl.getPartition(partName);
+
+        // exchange index ids
+        for (MaterializedIndex srcIdx : srcPart.getMaterializedIndices()) {
+            String idxName = getIndexNameById(srcIdx.getId());
+            MaterializedIndex destIdx = destPart.getIndex(destTbl.getIndexIdByName(idxName));
+            long tmpId = srcIdx.getId();
+            srcIdx.setIdForRestore(destIdx.getId());
+            destIdx.setIdForRestore(tmpId);
+        }
+
+        // replace partition
+        Partition replacedPart = replacePartition(destPart);
+        Preconditions.checkState(replacedPart.getId() == srcPart.getId(), replacedPart.getId() + " vs. " + srcPart.getId());
+        replacedPart = destTbl.replacePartition(srcPart);
+        Preconditions.checkState(replacedPart.getId() == destPart.getId(), replacedPart.getId() + " vs. " + destPart.getId());
+
+        // Change the tablet meta in TabletInvertedIndex
+        TabletInvertedIndex invertedIndex = Catalog.getCurrentInvertedIndex();
+        for (MaterializedIndex idx : srcPart.getMaterializedIndices()) {
+            for (Tablet tablet : idx.getTablets()) {
+                invertedIndex.setTabletMeta(tablet.getId(), destDbId, destTbl.getId(), destPart.getId(), idx.getId());
+            }
+        }
+
+        for (MaterializedIndex idx : destPart.getMaterializedIndices()) {
+            for (Tablet tablet : idx.getTablets()) {
+                invertedIndex.setTabletMeta(tablet.getId(), srcDbId, this.id, srcPart.getId(), idx.getId());
+            }
+        }
     }
 }

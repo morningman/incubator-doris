@@ -83,6 +83,7 @@ import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -381,7 +382,7 @@ public class StmtExecutor {
         if (parsedStmt instanceof QueryStmt
                 || parsedStmt instanceof InsertStmt
                 || parsedStmt instanceof CreateTableAsSelectStmt) {
-            Map<String, Database> dbs = Maps.newTreeMap();
+            TreeMap<String, Database> dbs = Maps.newTreeMap();
             QueryStmt queryStmt;
             if (parsedStmt instanceof QueryStmt) {
                 queryStmt = (QueryStmt) parsedStmt;
@@ -459,7 +460,7 @@ public class StmtExecutor {
                 LOG.warn("Analyze failed because ", e);
                 throw new AnalysisException("Unexpected exception: " + e.getMessage());
             } finally {
-                unLock(dbs);
+                unLock(dbs.descendingMap());
             }
         } else {
             try {

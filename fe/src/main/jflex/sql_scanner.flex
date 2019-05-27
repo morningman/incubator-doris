@@ -143,6 +143,7 @@ import org.apache.doris.common.util.SqlUtils;
         keywordMap.put("errors", new Integer(SqlParserSymbols.KW_ERRORS));
         keywordMap.put("events", new Integer(SqlParserSymbols.KW_EVENTS));
         keywordMap.put("explain", new Integer(SqlParserSymbols.KW_DESCRIBE));
+        keywordMap.put("exchange", new Integer(SqlParserSymbols.KW_EXCHANGE));
         keywordMap.put("export", new Integer(SqlParserSymbols.KW_EXPORT));
         keywordMap.put("exists", new Integer(SqlParserSymbols.KW_EXISTS));
         keywordMap.put("external", new Integer(SqlParserSymbols.KW_EXTERNAL));

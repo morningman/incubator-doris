@@ -615,5 +615,17 @@ public class TabletInvertedIndex {
     public Map<Long, Long> getReplicaToTabletMap() {
         return replicaToTabletMap;
     }
+
+    public void setTabletMeta(long tabletId, long dbId, long tblId, long partId, long idxId) {
+        writeLock();
+        try {
+            TabletMeta tabletMeta = tabletMetaMap.get(tabletId);
+            if (tabletMeta != null) {
+                tabletMeta.setIds(dbId, tblId, partId, idxId);
+            }
+        } finally {
+            writeUnlock();
+        }
+    }
 }
 

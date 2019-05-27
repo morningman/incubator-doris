@@ -28,6 +28,7 @@ import org.apache.doris.analysis.ColumnRenameClause;
 import org.apache.doris.analysis.DropColumnClause;
 import org.apache.doris.analysis.DropPartitionClause;
 import org.apache.doris.analysis.DropRollupClause;
+import org.apache.doris.analysis.ExchangePartitionClause;
 import org.apache.doris.analysis.ModifyColumnClause;
 import org.apache.doris.analysis.ModifyPartitionClause;
 import org.apache.doris.analysis.ModifyTablePropertiesClause;
@@ -36,6 +37,7 @@ import org.apache.doris.analysis.ReorderColumnsClause;
 import org.apache.doris.analysis.RollupRenameClause;
 import org.apache.doris.analysis.TableName;
 import org.apache.doris.analysis.TableRenameClause;
+import org.apache.doris.backup.BackupHandler;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.OlapTable;
@@ -45,14 +47,19 @@ import org.apache.doris.catalog.Table.TableType;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
+import org.apache.doris.persist.ExchangePartitionInfo;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Alter {
     private static final Logger LOG = LogManager.getLogger(Alter.class);
@@ -96,6 +103,8 @@ public class Alter {
         boolean hasRename = false;
         // modify properties ops, if has, should appear one and only one entry
         boolean hasModifyProp = false;
+        // exchange partition op,
+        boolean hasExchangePartition = false;
 
         // check conflict alter ops first
         List<AlterClause> alterClauses = stmt.getOps();
@@ -122,31 +131,34 @@ public class Alter {
                     || alterClause instanceof ModifyColumnClause
                     || alterClause instanceof ReorderColumnsClause
                     || alterClause instanceof ModifyTablePropertiesClause)
-                    && !hasRollup && !hasPartition && !hasRename) {
+                    && !hasRollup && !hasPartition && !hasRename && !hasExchangePartition) {
                 hasSchemaChange = true;
             } else if (alterClause instanceof AddRollupClause && !hasSchemaChange && !hasRollup && !hasPartition
-                    && !hasRename && !hasModifyProp) {
+                    && !hasRename && !hasModifyProp && !hasExchangePartition) {
                 hasRollup = true;
             } else if (alterClause instanceof DropRollupClause && !hasSchemaChange && !hasRollup && !hasPartition
-                    && !hasRename && !hasModifyProp) {
+                    && !hasRename && !hasModifyProp && !hasExchangePartition) {
                 hasRollup = true;
             } else if (alterClause instanceof AddPartitionClause && !hasSchemaChange && !hasRollup && !hasPartition
-                    && !hasRename && !hasModifyProp) {
+                    && !hasRename && !hasModifyProp && !hasExchangePartition) {
                 hasPartition = true;
             } else if (alterClause instanceof DropPartitionClause && !hasSchemaChange && !hasRollup && !hasPartition
-                    && !hasRename && !hasModifyProp) {
+                    && !hasRename && !hasModifyProp && !hasExchangePartition) {
                 hasPartition = true;
             } else if (alterClause instanceof ModifyPartitionClause && !hasSchemaChange && !hasRollup
-                    && !hasPartition && !hasRename && !hasModifyProp) {
+                    && !hasPartition && !hasRename && !hasModifyProp && !hasExchangePartition) {
                 hasPartition = true;
             } else if ((alterClause instanceof TableRenameClause || alterClause instanceof RollupRenameClause
                     || alterClause instanceof PartitionRenameClause || alterClause instanceof ColumnRenameClause)
-                    && !hasSchemaChange && !hasRollup && !hasPartition && !hasRename && !hasModifyProp) {
+                    && !hasSchemaChange && !hasRollup && !hasPartition && !hasRename && !hasModifyProp
+                    && !hasExchangePartition) {
                 hasRename = true;
             } else if (alterClause instanceof ModifyTablePropertiesClause && !hasSchemaChange && !hasRollup
-                    && !hasPartition
-                    && !hasRename && !hasModifyProp) {
+                    && !hasPartition && !hasRename && !hasModifyProp && !hasExchangePartition) {
                 hasModifyProp = true;
+            } else if (alterClause instanceof ExchangePartitionClause && !hasSchemaChange && !hasRollup
+                    && !hasPartition && !hasRename && !hasModifyProp) {
+                hasExchangePartition = true;
             } else {
                 throw new DdlException("Conflicting alter clauses. see help for more information");
             }
@@ -186,7 +198,7 @@ public class Alter {
                         Catalog.getCurrentCatalog().getTabletScheduler(),
                         db.getClusterName());
                 if (!isStable) {
-                    throw new DdlException("table [" + olapTable.getName() + "] is not stable."
+                    throw new DdlException("Table [" + olapTable.getName() + "] is not stable."
                             + " Some tablets of this table may not be healthy or are being scheduled."
                             + " You need to repair the table first"
                             + " or stop cluster balance. See 'help admin;'.");
@@ -214,8 +226,8 @@ public class Alter {
             db.writeUnlock();
         }
 
-        // add partition op should done outside db lock. cause it contain synchronized create operation
         if (hasAddPartition) {
+            // add partition op should done outside db lock. cause it contain synchronized create operation
             Preconditions.checkState(alterClauses.size() == 1);
             AlterClause alterClause = alterClauses.get(0);
             if (alterClause instanceof AddPartitionClause) {
@@ -223,6 +235,9 @@ public class Alter {
             } else {
                 Preconditions.checkState(false);
             }
+        } else if (hasExchangePartition) {
+            // exchange partition should relock the databases in order
+            processExchangePartition(db, tableName, alterClauses);
         }
     }
 
@@ -246,6 +261,142 @@ public class Alter {
                 break;
             } else {
                 Preconditions.checkState(false);
+            }
+        }
+    }
+
+    private void processExchangePartition(Database destDb, String destTblName, List<AlterClause> alterClauses)
+            throws DdlException {
+
+        // get and check database
+        TreeMap<String, Database> dbs = Maps.newTreeMap();
+        dbs.put(destDb.getFullName(), destDb);
+        for (AlterClause alterClause : alterClauses) {
+            if (alterClause instanceof ExchangePartitionClause) {
+                ExchangePartitionClause clause = (ExchangePartitionClause) alterClause;
+                String dbName = clause.getDbName();
+                Database srcDb = Catalog.getCurrentCatalog().getDb(dbName);
+                if (srcDb == null) {
+                    throw new DdlException("Database " + dbName + " does not exist");
+                }
+                dbs.put(dbName, srcDb);
+            }
+        }
+
+        // lock database in order
+        for (Database db : dbs.values()) {
+            db.writeLock();
+        }
+        try {
+            // get dest table
+            Table destTbl = destDb.getTable(destTblName);
+            if (destTbl == null || destTbl.getType() != TableType.OLAP) {
+                throw new DdlException("Table " + destTblName + " does not exist or is not OLAP table");
+            }
+            OlapTable destOlapTbl = (OlapTable) destTbl;
+
+            // check if all tablets are healthy, and no tablet is in tablet scheduler
+            boolean isStable = destOlapTbl.isStable(Catalog.getCurrentSystemInfo(),
+                    Catalog.getCurrentCatalog().getTabletScheduler(),
+                    destDb.getClusterName());
+            if (!isStable) {
+                throw new DdlException("Table [" + destOlapTbl.getName() + "] is not stable."
+                        + " Some tablets of this table may not be healthy or are being scheduled."
+                        + " You need to repair the table first"
+                        + " or stop cluster balance. See 'help admin;'.");
+            }
+
+            // check all src tables
+            Map<String, OlapTable> partNameToSrcTbl = Maps.newHashMap();
+            Map<String, Long> partNameToSrcDbId = Maps.newHashMap();
+            for (AlterClause alterClause : alterClauses) {
+                if (alterClause instanceof ExchangePartitionClause) {
+                    ExchangePartitionClause clause = (ExchangePartitionClause) alterClause;
+                    Database db = Catalog.getCurrentCatalog().getDb(clause.getDbName());
+                    Table srcTbl = db.getTable(clause.getTblName());
+                    if (srcTbl == null || srcTbl.getType() != TableType.OLAP) {
+                        throw new DdlException("Table " + clause.getTblName() + " does not exist or is not OLAP table");
+                    }
+
+                    if (partNameToSrcTbl.containsKey(clause.getPartitionName())) {
+                        throw new DdlException("Duplicated exchanging partition: " + clause.getPartitionName());
+                    }
+
+                    OlapTable srcOlapTbl = (OlapTable) srcTbl;
+
+                    if (!srcOlapTbl.isStable(Catalog.getCurrentSystemInfo(),
+                            Catalog.getCurrentCatalog().getTabletScheduler(),
+                            db.getClusterName())) {
+                        throw new DdlException("Table [" + srcOlapTbl.getName() + "] is not stable."
+                                + " Some tablets of this table may not be healthy or are being scheduled."
+                                + " You need to repair the table first"
+                                + " or stop cluster balance. See 'help admin;'.");
+                    }
+
+                    int srcSig = srcOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, Lists.newArrayList(clause.getPartitionName()), true);
+                    int destSig = destOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, Lists.newArrayList(clause.getPartitionName()), true);
+                    if (srcSig == -1 || destSig == -1) {
+                        throw new DdlException("Partition " + clause.getPartitionName() + " does not exist");
+                    }
+                    if (srcSig != destSig) {
+                        throw new DdlException("Table with different schema: " + clause.getTblName());
+                    }
+
+                    partNameToSrcTbl.put(clause.getPartitionName(), srcOlapTbl);
+                    partNameToSrcDbId.put(clause.getPartitionName(), db.getId());
+                }
+            }
+
+            // exchange partitions
+            for (Map.Entry<String, OlapTable> entry : partNameToSrcTbl.entrySet()) {
+                OlapTable srcTbl = entry.getValue();
+                srcTbl.exchangePartition(partNameToSrcDbId.get(entry.getKey()), destDb.getId(), destOlapTbl, entry.getKey());
+            }
+
+            // write edit log
+            ExchangePartitionInfo info = new ExchangePartitionInfo(destDb.getId(), destTbl.getId(),
+                    partNameToSrcTbl, partNameToSrcDbId);
+            Catalog.getCurrentCatalog().getEditLog().logExchangePartition(info);
+
+            LOG.info("finished to exchange partition for table: " + destTblName);
+
+        } finally {
+            for (Database db : dbs.descendingMap().values()) {
+                db.writeUnlock();
+            }
+        }
+    }
+
+    public void replayExchangePartition(ExchangePartitionInfo info) {
+        long destDbId = info.getDestDbId();
+        long destTblId = info.getDestTblId();
+        Map<String, Long> partNameToSrcDbId = info.getPartNameToSrcDbId();
+        Map<String, Long> partNameToSrcTblId = info.getPartNameToSrcTblId();
+
+        TreeMap<String, Database> dbs = Maps.newTreeMap();
+        Database destDb = Catalog.getCurrentCatalog().getDb(destDbId);
+        dbs.put(destDb.getFullName(), destDb);
+        for (long dbId : partNameToSrcDbId.values()) {
+            Database db = Catalog.getCurrentCatalog().getDb(dbId);
+            dbs.put(db.getFullName(), db);
+        }
+
+        for (Database db : dbs.values()) {
+            db.writeLock();
+        }
+        try {
+            OlapTable destOlapTbl = (OlapTable) destDb.getTable(destTblId);
+            for (Map.Entry<String, Long> entry : partNameToSrcTblId.entrySet()) {
+                Database db = Catalog.getCurrentCatalog().getDb(partNameToSrcDbId.get(entry.getKey()));
+                OlapTable srcTbl = (OlapTable) db.getTable(entry.getValue());
+                srcTbl.exchangePartition(partNameToSrcDbId.get(entry.getKey()), destDb.getId(), destOlapTbl,
+                        entry.getKey());
+            }
+
+            LOG.info("finished to replay exchange partition for table: " + destOlapTbl.getName());
+        } finally {
+            for (Database db : dbs.descendingMap().values()) {
+                db.writeUnlock();
             }
         }
     }

@@ -29,10 +29,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class TabletMeta {
     private static final Logger LOG = LogManager.getLogger(TabletMeta.class);
 
-    private final long dbId;
-    private final long tableId;
-    private final long partitionId;
-    private final long indexId;
+    private long dbId;
+    private long tableId;
+    private long partitionId;
+    private long indexId;
 
     private int oldSchemaHash;
     private int newSchemaHash;
@@ -129,6 +129,18 @@ public class TabletMeta {
             return this.oldSchemaHash == schemaHash || this.newSchemaHash == schemaHash;
         } finally {
             lock.readLock().unlock();
+        }
+    }
+
+    public void setIds(long dbId, long tblId, long partId, long idxId) {
+        lock.writeLock().lock();
+        try {
+            this.dbId = dbId;
+            this.tableId = tblId;
+            this.partitionId = partId;
+            this.indexId = idxId;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 

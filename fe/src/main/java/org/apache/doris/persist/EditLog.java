@@ -691,6 +691,11 @@ public class EditLog {
                     Catalog.getCurrentCatalog().getLoadManager().replayEndLoadJob(operation);
                     break;
                 }
+                case OperationType.OP_EXCHANGE_PARTITION: {
+                    ExchangePartitionInfo info = (ExchangePartitionInfo) journal.getData();
+                    Catalog.getCurrentCatalog().getAlterInstance().replayExchangePartition(info);
+                    break;
+                }
                 default: {
                     IOException e = new IOException();
                     LOG.error("UNKNOWN Operation Type {}", opCode, e);
@@ -1200,5 +1205,9 @@ public class EditLog {
 
     public void logEndLoadJob(LoadJobFinalOperation loadJobFinalOperation) {
         logEdit(OperationType.OP_END_LOAD_JOB, loadJobFinalOperation);
+    }
+
+    public void logExchangePartition(ExchangePartitionInfo info) {
+        logEdit(OperationType.OP_EXCHANGE_PARTITION, info);
     }
 }
