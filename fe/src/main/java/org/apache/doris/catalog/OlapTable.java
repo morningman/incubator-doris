@@ -629,15 +629,18 @@ public class OlapTable extends Table {
         throw new RuntimeException("Don't support anymore");
     }
 
-    public int getSignature(int signatureVersion, List<String> partNames, boolean checkReplicaNum) {
+    public int getSignature(int signatureVersion, List<String> partNames,
+            boolean ignoreName, boolean ignoreReplicaNum) {
         Adler32 adler32 = new Adler32();
         adler32.update(signatureVersion);
         final String charsetName = "UTF-8";
 
         try {
-            // table name
-            adler32.update(name.getBytes(charsetName));
-            LOG.debug("signature. table name: {}", name);
+            if (!ignoreName) {
+                // table name
+                adler32.update(name.getBytes(charsetName));
+                LOG.debug("signature. table name: {}", name);
+            }
             // type
             adler32.update(type.name().getBytes(charsetName));
             LOG.debug("signature. table type: {}", type.name());
@@ -647,8 +650,10 @@ public class OlapTable extends Table {
             indexNames.addAll(indexNameToId.keySet());
             for (String indexName : indexNames) {
                 long indexId = indexNameToId.get(indexName);
-                adler32.update(indexName.getBytes(charsetName));
-                LOG.debug("signature. index name: {}", indexName);
+                if (!ignoreName) {
+                    adler32.update(indexName.getBytes(charsetName));
+                    LOG.debug("signature. index name: {}", indexName);
+                }
                 // schema hash
                 adler32.update(indexIdToSchemaHash.get(indexId));
                 LOG.debug("signature. index schema hash: {}", indexIdToSchemaHash.get(indexId));
@@ -701,7 +706,7 @@ public class OlapTable extends Table {
                     LOG.debug("signature. bucket num: {}", hashDistributionInfo.getBucketNum());
                 }
 
-                if (checkReplicaNum) {
+                if (!ignoreReplicaNum) {
                     adler32.update(partitionInfo.getReplicationNum(partition.getId()));
                 }
             }

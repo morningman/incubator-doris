@@ -475,8 +475,8 @@ public class RestoreJob extends AbstractJob {
                         return;
                     }
                     LOG.debug("get intersect part names: {}, job: {}", intersectPartNames, this);
-                    int localSig = localOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, intersectPartNames, false);
-                    int remoteSig = remoteOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, intersectPartNames, false);
+                    int localSig = localOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, intersectPartNames, false, true);
+                    int remoteSig = remoteOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, intersectPartNames, false, true);
                     if (localSig == -1 || remoteSig == -1) {
                         status = new Status(ErrCode.COMMON_ERROR, "failed to get table's signature");
                         return;

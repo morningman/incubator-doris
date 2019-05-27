@@ -333,8 +333,8 @@ public class Alter {
                                 + " or stop cluster balance. See 'help admin;'.");
                     }
 
-                    int srcSig = srcOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, Lists.newArrayList(clause.getPartitionName()), true);
-                    int destSig = destOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, Lists.newArrayList(clause.getPartitionName()), true);
+                    int srcSig = srcOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, Lists.newArrayList(clause.getPartitionName()), true, true);
+                    int destSig = destOlapTbl.getSignature(BackupHandler.SIGNATURE_VERSION, Lists.newArrayList(clause.getPartitionName()), true, true);
                     if (srcSig == -1 || destSig == -1) {
                         throw new DdlException("Partition " + clause.getPartitionName() + " does not exist");
                     }
