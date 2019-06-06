@@ -36,6 +36,7 @@ under the License.
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+        <jprotobuf.version>2.2.11</jprotobuf.version>
     </properties>
 
     <profiles>
@@ -242,7 +243,7 @@ under the License.
         <dependency>
             <groupId>com.baidu</groupId>
             <artifactId>jprotobuf</artifactId>
-            <version>2.2.11</version>
+            <version>${jprotobuf.version}</version>
             <classifier>jar-with-dependencies</classifier>
         </dependency>
 
@@ -608,9 +609,8 @@ under the License.
                         <configuration>
                             <executable>java</executable>
                             <arguments>
-                                <argument>-classpath</argument>
-                                <classpath />
-                                <argument>com.baidu.bjf.remoting.protobuf.command.Main</argument>
+                                <argument>-jar</argument>
+                                <argument>${settings.localRepository}/com/baidu/jprotobuf/${jprotobuf.version}/jprotobuf-${jprotobuf.version}-jar-with-dependencies.jar</argument>
                                 <argument>--java_out=${palo.home}/gensrc/build/java/</argument>
                                 <argument>${palo.home}/gensrc/proto/internal_service.proto</argument>
                             </arguments>
