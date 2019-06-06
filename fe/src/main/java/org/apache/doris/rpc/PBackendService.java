@@ -42,6 +42,7 @@ public interface PBackendService {
             attachmentHandler = ThriftClientAttachmentHandler.class, onceTalkTimeout = 10000)
     Future<PTriggerProfileReportResult> triggerProfileReport(PTriggerProfileReportRequest request);
 
-    @ProtobufRPC(serviceName = "PBackendService", methodName = "get_info", attachmentHandler = ThriftClientAttachmentHandler.class, onceTalkTimeout = 10000)
+    @ProtobufRPC(serviceName = "PBackendService", methodName = "get_info", onceTalkTimeout = 10000)
     Future<PProxyResult> getInfo(PProxyRequest request);
 }
+

@@ -19,6 +19,7 @@
 syntax="proto2";
 
 package doris;
+option java_package = "org.apache.doris.proto";
 
 message ColumnMessage {
     required string name = 1;

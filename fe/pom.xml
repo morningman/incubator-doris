@@ -243,6 +243,7 @@ under the License.
             <groupId>com.baidu</groupId>
             <artifactId>jprotobuf</artifactId>
             <version>2.2.11</version>
+            <classifier>jar-with-dependencies</classifier>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.baidu/jprotobuf-rpc-common -->
@@ -576,6 +577,7 @@ under the License.
             </plugin>
 
             <!-- run make to generate Version and builtin -->
+            <!-- also parse the proto for FE -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -592,6 +594,25 @@ under the License.
                             <arguments>
                                 <argument>-C</argument>
                                 <argument>${palo.home}/gensrc/</argument>
+                            </arguments>
+                            <skip>${skip.plugin}</skip>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>gen_proto</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <!-- DO NOT use goal 'java', it will terminate the VM after done -->
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>-classpath</argument>
+                                <classpath />
+                                <argument>com.baidu.bjf.remoting.protobuf.command.Main</argument>
+                                <argument>--java_out=${palo.home}/gensrc/build/java/</argument>
+                                <argument>${palo.home}/gensrc/proto/internal_service.proto</argument>
                             </arguments>
                             <skip>${skip.plugin}</skip>
                         </configuration>
