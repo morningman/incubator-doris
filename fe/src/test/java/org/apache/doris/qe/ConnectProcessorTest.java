@@ -26,7 +26,7 @@ import org.apache.doris.mysql.MysqlEofPacket;
 import org.apache.doris.mysql.MysqlErrPacket;
 import org.apache.doris.mysql.MysqlOkPacket;
 import org.apache.doris.mysql.MysqlSerializer;
-import org.apache.doris.rpc.PQueryStatistics;
+import org.apache.doris.proto.PQueryStatistics;
 import org.apache.doris.thrift.TUniqueId;
 
 import org.easymock.EasyMock;
