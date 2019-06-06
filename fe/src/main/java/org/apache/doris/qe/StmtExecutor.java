@@ -802,6 +802,12 @@ public class StmtExecutor {
         if (statisticsForAuditLog == null) {
             statisticsForAuditLog = new PQueryStatistics();
         }
+        if (statisticsForAuditLog.scan_bytes == null) {
+            statisticsForAuditLog.scan_bytes = 0L;
+        }
+        if (statisticsForAuditLog.scan_rows == null) {
+            statisticsForAuditLog.scan_rows = 0L;
+        }
         return statisticsForAuditLog;
     }
 }
