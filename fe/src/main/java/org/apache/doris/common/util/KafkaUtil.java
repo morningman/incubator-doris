@@ -21,11 +21,11 @@ import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.ClientPool;
 import org.apache.doris.common.LoadException;
 import org.apache.doris.common.UserException;
-import org.apache.doris.proto.InternalService.PKafkaLoadInfo;
-import org.apache.doris.proto.InternalService.PKafkaMetaProxyRequest;
-import org.apache.doris.proto.InternalService.PProxyRequest;
-import org.apache.doris.proto.InternalService.PProxyResult;
-import org.apache.doris.proto.InternalService.PStringPair;
+import org.apache.doris.proto.PKafkaLoadInfo;
+import org.apache.doris.proto.PKafkaMetaProxyRequest;
+import org.apache.doris.proto.PProxyRequest;
+import org.apache.doris.proto.PProxyResult;
+import org.apache.doris.proto.PStringPair;
 import org.apache.doris.rpc.BackendServiceProxy;
 import org.apache.doris.system.Backend;
 import org.apache.doris.thrift.BackendService;
@@ -59,22 +59,28 @@ public class KafkaUtil {
             address = new TNetworkAddress(be.getHost(), be.getBrpcPort());
             
             // create request
-            PKafkaLoadInfo.Builder kafkaInfoBuilder = PKafkaLoadInfo.newBuilder().setBrokers(brokerList).setTopic(topic);
+            PKafkaLoadInfo kafkaLoadInfo = new PKafkaLoadInfo();
+            kafkaLoadInfo.brokers = brokerList;
+            kafkaLoadInfo.topic = topic;
             for (Map.Entry<String, String> entry : convertedCustomProperties.entrySet()) {
-                kafkaInfoBuilder.addProperties(PStringPair.newBuilder().setKey(entry.getKey()).setVal(entry.getValue()).build());
+                PStringPair pair = new PStringPair();
+                pair.key = entry.getKey();
+                pair.val = entry.getValue();
+                kafkaLoadInfo.properties.add(pair);
             }
-            PKafkaMetaProxyRequest.Builder kafkaRequestBuilder = PKafkaMetaProxyRequest.newBuilder().setKafkaInfo(kafkaInfoBuilder);
-            PProxyRequest request = PProxyRequest.newBuilder().setKafkaMetaRequest(kafkaRequestBuilder).build();
+            PKafkaMetaProxyRequest kafkaRequest = new PKafkaMetaProxyRequest();
+            kafkaRequest.kafka_info = kafkaLoadInfo;
+            PProxyRequest request = new PProxyRequest();
+            request.kafka_meta_request = kafkaRequest;
             
             // get info
             Future<PProxyResult> future = BackendServiceProxy.getInstance().getInfo(address, request);
             PProxyResult result = future.get(5, TimeUnit.SECONDS);
-            TStatusCode code = TStatusCode.findByValue(result.getStatus().getStatusCode());
+            TStatusCode code = TStatusCode.findByValue(result.status.status_code);
             if (code != TStatusCode.OK) {
-                String err = result.getStatus().getErrorMsgsCount() > 0 ? result.getStatus().getErrorMsgs(0) : "Unknown";
-                throw new UserException("failed to get kafka partition info: " + err);
+                throw new UserException("failed to get kafka partition info: " + result.status.error_msgs);
             } else {
-                return result.getKafkaMetaResult().getPartitionIdsList();
+                return result.kafka_meta_result.partition_ids;
             }
         } catch (Exception e) {
             LOG.warn("failed to get partitions.", e);

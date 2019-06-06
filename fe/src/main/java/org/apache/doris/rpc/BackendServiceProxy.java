@@ -18,8 +18,8 @@
 package org.apache.doris.rpc;
 
 import org.apache.doris.common.Config;
-import org.apache.doris.proto.InternalService.PProxyRequest;
-import org.apache.doris.proto.InternalService.PProxyResult;
+import org.apache.doris.proto.PProxyRequest;
+import org.apache.doris.proto.PProxyResult;
 import org.apache.doris.thrift.TExecPlanFragmentParams;
 import org.apache.doris.thrift.TNetworkAddress;
 import org.apache.doris.thrift.TUniqueId;

@@ -17,8 +17,8 @@
 
 package org.apache.doris.rpc;
 
-import org.apache.doris.proto.InternalService.PProxyRequest;
-import org.apache.doris.proto.InternalService.PProxyResult;
+import org.apache.doris.proto.PProxyRequest;
+import org.apache.doris.proto.PProxyResult;
 
 import com.baidu.jprotobuf.pbrpc.ProtobufRPC;
 
