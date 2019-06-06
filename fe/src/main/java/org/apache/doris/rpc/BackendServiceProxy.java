@@ -17,14 +17,16 @@
 
 package org.apache.doris.rpc;
 
-import com.baidu.jprotobuf.pbrpc.client.ProtobufRpcProxy;
-import com.baidu.jprotobuf.pbrpc.transport.RpcClient;
-import com.baidu.jprotobuf.pbrpc.transport.RpcClientOptions;
 import org.apache.doris.common.Config;
+import org.apache.doris.proto.InternalService.PProxyRequest;
+import org.apache.doris.proto.InternalService.PProxyResult;
 import org.apache.doris.thrift.TExecPlanFragmentParams;
 import org.apache.doris.thrift.TNetworkAddress;
 import org.apache.doris.thrift.TUniqueId;
 
+import com.baidu.jprotobuf.pbrpc.client.ProtobufRpcProxy;
+import com.baidu.jprotobuf.pbrpc.transport.RpcClient;
+import com.baidu.jprotobuf.pbrpc.transport.RpcClientOptions;
 import com.google.common.collect.Maps;
 
 import org.apache.logging.log4j.LogManager;
@@ -150,6 +152,17 @@ public class BackendServiceProxy {
         } catch (Throwable e) {
             LOG.warn("fetch data catch a exception, address={}:{}",
                     address.getHostname(), address.getPort(), e);
+            throw new RpcException(e.getMessage());
+        }
+    }
+
+    public Future<PProxyResult> getInfo(
+            TNetworkAddress address, PProxyRequest request) throws RpcException {
+        try {
+            final PBackendService service = getProxy(address);
+            return service.getInfo(request);
+        } catch (Throwable e) {
+            LOG.warn("failed to get info, address={}:{}", address.getHostname(), address.getPort(), e);
             throw new RpcException(e.getMessage());
         }
     }

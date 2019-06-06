@@ -21,16 +21,16 @@ import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.ClientPool;
 import org.apache.doris.common.LoadException;
 import org.apache.doris.common.UserException;
+import org.apache.doris.proto.InternalService.PKafkaLoadInfo;
+import org.apache.doris.proto.InternalService.PKafkaMetaProxyRequest;
+import org.apache.doris.proto.InternalService.PProxyRequest;
+import org.apache.doris.proto.InternalService.PProxyResult;
+import org.apache.doris.proto.InternalService.PStringPair;
+import org.apache.doris.rpc.BackendServiceProxy;
 import org.apache.doris.system.Backend;
 import org.apache.doris.thrift.BackendService;
-import org.apache.doris.thrift.TKafkaLoadInfo;
-import org.apache.doris.thrift.TKafkaMetaProxyRequest;
 import org.apache.doris.thrift.TNetworkAddress;
-import org.apache.doris.thrift.TProxyRequest;
-import org.apache.doris.thrift.TProxyResult;
 import org.apache.doris.thrift.TStatusCode;
-
-import com.google.common.collect.Maps;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,6 +38,8 @@ import org.apache.logging.log4j.Logger;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class KafkaUtil {
     private static final Logger LOG = LogManager.getLogger(KafkaUtil.class);
@@ -54,25 +56,26 @@ public class KafkaUtil {
             }
             Collections.shuffle(backendIds);
             Backend be = Catalog.getCurrentSystemInfo().getBackend(backendIds.get(0));
-            address = new TNetworkAddress(be.getHost(), be.getBePort());
-            client = ClientPool.backendPool.borrowObject(address);
-
-            TProxyRequest request = new TProxyRequest();
-            TKafkaMetaProxyRequest kafkaRequest = new TKafkaMetaProxyRequest();
-            TKafkaLoadInfo loadInfo = new TKafkaLoadInfo(brokerList, topic, Maps.newHashMap());
-            loadInfo.setProperties(convertedCustomProperties);
-            kafkaRequest.setKafka_info(loadInfo);
-            request.setKafka_meta_request(kafkaRequest);
-
-            TProxyResult res = client.get_info(request);
-            ok = true;
-
-            if (res.getStatus().getStatus_code() != TStatusCode.OK) {
-                throw new LoadException("Failed to get all partitions of kafka topic: " + topic + ". error: "
-                        + res.getStatus().getError_msgs());
+            address = new TNetworkAddress(be.getHost(), be.getBrpcPort());
+            
+            // create request
+            PKafkaLoadInfo.Builder kafkaInfoBuilder = PKafkaLoadInfo.newBuilder().setBrokers(brokerList).setTopic(topic);
+            for (Map.Entry<String, String> entry : convertedCustomProperties.entrySet()) {
+                kafkaInfoBuilder.addProperties(PStringPair.newBuilder().setKey(entry.getKey()).setVal(entry.getValue()).build());
             }
-
-            return res.getKafka_meta_result().getPartition_ids();
+            PKafkaMetaProxyRequest.Builder kafkaRequestBuilder = PKafkaMetaProxyRequest.newBuilder().setKafkaInfo(kafkaInfoBuilder);
+            PProxyRequest request = PProxyRequest.newBuilder().setKafkaMetaRequest(kafkaRequestBuilder).build();
+            
+            // get info
+            Future<PProxyResult> future = BackendServiceProxy.getInstance().getInfo(address, request);
+            PProxyResult result = future.get(5, TimeUnit.SECONDS);
+            TStatusCode code = TStatusCode.findByValue(result.getStatus().getStatusCode());
+            if (code != TStatusCode.OK) {
+                String err = result.getStatus().getErrorMsgsCount() > 0 ? result.getStatus().getErrorMsgs(0) : "Unknown";
+                throw new UserException("failed to get kafka partition info: " + err);
+            } else {
+                return result.getKafkaMetaResult().getPartitionIdsList();
+            }
         } catch (Exception e) {
             LOG.warn("failed to get partitions.", e);
             throw new LoadException(
