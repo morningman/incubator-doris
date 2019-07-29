@@ -17,12 +17,6 @@
 
 package org.apache.doris.analysis;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.apache.doris.analysis.BinaryPredicate.Operator;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Column;
@@ -34,6 +28,14 @@ import org.apache.doris.common.Pair;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.thrift.TNetworkAddress;
+
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -296,6 +298,8 @@ public class DataDescription {
             validateHllHash(args, columnNameMap);
         } else if (functionName.equalsIgnoreCase("now")) {
             validateNowFunction(mappingColumn);
+        } else if (functionName.equalsIgnoreCase("replace")) {
+            validateReplaceFunction(args, columnNameMap);
         } else {
             if (isPullLoad) {
                 return;
@@ -303,6 +307,20 @@ public class DataDescription {
                 throw new AnalysisException("Unknown function: " + functionName);
             }
         }
+    }
+
+    private static void validateReplaceFunction(List<String> args, Map<String, String> columnNameMap)
+            throws AnalysisException {
+        if (args.size() != 1) {
+            throw new AnalysisException("Should has only one argument: " + args);
+        }
+
+        String argColumn = args.get(0);
+        if (!columnNameMap.containsKey(argColumn)) {
+            throw new AnalysisException("Column is not in sources, column: " + argColumn);
+        }
+
+        args.set(0, columnNameMap.get(argColumn));
     }
 
     private static void validateAlignmentTimestamp(List<String> args, Map<String, String> columnNameMap)
