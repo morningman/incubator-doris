@@ -52,11 +52,17 @@ namespace doris {
 volatile uint32_t g_schema_change_active_threads = 0;
 
 OLAPStatus StorageEngine::_start_bg_worker() {
-    _unused_rowset_monitor_thread =  std::thread(
+    _gc_unused_rowset_thread =  std::thread(
         [this] {
-            _unused_rowset_monitor_thread_callback(nullptr);
+            _gc_unused_rowset_thread_callback(nullptr);
         });
-    _unused_rowset_monitor_thread.detach();
+    _gc_unused_rowset_thread.detach();
+
+    _capture_unused_rowset_in_tablet_thread = std::thread(
+        [this] {
+            _capture_unused_rowset_in_tablet_callback();
+        });
+    _capture_unused_rowset_in_tablet_thread.detach();
 
     // start thread for monitoring the snapshot and trash folder
     _garbage_sweeper_thread = std::thread(
@@ -294,7 +300,7 @@ void* StorageEngine::_cumulative_compaction_thread_callback(void* arg, DataDir* 
     return nullptr;
 }
 
-void* StorageEngine::_unused_rowset_monitor_thread_callback(void* arg) {
+void* StorageEngine::_gc_unused_rowset_thread_callback(void* arg) {
 #ifdef GOOGLE_PROFILER
     ProfilerRegisterThread();
 #endif
@@ -378,6 +384,27 @@ void* StorageEngine::_tablet_checkpoint_callback(void* arg) {
         } else {
             sleep(1);
         }
+    }
+
+    return nullptr;
+}
+
+void* StorageEngine::_capture_unused_rowset_in_tablet_callback() {
+#ifdef GOOGLE_PROFILER
+    ProfilerRegisterThread();
+#endif
+
+    uint32_t interval = config::unused_rowset_monitor_interval;
+
+    if (interval <= 0) {
+        LOG(WARNING) << "unused_rowset_monitor_interval config is illegal: " << interval
+                << ", force set to 1";
+        interval = 1;
+    }
+
+    while (true) {
+        capture_unused_rowset_in_tablet();
+        sleep(interval);
     }
 
     return nullptr;

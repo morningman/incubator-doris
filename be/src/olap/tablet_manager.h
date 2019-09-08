@@ -126,6 +126,7 @@ public:
     void get_partition_related_tablets(int64_t partition_id, std::set<TabletInfo>* tablet_infos);
 
     void do_tablet_meta_checkpoint(DataDir* data_dir);
+    void capture_unused_rowset_in_tablet();
 
 private:
     // Add a tablet pointer to StorageEngine

@@ -953,4 +953,8 @@ bool StorageEngine::check_rowset_id_in_unused_rowsets(const RowsetId& rowset_id)
     return search != _unused_rowsets.end();
 }
 
+void StorageEngine::capture_unused_rowset_in_tablet() {
+    _tablet_manager->capture_unused_rowset_in_tablet();
+}
+
 }  // namespace doris

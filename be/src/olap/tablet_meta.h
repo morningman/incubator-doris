@@ -165,18 +165,11 @@ public:
 
     inline const std::vector<RowsetMetaSharedPtr>& all_rs_metas() const;
     OLAPStatus add_rs_meta(const RowsetMetaSharedPtr& rs_meta);
-    void delete_rs_meta_by_version(const Version& version,
-                                   std::vector<RowsetMetaSharedPtr>* deleted_rs_metas);
-    void modify_rs_metas(const std::vector<RowsetMetaSharedPtr>& to_add,
-                         const std::vector<RowsetMetaSharedPtr>& to_delete);
-    void revise_rs_metas(std::vector<RowsetMetaSharedPtr>&& rs_metas);
-
-
-    void revise_inc_rs_metas(std::vector<RowsetMetaSharedPtr>&& rs_metas);
-    inline const std::vector<RowsetMetaSharedPtr>& all_inc_rs_metas() const;
-    OLAPStatus add_inc_rs_meta(const RowsetMetaSharedPtr& rs_meta);
-    void delete_inc_rs_meta_by_version(const Version& version);
-    RowsetMetaSharedPtr acquire_inc_rs_meta_by_version(const Version& version) const;
+    OLAPStatus add_rs_metas(const vector<RowsetMetaSharedPtr>& to_add);
+    OLAPStatus revise_rs_metas(const vector<RowsetMetaSharedPtr>& to_add);
+    OLAPStatus delete_rs_metas(const vector<RowsetMetaSharedPtr>& to_delete);
+    RowsetMetaSharedPtr acquire_rs_meta_by_version(const Version& version) const;
+    OLAPStatus delete_rs_meta_by_version(const Version& version, vector<RowsetMetaSharedPtr>* deleted_rs_metas);
 
     void add_delete_predicate(const DeletePredicatePB& delete_predicate, int64_t version);
     void remove_delete_predicate_by_version(const Version& version);
@@ -214,8 +207,7 @@ private:
 
     TabletState _tablet_state = TABLET_NOTREADY;
     TabletSchema _schema;
-    std::vector<RowsetMetaSharedPtr> _rs_metas;
-    std::vector<RowsetMetaSharedPtr> _inc_rs_metas;
+    vector<RowsetMetaSharedPtr> _rs_metas;
     DelPredicateArray _del_pred_array;
     AlterTabletTaskSharedPtr _alter_task;
     bool _in_restore_mode = false;
@@ -314,10 +306,6 @@ inline TabletSchema* TabletMeta::mutable_tablet_schema() {
 
 inline const std::vector<RowsetMetaSharedPtr>& TabletMeta::all_rs_metas() const {
     return _rs_metas;
-}
-
-inline const std::vector<RowsetMetaSharedPtr>& TabletMeta::all_inc_rs_metas() const {
-    return _inc_rs_metas;
 }
 
 }  // namespace doris

@@ -161,34 +161,6 @@ TEST_F(OlapSnapshotConverterTest, ToNewAndToOldSnapshot) {
         std::vector<std::string> old_files;
         rowset.remove_old_files(&old_files);
     }
-    // check incremental delta
-    ASSERT_TRUE(tablet_meta_pb.inc_rs_metas().size() == header_msg.incremental_delta().size());
-    for (auto& pdelta : header_msg.incremental_delta()) {
-        int64_t start_version = pdelta.start_version();
-        int64_t end_version = pdelta.end_version();
-        int64_t version_hash = pdelta.version_hash();
-        bool found = false;
-        for (auto& inc_rowset : tablet_meta_pb.inc_rs_metas()) {
-            if (inc_rowset.start_version() == start_version &&
-                inc_rowset.end_version() == end_version &&
-                inc_rowset.version_hash() == version_hash) {
-                found = true;
-            }
-        }
-        ASSERT_TRUE(found);
-    }
-    for (auto& inc_rowset : tablet_meta_pb.inc_rs_metas()) {
-        RowsetMetaSharedPtr alpha_rowset_meta(new AlphaRowsetMeta());
-        alpha_rowset_meta->init_from_pb(inc_rowset);
-        AlphaRowset rowset(&tablet_schema, data_path_prefix, alpha_rowset_meta);
-        ASSERT_TRUE(rowset.init() == OLAP_SUCCESS);
-        ASSERT_TRUE(rowset.load() == OLAP_SUCCESS);
-        AlphaRowset tmp_rowset(&tablet_schema, data_path_prefix + "/incremental_delta",
-                               alpha_rowset_meta);
-        ASSERT_TRUE(tmp_rowset.init() == OLAP_SUCCESS);
-        std::vector<std::string> old_files;
-        tmp_rowset.remove_old_files(&old_files);
-    }
     // check pending delta
     ASSERT_TRUE(pending_rowsets.size() == header_msg.pending_delta().size());
     for (auto& pdelta : header_msg.pending_delta()) {
@@ -225,17 +197,6 @@ TEST_F(OlapSnapshotConverterTest, ToNewAndToOldSnapshot) {
         for (auto& converted_pdelta : old_header_msg.delta()) {
             if (converted_pdelta.start_version() == pdelta.start_version() &&
                 converted_pdelta.end_version() == pdelta.end_version()) {
-                found = true;
-            }
-        }
-        ASSERT_TRUE(found);
-    }
-    for (auto& pdelta : header_msg.incremental_delta()) {
-        bool found = false;
-        for (auto& converted_pdelta : old_header_msg.incremental_delta()) {
-            if (converted_pdelta.start_version() == pdelta.start_version() &&
-                converted_pdelta.end_version() == pdelta.end_version() &&
-                converted_pdelta.version_hash() == pdelta.version_hash()) {
                 found = true;
             }
         }

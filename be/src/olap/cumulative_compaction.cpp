@@ -54,10 +54,7 @@ OLAPStatus CumulativeCompaction::compact() {
     // 5. set cumulative point
     _tablet->set_cumulative_layer_point(_input_rowsets.back()->end_version() + 1);
     
-    // 6. garbage collect input rowsets after cumulative compaction 
-    RETURN_NOT_OK(gc_unused_rowsets());
-
-    // 7. add metric to cumulative compaction
+    // 6. add metric to cumulative compaction
     DorisMetrics::cumulative_compaction_deltas_total.increment(_input_rowsets.size());
     DorisMetrics::cumulative_compaction_bytes_total.increment(_input_rowsets_size);
 

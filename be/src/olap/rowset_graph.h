@@ -24,6 +24,12 @@
 
 namespace doris {
 
+// It is used to represent Graph vertex.
+struct Vertex {
+    int64_t value;
+    std::list<int64_t>* edges;
+};
+
 class RowsetGraph {
 public:
     OLAPStatus construct_rowset_graph(const std::vector<RowsetMetaSharedPtr>& rs_metas);

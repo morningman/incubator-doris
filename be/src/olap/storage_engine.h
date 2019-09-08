@@ -113,6 +113,8 @@ public:
     }
 
     void start_delete_unused_rowset();
+    void capture_unused_rowset_in_tablet();
+
     void add_unused_rowset(RowsetSharedPtr rowset);
 
     OLAPStatus recover_tablet_until_specfic_version(const TRecoverTabletReq& recover_tablet_req);
@@ -220,7 +222,8 @@ private:
 
     // All these xxx_callback() functions are for Background threads
     // unused rowset monitor thread
-    void* _unused_rowset_monitor_thread_callback(void* arg);
+    void* _gc_unused_rowset_thread_callback(void* arg);
+    void* _capture_unused_rowset_in_tablet_callback();
 
     // base compaction thread process function
     void* _base_compaction_thread_callback(void* arg, DataDir* data_dir);
@@ -303,6 +306,9 @@ private:
 
     bool _stop_bg_worker = false;
     std::thread _unused_rowset_monitor_thread;
+    std::thread _gc_unused_rowset_thread;
+    std::thread _capture_unused_rowset_in_tablet_thread;
+
     // thread to monitor snapshot expiry
     std::thread _garbage_sweeper_thread;
     // thread to monitor disk stat

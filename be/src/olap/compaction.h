@@ -58,9 +58,7 @@ protected:
 
     OLAPStatus do_compaction();
     OLAPStatus do_compaction_impl();
-
-    OLAPStatus modify_rowsets();
-    OLAPStatus gc_unused_rowsets();
+    OLAPStatus add_rowsets();
 
     OLAPStatus construct_output_rowset_writer();
     OLAPStatus construct_input_rowset_readers();

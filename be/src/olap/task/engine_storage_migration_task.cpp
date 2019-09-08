@@ -237,7 +237,7 @@ void EngineStorageMigrationTask::_generate_new_header(
     for (auto& rs : consistent_rowsets) {
         rs_metas.push_back(rs->rowset_meta());
     }
-    new_tablet_meta->revise_rs_metas(std::move(rs_metas));
+    new_tablet_meta->revise_rs_metas(rs_metas);
     new_tablet_meta->set_shard_id(new_shard);
     // should not save new meta here, because new tablet may failed
     // should not remove the old meta here, because the new header maybe not valid

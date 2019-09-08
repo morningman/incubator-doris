@@ -90,7 +90,7 @@ OLAPStatus Compaction::do_compaction_impl() {
     RETURN_NOT_OK(check_correctness(stats));
 
     // 4. modify rowsets in memory
-    RETURN_NOT_OK(modify_rowsets());
+    RETURN_NOT_OK(add_rowsets());
 
     // 5. update last success compaction time
     int64_t now = UnixMillis();
@@ -140,42 +140,16 @@ OLAPStatus Compaction::construct_input_rowset_readers() {
     return OLAP_SUCCESS;
 }
 
-OLAPStatus Compaction::modify_rowsets() {
-    std::vector<RowsetSharedPtr> output_rowsets;
-    output_rowsets.push_back(_output_rowset);
-    
-    WriteLock wrlock(_tablet->get_header_lock_ptr());
-    OLAPStatus res = _tablet->modify_rowsets(output_rowsets, _input_rowsets);
+OLAPStatus Compaction::add_rowsets() {
+    OLAPStatus res = _tablet->add_rowset(_output_rowset, NEED_TO_PERSIST);
     if (res != OLAP_SUCCESS) {
-        LOG(FATAL) << "fail to replace data sources. res" << res
+        LOG(FATAL) << "fail to add rowsets. res" << res
                    << ", tablet=" << _tablet->full_name()
-                   << ", compaction__version=" << _output_version.first
+                   << ", compaction_version=" << _output_version.first
                    << "-" << _output_version.second;
         return res;
     }
 
-    res = _tablet->save_meta();
-    if (res != OLAP_SUCCESS) {
-        LOG(FATAL) << "fail to save tablet meta. res=" << res
-                   << ", tablet=" << _tablet->full_name()
-                   << ", compaction_version=" << _output_version.first
-                   << "-" << _output_version.second;
-        return OLAP_ERR_BE_SAVE_HEADER_ERROR;
-    }
-
-    return OLAP_SUCCESS;
-}
-
-OLAPStatus Compaction::gc_unused_rowsets() {
-    StorageEngine* storage_engine = StorageEngine::instance();
-    if (_state != CompactionState::SUCCESS) {
-        storage_engine->add_unused_rowset(_output_rowset);
-        return OLAP_SUCCESS;
-    }
-    for (auto& rowset : _input_rowsets) {
-        storage_engine->add_unused_rowset(rowset);
-    }
-    _input_rowsets.clear();
     return OLAP_SUCCESS;
 }
 

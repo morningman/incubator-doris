@@ -74,11 +74,6 @@ OLAPStatus OlapSnapshotConverter::to_olap_header(const TabletMetaPB& tablet_meta
             *delete_condition = pdelta->delete_condition();
         }
     }
-    // not add pending delta, it is usedless in clone or backup restore
-    for (auto& inc_rs_meta : tablet_meta_pb.inc_rs_metas()) {
-        PDelta* pdelta = olap_header->add_incremental_delta();
-        convert_to_pdelta(inc_rs_meta, pdelta);
-    }
     if (tablet_meta_pb.has_in_restore_mode()) {
         olap_header->set_in_restore_mode(tablet_meta_pb.in_restore_mode());
     }
@@ -155,29 +150,6 @@ OLAPStatus OlapSnapshotConverter::to_tablet_meta_pb(const OLAPHeaderMessage& ola
         convert_to_rowset_meta(temp_delta, next_id, olap_header.tablet_id(), olap_header.schema_hash(), rowset_meta);
         Version rowset_version = { temp_delta.start_version(), temp_delta.end_version() };
         _rs_version_map[rowset_version] = rowset_meta;
-    }
-
-    for (auto& inc_delta : olap_header.incremental_delta()) {
-        // check if inc delta already exist in delta
-        Version rowset_version = { inc_delta.start_version(), inc_delta.end_version() };
-        auto exist_rs = _rs_version_map.find(rowset_version);
-        if (exist_rs != _rs_version_map.end()) {
-            RowsetMetaPB* rowset_meta = tablet_meta_pb->add_inc_rs_metas();
-            *rowset_meta = *(exist_rs->second);
-            continue;
-        }
-        RowsetId next_id = StorageEngine::instance()->next_rowset_id();
-        RowsetMetaPB* rowset_meta = tablet_meta_pb->add_inc_rs_metas();
-        PDelta temp_inc_delta = inc_delta;
-        if (temp_inc_delta.start_version() == temp_inc_delta.end_version()) {
-            for (auto& del_pred : delete_conditions) {
-                if (temp_inc_delta.start_version() == del_pred.version()) {
-                    DeletePredicatePB* delete_condition = temp_inc_delta.mutable_delete_condition();
-                    *delete_condition = del_pred;
-                }
-            }
-        }
-        convert_to_rowset_meta(temp_inc_delta, next_id, olap_header.tablet_id(), olap_header.schema_hash(), rowset_meta);
     }
 
     for (auto& pending_delta : olap_header.pending_delta()) {
@@ -460,24 +432,6 @@ OLAPStatus OlapSnapshotConverter::to_new_snapshot(const OLAPHeaderMessage& olap_
         _modify_old_segment_group_id(const_cast<RowsetMetaPB&>(visible_rowset));
     }
 
-    // convert inc delta file to rowsets
-    for (auto& inc_rowset : tablet_meta_pb->inc_rs_metas()) {
-        RowsetMetaSharedPtr alpha_rowset_meta(new AlphaRowsetMeta());
-        alpha_rowset_meta->init_from_pb(inc_rowset);
-        alpha_rowset_meta->set_tablet_uid(tablet_meta_pb->tablet_uid());
-        AlphaRowset rowset(&tablet_schema, new_data_path_prefix, alpha_rowset_meta);
-        RETURN_NOT_OK(rowset.init());
-        std::vector<std::string> success_files;
-        std::string inc_data_path = old_data_path_prefix;
-        // in clone case: there is no incremental perfix
-        // in start up case: there is incremental prefix
-        if (is_startup) {
-            inc_data_path = inc_data_path + "/" + INCREMENTAL_DELTA_PREFIX;
-        }
-        RETURN_NOT_OK(rowset.convert_from_old_files(inc_data_path, &success_files));
-        _modify_old_segment_group_id(const_cast<RowsetMetaPB&>(inc_rowset));
-    }
-
     for (auto it = pending_rowsets->begin(); it != pending_rowsets->end(); ++it) {
         RowsetMetaSharedPtr alpha_rowset_meta(new AlphaRowsetMeta());
         alpha_rowset_meta->init_from_pb(*it);
@@ -518,16 +472,6 @@ OLAPStatus OlapSnapshotConverter::to_old_snapshot(const TabletMetaPB& tablet_met
         RETURN_NOT_OK(rowset.convert_to_old_files(old_data_path_prefix, &success_files));
     }
 
-    // convert inc delta file to rowsets
-    for (auto& inc_rowset : tablet_meta_pb.inc_rs_metas()) {
-        RowsetMetaSharedPtr alpha_rowset_meta(new AlphaRowsetMeta());
-        alpha_rowset_meta->init_from_pb(inc_rowset);
-        AlphaRowset rowset(&tablet_schema, new_data_path_prefix, alpha_rowset_meta);
-        RETURN_NOT_OK(rowset.init());
-        RETURN_NOT_OK(rowset.load());
-        std::vector<std::string> success_files;
-        RETURN_NOT_OK(rowset.convert_to_old_files(old_data_path_prefix, &success_files));
-    }
     return OLAP_SUCCESS;
 }
 

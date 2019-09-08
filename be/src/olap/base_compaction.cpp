@@ -46,10 +46,7 @@ OLAPStatus BaseCompaction::compact() {
     // 3. set state to success
     _state = CompactionState::SUCCESS;
 
-    // 4. garbage collect input rowsets after base compaction 
-    RETURN_NOT_OK(gc_unused_rowsets());
-
-    // 5. add metric to base compaction
+    // 4. add metric to base compaction
     DorisMetrics::base_compaction_deltas_total.increment(_input_rowsets.size());
     DorisMetrics::base_compaction_bytes_total.increment(_input_rowsets_size);
 

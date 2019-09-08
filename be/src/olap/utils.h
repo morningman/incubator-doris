@@ -44,6 +44,8 @@
 #include "olap/olap_define.h"
 
 #define TRY_LOCK true
+#define NEED_TO_PERSIST true
+#define NOT_NEED_TO_PERSIST false
 
 namespace doris {
 void write_log_info(char* buf, size_t buf_len, const char* fmt, ...);

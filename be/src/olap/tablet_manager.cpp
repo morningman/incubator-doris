@@ -975,9 +975,6 @@ OLAPStatus TabletManager::start_trash_sweep() {
                 }
             }
 
-            for (const auto& tablet : all_tablets) {
-                tablet->delete_expired_inc_rowsets();
-            }
             all_tablets.clear();
 
             if (!tablets_to_clean.empty()) {
@@ -1232,7 +1229,7 @@ OLAPStatus TabletManager::_create_inital_rowset_unlocked(const TCreateTabletReq&
             }
 
             new_rowset = builder->build();
-            res = tablet->add_rowset(new_rowset, false);
+            res = tablet->add_rowset(new_rowset, NOT_NEED_TO_PERSIST);
             if (res != OLAP_SUCCESS) {
                 LOG(WARNING) << "failed to add rowset for tablet " << tablet->full_name();
                 break;
@@ -1387,4 +1384,22 @@ void TabletManager::_remove_tablet_from_partition(const Tablet& tablet) {
     }
 }
 
-} // end namespace doris
+void TabletManager::capture_unused_rowset_in_tablet() {
+    std::vector<TabletSharedPtr> _tablet_vec;
+    {
+        for (int32 i = 0; i < _tablet_map_lock_shard_size; i++) {
+            ReadLock tablet_map_rdlock(&_tablet_map_lock_array[i]);
+            tablet_map_t& tablet_map = _tablet_map_array[i];
+            for (tablet_map_t::value_type& table_ins : tablet_map){
+                for (TabletSharedPtr& tablet_ptr : table_ins.second.table_arr) {
+                    _tablet_vec.push_back(tablet_ptr);
+                }
+            }
+        }
+    }
+    for (auto& tablet: _tablet_vec) {
+        tablet->capture_unused_rowsets();
+    }
+} // check_tablet_id_exist
+
+} // doris
