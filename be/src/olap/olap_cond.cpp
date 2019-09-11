@@ -598,13 +598,18 @@ bool Conditions::delete_conditions_eval(const RowCursor& row) const {
 bool Conditions::rowset_pruning_filter(const std::vector<KeyRange>& zone_maps) const {
     //通过所有列上的删除条件对version进行过滤
     for (auto& cond_it : _columns) {
-        if (cond_it.second->is_key() && cond_it.first > zone_maps.size()) {
-            LOG(WARNING) << "where condition not equal zone maps size. "
-                         << "cond_id=" << cond_it.first
-                         << ", zone_map_size=" << zone_maps.size();
+        // if delete condition is not key column, or
+        // is key column but not in zone map, skip rowset prune.
+        // only key column can filter rowset by zonemap.
+        // ATTN: condition column is not key column only happen on DUPLICATE KEY table
+        if (!cond_it.second->is_key() || cond_it.first > zone_maps.size()) {
+            VLOG(1) << "where condition not equal zone maps size. "
+                    << "cond_id=" << cond_it.first
+                    << ", zone_map_size=" << zone_maps.size();
             return false;
         }
-        if (cond_it.second->is_key() && !cond_it.second->eval(zone_maps[cond_it.first])) {
+
+        if (!cond_it.second->eval(zone_maps[cond_it.first])) {
             return true;
         }
     }
@@ -626,14 +631,13 @@ int Conditions::delete_pruning_filter(const std::vector<KeyRange>& zone_maps) co
     bool del_partial_satisfied = false;
     bool del_not_satisfied = false;
     for (auto& cond_it : _columns) {
-        /*
-         * this is base on the assumption that the delete condition
-         * is only about key field, not about value field.
-        */
-        if (cond_it.second->is_key() && cond_it.first > zone_maps.size()) {
-            LOG(WARNING) << "where condition not equal column statistics size. "
-                         << "cond_id=" << cond_it.first
-                         << ", zone_map_size=" << zone_maps.size();
+        // if delete condition is not key column, or
+        // is key column but not in zone map, skip version prune
+        // ATTN: condition column is not key column only happen on DUPLICATE KEY table
+        if (!cond_it.second->is_key() || cond_it.first > zone_maps.size()) {
+            VLOG(1) << "where condition not equal column statistics size. "
+                    << "cond_id=" << cond_it.first
+                    << ", zone_map_size=" << zone_maps.size();
             del_partial_satisfied = true;
             continue;
         }

@@ -2730,8 +2730,7 @@ public class Load {
             }
 
             Column column = nameToColumn.get(columnName);
-            if (!column.isKey()) {
-                // ErrorReport.reportDdlException(ErrorCode.ERR_NOT_KEY_COLUMN, columnName);
+            if (table.getKeysType() != KeysType.DUP_KEYS && !column.isKey()) {
                 throw new DdlException("Column[" + columnName + "] is not key column");
             }
 
@@ -2742,7 +2741,6 @@ public class Load {
                     value = ((LiteralExpr) binaryPredicate.getChild(1)).getStringValue();
                     LiteralExpr.create(value, Type.fromPrimitiveType(column.getDataType()));
                 } catch (AnalysisException e) {
-                    // ErrorReport.reportDdlException(ErrorCode.ERR_INVALID_VALUE, value);
                     throw new DdlException("Invalid column value[" + value + "]");
                 }
             }
@@ -2772,7 +2770,7 @@ public class Load {
                     ErrorReport.reportDdlException(ErrorCode.ERR_BAD_FIELD_ERROR, columnName, indexName);
                 }
 
-                if (table.getKeysType() == KeysType.DUP_KEYS && !column.isKey()) {
+                if (table.getKeysType() != KeysType.DUP_KEYS && !column.isKey()) {
                     throw new DdlException("Column[" + columnName + "] is not key column in index[" + indexName + "]");
                 }
             }

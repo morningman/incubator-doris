@@ -102,10 +102,12 @@ OLAPStatus DeleteConditionHandler::check_condition_valid(
         return OLAP_ERR_DELETE_INVALID_CONDITION;
     }
 
-    // 检查指定的列是不是key，是不是float或doulbe类型
+    // column is deletion condition should be key column
+    // and should not be DOUBLE or FLOAT type.
+    // There is a special case that in DUPLICATE KEY table, some columns are not key column
+    // and their aggragation type is NONE, these columns can also be in delete condition.
     const TabletColumn& column = schema.column(field_index);
-
-    if (!column.is_key()
+    if ((!column.is_key() && column.aggregation() != OLAP_FIELD_AGGREGATION_NONE)
             || column.type() == OLAP_FIELD_TYPE_DOUBLE
             || column.type() == OLAP_FIELD_TYPE_FLOAT) {
         LOG(WARNING) << "field is not key column, or its type is float or double.";
