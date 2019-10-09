@@ -48,6 +48,7 @@ public class PartitionKeyDesc implements Writable {
     }
 
     public PartitionKeyDesc() {
+        partitionType = PartitionRangeType.LESS_THAN;
     }
 
     // used by SQL parser
