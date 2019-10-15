@@ -50,6 +50,7 @@ import org.apache.doris.analysis.DropDbStmt;
 import org.apache.doris.analysis.DropFunctionStmt;
 import org.apache.doris.analysis.DropPartitionClause;
 import org.apache.doris.analysis.DropTableStmt;
+import org.apache.doris.analysis.FrontendNodeType;
 import org.apache.doris.analysis.FunctionName;
 import org.apache.doris.analysis.HashDistributionDesc;
 import org.apache.doris.analysis.KeysDesc;
@@ -116,7 +117,6 @@ import org.apache.doris.deploy.impl.K8sDeployManager;
 import org.apache.doris.deploy.impl.LocalFileDeployManager;
 import org.apache.doris.external.EsStateStore;
 import org.apache.doris.ha.BDBHA;
-import org.apache.doris.ha.FrontendNodeType;
 import org.apache.doris.ha.HAProtocol;
 import org.apache.doris.ha.MasterInfo;
 import org.apache.doris.http.meta.MetaBaseAction;
@@ -167,6 +167,8 @@ import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.JournalObservable;
 import org.apache.doris.qe.SessionVariable;
 import org.apache.doris.qe.VariableMgr;
+import org.apache.doris.resource.TagManager;
+import org.apache.doris.resource.TagSet;
 import org.apache.doris.service.FrontendOptions;
 import org.apache.doris.system.Backend;
 import org.apache.doris.system.Backend.BackendState;
@@ -367,6 +369,8 @@ public class Catalog {
     private RoutineLoadTaskScheduler routineLoadTaskScheduler;
 
     private SmallFileMgr smallFileMgr;
+
+    private TagManager tagManager;
 
     public List<Frontend> getFrontends(FrontendNodeType nodeType) {
         if (nodeType == null) {
@@ -2327,7 +2331,7 @@ public class Catalog {
         };
     }
 
-    public void addFrontend(FrontendNodeType role, String host, int editLogPort) throws DdlException {
+    public void addFrontend(FrontendNodeType role, String host, int editLogPort, TagSet tagSet) throws DdlException {
         if (!tryLock(false)) {
             throw new DdlException("Failed to acquire catalog lock. Try again");
         }
@@ -2343,12 +2347,16 @@ public class Catalog {
                 throw new DdlException("frontend name already exists " + nodeName + ". Try again");
             }
 
-            fe = new Frontend(role, nodeName, host, editLogPort);
+            long id = getNextId();
+            fe = new Frontend(id, role, nodeName, host, editLogPort);
             frontends.put(nodeName, fe);
             if (role == FrontendNodeType.FOLLOWER || role == FrontendNodeType.REPLICA) {
                 ((BDBHA) getHaProtocol()).addHelperSocket(host, editLogPort);
                 helperNodes.add(Pair.create(host, editLogPort));
             }
+
+            getTagManger().addResourceTag(fe.getId(), tagSet);
+
             editLog.logAddFrontend(fe);
         } finally {
             unlock();
@@ -4589,6 +4597,10 @@ public class Catalog {
 
     public SmallFileMgr getSmallFileMgr() {
         return this.smallFileMgr;
+    }
+
+    public TagManager getTagManger() {
+        return tagManager;
     }
 
     public long getReplayedJournalId() {
