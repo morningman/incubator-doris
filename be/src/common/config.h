@@ -206,8 +206,8 @@ namespace config {
     CONF_Int32(unused_rowset_monitor_interval, "30");
     CONF_String(storage_root_path, "${DORIS_HOME}/storage");
     CONF_Int32(min_percentage_of_error_disk, "50");
-    CONF_Int32(default_num_rows_per_data_block, "1024");
-    CONF_Int32(default_num_rows_per_column_file_block, "1024");
+    CONF_Int32(default_num_rows_per_row_block, "1024");
+
     CONF_Int32(max_tablet_num_per_shard, "1024");
     // pending data policy
     CONF_Int32(pending_data_expire_time_sec, "1800");
@@ -233,28 +233,24 @@ namespace config {
     CONF_String(storage_page_cache_limit, "20G");
 
     // be policy
-    CONF_Int64(base_compaction_start_hour, "20");
-    CONF_Int64(base_compaction_end_hour, "7");
+    CONF_Int32(base_compaction_num_threads_per_disk, "1");
     CONF_Int32(base_compaction_check_interval_seconds, "60");
     CONF_Int64(base_compaction_num_cumulative_deltas, "5");
-    CONF_Int32(base_compaction_num_threads, "1");
-    CONF_Int32(base_compaction_num_threads_per_disk, "1");
     CONF_Double(base_cumulative_delta_ratio, "0.3");
     CONF_Int64(base_compaction_interval_seconds_since_last_operation, "604800");
-    CONF_Int32(base_compaction_write_mbytes_per_sec, "5");
+    CONF_Int32(base_compaction_write_mbytes_per_sec, "10");
 
     // cumulative compaction policy: max delta file's size unit:B
+    CONF_Int32(cumulative_compaction_num_threads_per_disk, "1");
     CONF_Int32(cumulative_compaction_check_interval_seconds, "10");
     CONF_Int64(min_cumulative_compaction_num_singleton_deltas, "5");
     CONF_Int64(max_cumulative_compaction_num_singleton_deltas, "1000");
-    CONF_Int32(cumulative_compaction_num_threads, "1");
-    CONF_Int32(cumulative_compaction_num_threads_per_disk, "1");
-    CONF_Int64(cumulative_compaction_budgeted_bytes, "104857600");
-    CONF_Int32(cumulative_compaction_write_mbytes_per_sec, "100");
+    CONF_Int32(cumulative_compaction_write_mbytes_per_sec, "20");
 
     // if compaction of a tablet failed, this tablet should not be chosen to
     // compaction until this interval passes.
     CONF_Int64(min_compaction_failure_interval_sec, "600") // 10 min
+    CONF_Int64(compaction_mem_limit_bytes, "10737418240") // 10G
 
     // Port to start debug webserver on
     CONF_Int32(webserver_port, "8040");

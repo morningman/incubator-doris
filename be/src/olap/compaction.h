@@ -46,8 +46,27 @@ public:
     Compaction(TabletSharedPtr tablet);
     virtual ~Compaction();
 
-    virtual OLAPStatus compact() = 0;
+    OLAPStatus compact() {
+        OLAPStatus st = compact_impl();
+        if (_estimated_mem_consumption > 0) {
+            Compaction::release_compaction_memory(_estimated_mem_consumption);
+        }
+        return st;
+    }
 
+    virtual OLAPStatus compact_impl() = 0;
+public:
+
+    // before doing compaction, the compation thread should call
+    // consume_compaction_memory() to take memory. and call
+    // release_compaction_memory() after compaction finished to release the memory.
+
+    // try to consume memory. this method will block until there is enough memory to consume,
+    // or timeout.
+    static OLAPStatus consume_compaction_memory(int64_t consume_mem, int64_t timeout_second);
+    // release the compaction memory and notify other waiting threads.
+    static OLAPStatus release_compaction_memory(int64_t release_mem);
+    
 protected:
     virtual OLAPStatus pick_rowsets_to_compact() = 0;
     virtual std::string compaction_name() const = 0;
@@ -62,6 +81,10 @@ protected:
 
     OLAPStatus check_version_continuity(const std::vector<RowsetSharedPtr>& rowsets);
     OLAPStatus check_correctness(const Merger::Statistics& stats);
+
+    // try to get enough memory before doing compaction.
+    // this should be called after rowsets are picked, and before doing compaction.
+    OLAPStatus consume_memory();
 
 protected:
     TabletSharedPtr _tablet;
@@ -82,6 +105,16 @@ protected:
 
     Version _output_version;
     VersionHash _output_version_hash;
+
+    // estimated mem consumption of compaction
+    int64_t _estimated_mem_consumption = 0;
+
+    // the following 3 members are for limiting the memory of all compactions.
+    // they are static so that all compaction instances can share them.
+    static std::mutex _mem_lock;
+    static std::condition_variable _mem_cv;
+    // current mem consumption of compaction
+    static int64_t _mem_consumption;
 
     DISALLOW_COPY_AND_ASSIGN(Compaction);
 };

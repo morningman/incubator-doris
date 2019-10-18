@@ -150,4 +150,10 @@ bool BetaRowset::check_path(const std::string& path) {
     return valid_paths.find(path) != valid_paths.end();
 }
 
+int64_t BetaRowset::estimated_compaction_mem_usage(int64_t row_size) {
+    // TODO(cmy): num rows per row block should be get from meta or somewhere,
+    // but currently there is no such interface
+    return num_segments() * row_size * config::default_num_rows_per_row_block;
+}
+
 } // namespace doris

@@ -32,7 +32,7 @@ public:
     BaseCompaction(TabletSharedPtr tablet);
     ~BaseCompaction() override;
 
-    OLAPStatus compact() override;
+    OLAPStatus compact_impl() override;
 
 protected:
     OLAPStatus pick_rowsets_to_compact() override;

@@ -15,13 +15,53 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "gutil/strings/substitute.h"
 #include "olap/compaction.h"
+
+#include <algorithm>
+
+#include "gutil/strings/substitute.h"
 #include "olap/rowset/rowset_factory.h"
+
 
 using std::vector;
 
 namespace doris {
+
+std::mutex Compaction::_mem_lock;
+int64_t Compaction::_mem_consumption = 0;
+std::condition_variable Compaction::_mem_cv;
+
+OLAPStatus Compaction::consume_compaction_memory(int64_t consume_mem, int64_t timeout_second) {
+    MonotonicStopWatch timer;
+    std::unique_lock<std::mutex> unique_lock(_mem_lock);
+    // wait enough memory. but if there is not other compaction, we will just ignore the mem limit.
+    // to avoid that no compaction can be done due to low mem limit.
+    while (_mem_consumption > 0 && _mem_consumption + consume_mem > config::compaction_mem_limit_bytes) {
+        // not enough memory
+        if (timer.elapsed_time() > timeout_second * 1000 * 1000) {
+            LOG(WARNING) << "not enough memory for compaction"
+                    << ", expect memory=" << consume_mem << ", used=" << _mem_consumption
+                    << ", total: " << config::compaction_mem_limit_bytes; 
+            return OLAP_ERR_BE_NOT_ENOUGH_MEMORY;
+        }
+        timer.start();
+        _mem_cv.wait(unique_lock);
+        timer.stop();
+    }
+
+    _mem_consumption += consume_mem;
+    return OLAP_SUCCESS; 
+}
+
+OLAPStatus Compaction::release_compaction_memory(int64_t release_mem) {
+    std::unique_lock<std::mutex> unique_lock(_mem_lock);
+    _mem_consumption -= release_mem;
+    DCHECK(_mem_consumption >= 0);
+    // notify all so that all compaction thread waiting to consume memory will check
+    // if there is enough memory to consume.
+    _mem_cv.notify_all();
+    return OLAP_SUCCESS;
+}
 
 Compaction::Compaction(TabletSharedPtr tablet)
     : _tablet(tablet),
@@ -177,6 +217,26 @@ OLAPStatus Compaction::check_correctness(const Merger::Statistics& stats) {
         return OLAP_ERR_CHECK_LINES_ERROR;
     }
 
+    return OLAP_SUCCESS;
+}
+
+OLAPStatus Compaction::consume_memory() {
+    DCHECK(!_input_rowsets.empty());
+
+    // 1. get row size
+    int64_t row_size = std::min(_tablet->row_size(), (size_t) 1024);
+
+    // get estimated mem consumption
+    _estimated_mem_consumption = 0;
+    for (auto& rowset : _input_rowsets) {
+        _estimated_mem_consumption += rowset->estimated_compaction_mem_usage(row_size);
+    }
+
+    // try to get enough memory, and wait at most 30 min, to avoid block forever.
+    // if failed to get memory, this tablet will be marked as compaction failed, and will
+    // not be selected at next 10 min.
+    const static int64_t wait_timeout = 30 * 60;
+    RETURN_NOT_OK(Compaction::consume_compaction_memory(_estimated_mem_consumption, wait_timeout));
     return OLAP_SUCCESS;
 }
 

@@ -71,6 +71,9 @@ public:
     // info by using segment's info
     OLAPStatus reset_sizeinfo();
 
+    // row_size * (num rows in row block) * (num of segment)
+    int64_t estimated_compaction_mem_usage(int64_t row_size) override;
+
 protected:
     friend class RowsetFactory;
 

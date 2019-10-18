@@ -60,6 +60,8 @@ public:
 
     bool check_path(const std::string& path) override;
 
+    int64_t estimated_compaction_mem_usage(int64_t row_size);
+
 protected:
     friend class RowsetFactory;
 

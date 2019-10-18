@@ -126,6 +126,10 @@ public:
         return left->end_version() < right->end_version();
     }
 
+    // return the estimated mem usage when doing compaction for this rowset.
+    // row_size is the estimated size of a row in memory
+    virtual int64_t estimated_compaction_mem_usage(int64_t row_size) = 0;
+
 protected:
     friend class RowsetFactory;
 

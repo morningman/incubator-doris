@@ -29,7 +29,7 @@ public:
     CumulativeCompaction(TabletSharedPtr tablet);
     ~CumulativeCompaction() override;
 
-    OLAPStatus compact() override;
+    OLAPStatus compact_impl() override;
 
 protected:
     OLAPStatus pick_rowsets_to_compact() override;
@@ -42,10 +42,7 @@ protected:
         return ReaderType::READER_CUMULATIVE_COMPACTION;
     }
 
-
 private:
-    int64_t _cumulative_rowset_size_threshold;
-
     DISALLOW_COPY_AND_ASSIGN(CumulativeCompaction);
 };
 

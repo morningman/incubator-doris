@@ -21,13 +21,12 @@
 namespace doris {
 
 CumulativeCompaction::CumulativeCompaction(TabletSharedPtr tablet)
-    : Compaction(tablet),
-      _cumulative_rowset_size_threshold(config::cumulative_compaction_budgeted_bytes)
-{ }
+    : Compaction(tablet) {
+}
 
 CumulativeCompaction::~CumulativeCompaction() { }
 
-OLAPStatus CumulativeCompaction::compact() {
+OLAPStatus CumulativeCompaction::compact_impl() {
     if (!_tablet->init_succeeded()) {
         return OLAP_ERR_CUMULATIVE_INVALID_PARAMETERS;
     }
@@ -44,19 +43,22 @@ OLAPStatus CumulativeCompaction::compact() {
     // 2. pick rowsets to compact
     RETURN_NOT_OK(pick_rowsets_to_compact());
 
-    // 3. do cumulative compaction, merge rowsets
+    // 3. try to get enough memory
+    RETURN_NOT_OK(consume_memory());
+
+    // 4. do cumulative compaction, merge rowsets
     RETURN_NOT_OK(do_compaction());
 
-    // 4. set state to success
+    // 5. set state to success
     _state = CompactionState::SUCCESS;
 
-    // 5. set cumulative point
+    // 6. set cumulative point
     _tablet->set_cumulative_layer_point(_input_rowsets.back()->end_version() + 1);
     
-    // 6. garbage collect input rowsets after cumulative compaction 
+    // 7. garbage collect input rowsets after cumulative compaction 
     RETURN_NOT_OK(gc_unused_rowsets());
 
-    // 7. add metric to cumulative compaction
+    // 8. add metric to cumulative compaction
     DorisMetrics::cumulative_compaction_deltas_total.increment(_input_rowsets.size());
     DorisMetrics::cumulative_compaction_bytes_total.increment(_input_rowsets_size);
 
@@ -64,6 +66,7 @@ OLAPStatus CumulativeCompaction::compact() {
 }
 
 OLAPStatus CumulativeCompaction::pick_rowsets_to_compact() {
+    _input_rowsets.clear();
     std::vector<RowsetSharedPtr> candidate_rowsets;
     _tablet->pick_candicate_rowsets_to_cumulative_compaction(&candidate_rowsets);
 
@@ -77,32 +80,42 @@ OLAPStatus CumulativeCompaction::pick_rowsets_to_compact() {
     std::vector<RowsetSharedPtr> transient_rowsets;
     size_t num_overlapping_segments = 0;
     for (size_t i = 0; i < candidate_rowsets.size() - 1; ++i) {
+        // iterate until (candidate_rowsets.size() - 1) because:
         // VersionHash will calculated from chosen rowsets.
         // If ultimate singleton rowset is chosen, VersionHash
         // will be different from the value recorded in FE.
-        // So the ultimate singleton rowset is revserved.
+        // So the ultimate singleton rowset is reserved.
         RowsetSharedPtr rowset = candidate_rowsets[i];
         if (_tablet->version_for_delete_predicate(rowset->version())) {
+            // cumulative compaction can not handle delete version.
+            // so if we meet a delete version:
+            // A. if we already select enought rowset to do compaction, finish selecting.
+            // B. not enough rowset number, discard all previous selected rowset, skip this delta version, and continue to select.
             if (num_overlapping_segments >= config::min_cumulative_compaction_num_singleton_deltas) {
+                // case A
                 _input_rowsets = transient_rowsets;
                 break;
             }
+            // case B
             transient_rowsets.clear();
             num_overlapping_segments = 0;
             continue;
         }
 
-        if (num_overlapping_segments >= config::max_cumulative_compaction_num_singleton_deltas) {
-            // the threshold of files to compacted one time
-            break;
-        }
-
         if (rowset->start_version() == rowset->end_version()) {
+            // segments in single version rowset may be overlapped, so increase the num_overlapping_segments
+            // with the number of segments in this rowset.
             num_overlapping_segments += rowset->num_segments();
         } else {
+            // segments in a multi version rowset are not overlapped, so only increase num_overlapping_segments by 1
             num_overlapping_segments++;
         }
         transient_rowsets.push_back(rowset); 
+
+        if (num_overlapping_segments >= config::max_cumulative_compaction_num_singleton_deltas) {
+            // select enough number of rowset to do compaction, or the memory reach limit, finish selecting.
+            break;
+        }
     }
 
     if (num_overlapping_segments >= config::min_cumulative_compaction_num_singleton_deltas) {

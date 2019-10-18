@@ -26,7 +26,7 @@ BaseCompaction::BaseCompaction(TabletSharedPtr tablet)
 
 BaseCompaction::~BaseCompaction() { }
 
-OLAPStatus BaseCompaction::compact() {
+OLAPStatus BaseCompaction::compact_impl() {
     if (!_tablet->init_succeeded()) {
         return OLAP_ERR_INPUT_PARAMETER_ERROR;
     }
@@ -40,16 +40,19 @@ OLAPStatus BaseCompaction::compact() {
     // 1. pick rowsets to compact
     RETURN_NOT_OK(pick_rowsets_to_compact());
 
-    // 2. do base compaction, merge rowsets
+    // 2. try to get enough memory
+    RETURN_NOT_OK(consume_memory());
+
+    // 3. do base compaction, merge rowsets
     RETURN_NOT_OK(do_compaction());
 
-    // 3. set state to success
+    // 4. set state to success
     _state = CompactionState::SUCCESS;
 
-    // 4. garbage collect input rowsets after base compaction 
+    // 5. garbage collect input rowsets after base compaction 
     RETURN_NOT_OK(gc_unused_rowsets());
 
-    // 5. add metric to base compaction
+    // 6. add metric to base compaction
     DorisMetrics::base_compaction_deltas_total.increment(_input_rowsets.size());
     DorisMetrics::base_compaction_bytes_total.increment(_input_rowsets_size);
 

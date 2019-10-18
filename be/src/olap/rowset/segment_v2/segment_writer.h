@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "common/config.h"
 #include "common/logging.h" // LOG
 #include "common/status.h" // Status
 #include "gen_cpp/segment_v2.pb.h"
@@ -43,7 +44,7 @@ extern const char* k_segment_magic;
 extern const uint32_t k_segment_magic_length;
 
 struct SegmentWriterOptions {
-    uint32_t num_rows_per_block = 1024;
+    uint32_t num_rows_per_block = config::default_num_rows_per_row_block;
 };
 
 class SegmentWriter {

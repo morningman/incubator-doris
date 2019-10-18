@@ -187,13 +187,6 @@ OLAPStatus StorageEngine::open() {
         return OLAP_ERR_INIT_FAILED;
     }
 
-    // 初始化CE调度器
-    int32_t cumulative_compaction_num_threads = config::cumulative_compaction_num_threads;
-    int32_t base_compaction_num_threads = config::base_compaction_num_threads;
-    uint32_t file_system_num = get_file_system_count();
-    _max_cumulative_compaction_task_per_disk = (cumulative_compaction_num_threads + file_system_num - 1) / file_system_num;
-    _max_base_compaction_task_per_disk = (base_compaction_num_threads + file_system_num - 1) / file_system_num;
-
     auto dirs = get_stores();
     load_data_dirs(dirs);
     // 取消未完成的SchemaChange任务
