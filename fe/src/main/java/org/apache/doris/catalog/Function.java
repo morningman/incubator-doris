@@ -19,14 +19,16 @@ package org.apache.doris.catalog;
 
 import static org.apache.doris.common.io.IOUtils.writeOptionString;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import org.apache.doris.analysis.FunctionName;
 import org.apache.doris.analysis.HdfsURI;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.thrift.TFunction;
 import org.apache.doris.thrift.TFunctionBinaryType;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -668,5 +670,10 @@ public class Function implements Writable {
 
     public String getProperties() {
         return "";
+    }
+
+    public Function convertToTagSystem() {
+        name.convertToTagSystem();
+        return this;
     }
 }

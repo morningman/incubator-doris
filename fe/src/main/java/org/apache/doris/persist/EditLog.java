@@ -692,6 +692,10 @@ public class EditLog {
                     catalog.replayConvertDistributionType(tableInfo);
                     break;
                 }
+                case OperationType.OP_CONVERT_TO_TAG_SYSTEM: {
+                    catalog.convertToTagSystem(true);
+                    break;
+                }
                 default: {
                     IOException e = new IOException();
                     LOG.error("UNKNOWN Operation Type {}", opCode, e);
@@ -1189,5 +1193,9 @@ public class EditLog {
 
     public void logModifyDitrubutionType(TableInfo tableInfo) {
         logEdit(OperationType.OP_MODIFY_DISTRIBUTION_TYPE, tableInfo);
+    }
+
+    public void logConvertToTagSystem() {
+        logEdit(OperationType.OP_CONVERT_TO_TAG_SYSTEM, new Text(""));
     }
 }

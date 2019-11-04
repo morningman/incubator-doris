@@ -140,4 +140,9 @@ public class TablePattern implements Writable {
         tbl = Text.readString(in);
         isAnalyzed = true;
     }
+
+    public void convertToTagSystem() {
+        db = ClusterNamespace.getNameFromFullName(db);
+        tbl = ClusterNamespace.getNameFromFullName(tbl);
+    }
 }

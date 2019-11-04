@@ -26,9 +26,7 @@ import org.apache.doris.qe.ConnectContext;
 
 import java.util.Map;
 
-/*
- * this stmt is now only for convert CLUSTER to TAG SYSTEM
- */
+@Deprecated
 public class AlterClusterStmt extends DdlStmt {
     private Map<String, String> properties;
     private String clusterName;

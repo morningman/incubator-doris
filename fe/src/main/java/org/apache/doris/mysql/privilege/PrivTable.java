@@ -231,4 +231,9 @@ public abstract class PrivTable implements Writable {
         Collections.sort(entries);
     }
 
+    public void convertToTagSystem() {
+        for (PrivEntry privEntry : entries) {
+            privEntry.convertToTagSystem();
+        }
+    }
 }

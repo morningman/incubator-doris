@@ -19,6 +19,7 @@ package org.apache.doris.mysql.privilege;
 
 import org.apache.doris.analysis.TablePattern;
 import org.apache.doris.analysis.UserIdentity;
+import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.CaseSensibility;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
@@ -151,4 +152,15 @@ public class PaloRole implements Writable {
         sb.append(", users: ").append(users);
         return sb.toString();
     }
+
+    public void convertToTagSystem() {
+        roleName = ClusterNamespace.getNameFromFullName(roleName);
+        Map<TablePattern, PrivBitSet> newTblPatternToPrivs = Maps.newConcurrentMap();
+        for (Map.Entry<TablePattern, PrivBitSet> entry : tblPatternToPrivs.entrySet()) {
+            entry.getKey().convertToTagSystem();
+            newTblPatternToPrivs.put(entry.getKey(), entry.getValue());
+        }
+        tblPatternToPrivs = newTblPatternToPrivs;
+    }
+
 }

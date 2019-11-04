@@ -1352,5 +1352,14 @@ public class PaloAuth implements Writable {
         sb.append(propertyMgr).append("\n");
         return sb.toString();
     }
+
+    public void convertToTagSystem() {
+        userPrivTable.convertToTagSystem();
+        dbPrivTable.convertToTagSystem();
+        tablePrivTable.convertToTagSystem();
+
+        roleManager.convertToTagSystem();
+        propertyMgr.convertToTagSystem();
+    }
 }
 

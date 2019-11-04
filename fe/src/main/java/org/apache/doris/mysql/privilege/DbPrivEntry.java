@@ -24,11 +24,16 @@ import org.apache.doris.common.CaseSensibility;
 import org.apache.doris.common.PatternMatcher;
 import org.apache.doris.common.io.Text;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
 public class DbPrivEntry extends PrivEntry {
+    private static final Logger LOG = LogManager.getLogger(DbPrivEntry.class);
+
     protected static final String ANY_DB = "*";
 
     protected PatternMatcher dbPattern;
@@ -154,4 +159,14 @@ public class DbPrivEntry extends PrivEntry {
         isAnyDb = origDb.equals(ANY_DB);
     }
 
+    @Override
+    public void convertToTagSystem() {
+        super.convertToTagSystem();
+        origDb = ClusterNamespace.getNameFromFullName(origDb);
+        try {
+            dbPattern = PatternMatcher.createMysqlPattern(origDb, CaseSensibility.DATABASE.getCaseSensibility());
+        } catch (AnalysisException e) {
+            LOG.error("should not happen", e);
+        }
+    }
 }

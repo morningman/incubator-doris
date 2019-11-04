@@ -534,4 +534,8 @@ public class UserProperty implements Writable {
             }
         }
     }
+
+    public void convertToTagSystem() {
+        qualifiedUser = ClusterNamespace.getNameFromFullName(qualifiedUser);
+    }
 }

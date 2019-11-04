@@ -152,4 +152,6 @@ public class OperationType {
     // small files 251~260
     public static final short OP_CREATE_SMALL_FILE = 251;
     public static final short OP_DROP_SMALL_FILE = 252;
+
+    public static final short OP_CONVERT_TO_TAG_SYSTEM = 253;
 }

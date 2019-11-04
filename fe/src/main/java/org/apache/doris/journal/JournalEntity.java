@@ -423,6 +423,10 @@ public class JournalEntity implements Writable {
                 needRead = false;
                 break;
             }
+            case OperationType.OP_CONVERT_TO_TAG_SYSTEM: {
+                data = new Text();
+                break;
+            }
             default: {
                 IOException e = new IOException();
                 LOG.error("UNKNOWN Operation Type {}", opCode, e);

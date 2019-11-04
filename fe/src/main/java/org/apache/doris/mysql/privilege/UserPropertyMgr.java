@@ -20,6 +20,7 @@ package org.apache.doris.mysql.privilege;
 import org.apache.doris.analysis.TablePattern;
 import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Catalog;
+import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.FeMetaVersion;
@@ -273,6 +274,17 @@ public class UserPropertyMgr implements Writable {
         }
         // Read resource
         resourceVersion = new AtomicLong(in.readLong());
+    }
+
+    public void convertToTagSystem() {
+        Map<String, UserProperty> newPropertyMap = Maps.newHashMap();
+        for (Map.Entry<String, UserProperty> entry : newPropertyMap.entrySet()) {
+            String user = ClusterNamespace.getNameFromFullName(entry.getKey());
+            entry.getValue().convertToTagSystem();
+            newPropertyMap.put(user, entry.getValue());
+        }
+        propertyMap = newPropertyMap;
+
     }
 }
 

@@ -18,6 +18,7 @@
 package org.apache.doris.mysql.privilege;
 
 import org.apache.doris.analysis.TablePattern;
+import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.mysql.privilege.PaloAuth.PrivLevel;
@@ -26,6 +27,9 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -33,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 
 public class RoleManager implements Writable {
+    private static final Logger LOG = LogManager.getLogger(RoleManager.class);
+
     private Map<String, PaloRole> roles = Maps.newHashMap();
 
     public RoleManager() {
@@ -185,5 +191,15 @@ public class RoleManager implements Writable {
             sb.append(role).append("\n");
         }
         return sb.toString();
+    }
+
+    public void convertToTagSystem() {
+        Map<String, PaloRole> newRoles = Maps.newHashMap();
+        for (Map.Entry<String, PaloRole> entry : roles.entrySet()) {
+            String roleName = ClusterNamespace.getNameFromFullName(entry.getKey());
+            entry.getValue().convertToTagSystem();
+            newRoles.put(roleName, entry.getValue());
+        }
+        roles = newRoles;
     }
 }

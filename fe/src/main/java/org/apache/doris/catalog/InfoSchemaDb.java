@@ -29,10 +29,11 @@ public class InfoSchemaDb extends Database {
     public static final String DATABASE_NAME = "information_schema";
     
     public InfoSchemaDb() {
-        super(SystemIdGenerator.getNextId(), DATABASE_NAME);
+        super(0L, DATABASE_NAME);
         initTables();
     }
     
+    @Deprecated
     public InfoSchemaDb(String cluster) {
         super(SystemIdGenerator.getNextId(), ClusterNamespace.getFullName(cluster, DATABASE_NAME));
         initTables();

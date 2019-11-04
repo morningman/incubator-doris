@@ -369,6 +369,8 @@ public class Catalog {
 
     private TagManager tagManager;
 
+    private boolean isTagSystemConverted = false;
+
     public List<Frontend> getFrontends(FrontendNodeType nodeType) {
         if (nodeType == null) {
             // get all
@@ -1076,8 +1078,8 @@ public class Catalog {
             editLog.logAddFirstFrontend(self);
         }
 
-        if (!isDefaultClusterCreated) {
-            initDefaultCluster();
+        if (!isTagSystemConverted) {
+            convertToTagSystem(false);
         }
 
         // MUST set master ip before starting checkpoint thread.
@@ -5374,38 +5376,48 @@ public class Catalog {
         }
     }
 
-    // convert the specified cluster to tag system
-    public void convertToTagSystem(AlterClusterStmt stmt) throws DdlException {
-        String clusterName = stmt.getClusterName();
-        Cluster cluster = nameToCluster.get(clusterName);
-        if (cluster == null) {
-            throw new DdlException("Unknown cluster: " + clusterName);
+    public void convertToTagSystem(boolean isReplay) {
+        // 1. convert auth
+        auth.convertToTagSystem();
+
+        // 2. convert cluster
+        for (Cluster cluster : idToCluster.values()) {
+            List<Long> backendIds = cluster.getBackendIdList();
+            systemInfo.convertToTagSystem(backendIds, tagManager);
+            LOG.info("finished to convert cluster {} to tag system", cluster.getName());
         }
+        idToCluster.clear();
+        nameToCluster.clear();
 
-        // 1. convert backend
-        List<Long> backendIds = cluster.getBackendIdList();
-        systemInfo.convertToTagSystem(backendIds, tagManager);
-
-        // 2. convert db
-        List<String> dbNames = cluster.getDbNamesInCluster();
-        for (String dbName : dbNames) {
-            Database db = getDb(dbName);
-            if (db.isInfoSchemaDb()) {
+        // 3. convert database
+        ConcurrentHashMap<String, Database> newNameToDb = new ConcurrentHashMap<>();
+        for (Map.Entry<String, Database> entry : fullNameToDb.entrySet()) {
+            if (entry.getValue().isInfoSchemaDb()) {
+                idToDb.remove(entry.getValue().getId());
                 continue;
             }
-            db.writeLock();
+            String dbName = ClusterNamespace.getNameFromFullName(entry.getKey());
+            entry.getValue().writeLock();
             try {
-                db.convertToTagSystem();
+                entry.getValue().convertToTagSystem();
             } finally {
-                db.writeUnlock();
+                entry.getValue().writeUnlock();
             }
+            newNameToDb.put(dbName, entry.getValue());
+            LOG.info("finished to convert db {} to tag system", entry.getKey());
         }
+        fullNameToDb = newNameToDb;
 
-        // 3. remove cluster
-        idToCluster.remove(cluster.getId());
-        nameToCluster.remove(clusterName);
+        // 4. create info schema db
+        final InfoSchemaDb infoDb = new InfoSchemaDb();
+        idToDb.put(infoDb.getId(), infoDb);
+        fullNameToDb.put(infoDb.getFullName(), infoDb);
 
-        LOG.info("finished to convert cluster {} to tag system", clusterName);
+        isTagSystemConverted = true;
+        if (!isReplay) {
+            editLog.logConvertToTagSystem();
+        }
+        LOG.info("finished to convert to tag system. is replay: {}", isReplay);
     }
 
     /**

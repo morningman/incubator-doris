@@ -204,4 +204,8 @@ public class FunctionName implements Writable {
         functionName.readFields(in);
         return functionName;
     }
+
+    public void convertToTagSystem() {
+        db_ = ClusterNamespace.getNameFromFullName(db_);
+    }
 }

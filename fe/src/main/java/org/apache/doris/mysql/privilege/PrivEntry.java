@@ -18,6 +18,7 @@
 package org.apache.doris.mysql.privilege;
 
 import org.apache.doris.analysis.UserIdentity;
+import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.CaseSensibility;
 import org.apache.doris.common.PatternMatcher;
@@ -25,6 +26,8 @@ import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -33,6 +36,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 public abstract class PrivEntry implements Comparable<PrivEntry>, Writable {
+    private static final Logger LOG = LogManager.getLogger(PrivEntry.class);
+
     protected static final String ANY_HOST = "%";
     protected static final String ANY_USER = "%";
 
@@ -238,5 +243,14 @@ public abstract class PrivEntry implements Comparable<PrivEntry>, Writable {
     @Override
     public int compareTo(PrivEntry o) {
         throw new NotImplementedException();
+    }
+
+    public void convertToTagSystem() {
+        origUser = ClusterNamespace.getNameFromFullName(origUser);
+        try {
+            userPattern = PatternMatcher.createMysqlPattern(origUser, CaseSensibility.USER.getCaseSensibility());
+        } catch (AnalysisException e) {
+            LOG.error("should not happen", e);
+        }
     }
 }

@@ -56,6 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 import java.util.zip.Adler32;
 
 /**
@@ -628,6 +629,16 @@ public class Database extends MetaObject implements Writable {
             OlapTable olapTable = (OlapTable) tbl;
             olapTable.convertToTagSystem(clusterName);
         }
+        fullQualifiedName = ClusterNamespace.getNameFromFullName(fullQualifiedName);
+
+        ConcurrentMap<String, ImmutableList<Function>> newName2Function = Maps.newConcurrentMap();
+        for (Map.Entry<String, ImmutableList<Function>> entry : name2Function.entrySet()) {
+            String funcName = ClusterNamespace.getNameFromFullName(entry.getKey());
+            ImmutableList<Function> newList = ImmutableList.copyOf(entry.getValue().stream().map(e -> e.convertToTagSystem()).collect(Collectors.toList()));
+            newName2Function.put(funcName, newList);
+        }
+        name2Function = newName2Function;
+
         clusterName = "";
         isTagSystemConverted = true;
     }
