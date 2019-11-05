@@ -62,7 +62,7 @@ public class SetUserPropertyStmt extends DdlStmt {
         } else {
             // If param 'user' is set, check if it need to be full-qualified
             if (!user.equals(PaloAuth.ROOT_USER) && !user.equals(PaloAuth.ADMIN_USER)) {
-                user = ClusterNamespace.getFullName(getClusterName(), user);
+                user = ClusterNamespace.getFullName(getClusterName2(), user);
             }
         }
 

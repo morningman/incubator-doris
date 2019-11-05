@@ -19,9 +19,9 @@ package org.apache.doris.analysis;
 
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Column;
-import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.OlapTable;
+import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
@@ -81,7 +81,7 @@ public class ShowPartitionsStmt extends ShowStmt {
                 throw new AnalysisException("No db name in show data statement.");
             }
         } else {
-            dbName = ClusterNamespace.getFullName(getClusterName(), dbName);
+            dbName = ClusterNamespace.getFullName(getClusterName2(), dbName);
         }
 
         // check access

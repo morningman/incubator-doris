@@ -735,9 +735,6 @@ public class StmtExecutor {
     private void handleUseStmt() throws AnalysisException {
         UseStmt useStmt = (UseStmt) parsedStmt;
         try {
-            if (Strings.isNullOrEmpty(useStmt.getClusterName())) {
-                ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NO_SELECT_CLUSTER);
-            }
             context.getCatalog().changeDb(context, useStmt.getDatabase());
         } catch (DdlException e) {
             context.getState().setError(e.getMessage());

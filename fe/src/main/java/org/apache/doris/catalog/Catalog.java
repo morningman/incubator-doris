@@ -586,6 +586,10 @@ public class Catalog {
         return Thread.currentThread().getId() == checkpointThreadId;
     }
 
+    public boolean isTagSystemConverted() {
+        return isTagSystemConverted;
+    }
+
     // Use tryLock to avoid potential dead lock
     private boolean tryLock(boolean mustLock) {
         while (true) {
@@ -1416,6 +1420,10 @@ public class Catalog {
             isDefaultClusterCreated = dis.readBoolean();
         }
 
+        if (journalVersion >= FeMetaVersion.VERSION_66) {
+            isTagSystemConverted = dis.readBoolean();
+        }
+
         return newChecksum;
     }
 
@@ -1808,6 +1816,8 @@ public class Catalog {
         dos.writeLong(id);
 
         dos.writeBoolean(isDefaultClusterCreated);
+
+        dos.writeBoolean(isTagSystemConverted);
 
         return checksum;
     }
@@ -2414,19 +2424,13 @@ public class Catalog {
         return null;
     }
 
-
-    // The interface which DdlExecutor needs.
     public void createDb(CreateDbStmt stmt) throws DdlException {
-        final String clusterName = stmt.getClusterName();
         String fullDbName = stmt.getFullDbName();
         long id = 0L;
         if (!tryLock(false)) {
             throw new DdlException("Failed to acquire catalog lock. Try again");
         }
         try {
-            if (!nameToCluster.containsKey(clusterName)) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_CLUSTER_NO_SELECT_CLUSTER, clusterName);
-            }
             if (fullNameToDb.containsKey(fullDbName)) {
                 if (stmt.isSetIfNotExists()) {
                     LOG.info("create database[{}] which already exists", fullDbName);
@@ -2437,7 +2441,6 @@ public class Catalog {
             } else {
                 id = getNextId();
                 Database db = new Database(id, fullDbName);
-                db.setClusterName(clusterName);
                 unprotectCreateDb(db);
                 editLog.logCreateDb(db);
             }
@@ -2451,8 +2454,11 @@ public class Catalog {
     public void unprotectCreateDb(Database db) {
         idToDb.put(db.getId(), db);
         fullNameToDb.put(db.getFullName(), db);
-        final Cluster cluster = nameToCluster.get(db.getClusterName());
-        cluster.addDb(db.getFullName(), db.getId());
+
+        if (!isTagSystemConverted) {
+            final Cluster cluster = nameToCluster.get(db.getClusterName());
+            cluster.addDb(db.getFullName(), db.getId());
+        }
     }
 
     // for test
@@ -5215,7 +5221,10 @@ public class Catalog {
      * @param stmt
      * @throws DdlException
      */
+    @Deprecated
     public void createCluster(CreateClusterStmt stmt) throws DdlException {
+        ErrorReport.reportDdlException(ErrorCode.ERR_DEPRECATED_COMMAND, "create cluster");
+
         final String clusterName = stmt.getClusterName();
         if (!tryLock(false)) {
             throw new DdlException("Failed to acquire catalog lock. Try again");
@@ -5302,7 +5311,10 @@ public class Catalog {
      * @param stmt
      * @throws DdlException
      */
+    @Deprecated
     public void dropCluster(DropClusterStmt stmt) throws DdlException {
+        ErrorReport.reportDdlException(ErrorCode.ERR_DEPRECATED_COMMAND, "drop cluster");
+
         if (!tryLock(false)) {
             throw new DdlException("Failed to acquire catalog lock. Try again");
         }
@@ -5522,7 +5534,10 @@ public class Catalog {
      * @param stmt
      * @throws DdlException
      */
+    @Deprecated
     public void migrateDb(MigrateDbStmt stmt) throws DdlException {
+        ErrorReport.reportDdlException(ErrorCode.ERR_DEPRECATED_COMMAND, "migrate db");
+
         final String srcClusterName = stmt.getSrcCluster();
         final String destClusterName = stmt.getDestCluster();
         final String srcDbName = stmt.getSrcDb();
@@ -5646,7 +5661,10 @@ public class Catalog {
      * @param stmt
      * @throws DdlException
      */
+    @Deprecated
     public void linkDb(LinkDbStmt stmt) throws DdlException {
+        ErrorReport.reportDdlException(ErrorCode.ERR_DEPRECATED_COMMAND, "link db");
+
         final String srcClusterName = stmt.getSrcCluster();
         final String destClusterName = stmt.getDestCluster();
         final String srcDbName = stmt.getSrcDb();

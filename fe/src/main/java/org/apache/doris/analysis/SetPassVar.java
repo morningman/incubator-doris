@@ -50,7 +50,7 @@ public class SetPassVar extends SetVar {
 
     @Override
     public void analyze(Analyzer analyzer) throws AnalysisException {
-        if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
+        if (Strings.isNullOrEmpty(analyzer.getClusterName2())) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NO_SELECT_CLUSTER);
         }
 
@@ -61,7 +61,7 @@ public class SetPassVar extends SetVar {
             userIdent = ctx.getCurrentUserIdentity();
             isSelf = true;
         } else {
-            userIdent.analyze(analyzer.getClusterName());
+            userIdent.analyze(analyzer.getClusterName2());
             if (userIdent.equals(ctx.getCurrentUserIdentity())) {
                 isSelf = true;
             }

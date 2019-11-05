@@ -27,8 +27,6 @@ import org.apache.doris.common.UserException;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 
-import com.google.common.base.Strings;
-
 // 用于描述CREATE DATABASE的内部结构
 public class CreateDbStmt extends DdlStmt {
     private boolean ifNotExists;
@@ -50,11 +48,9 @@ public class CreateDbStmt extends DdlStmt {
     @Override
     public void analyze(Analyzer analyzer) throws AnalysisException, UserException {
         super.analyze(analyzer);
-        if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
-            ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NO_SELECT_CLUSTER);
-        }
+
         FeNameFormat.checkDbName(dbName);
-        dbName = ClusterNamespace.getFullName(getClusterName(), dbName);
+        dbName = ClusterNamespace.getFullName(getClusterName2(), dbName);
 
         if (!Catalog.getCurrentCatalog().getAuth().checkDbPriv(ConnectContext.get(), dbName, PrivPredicate.CREATE)) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_DB_ACCESS_DENIED, analyzer.getQualifiedUser(), dbName);

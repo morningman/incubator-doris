@@ -127,10 +127,7 @@ public class FunctionName implements Writable {
         if (db == null) {
             db = analyzer.getDefaultDb();
         } else {
-            if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
-                ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NAME_NULL);
-            }
-            db = ClusterNamespace.getFullName(analyzer.getClusterName(), db);
+            db = ClusterNamespace.getFullName(analyzer.getClusterName2(), db);
         }
         return db;
     }
@@ -155,10 +152,7 @@ public class FunctionName implements Writable {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
             }
         } else {
-            if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
-                ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NAME_NULL);
-            }
-            db_ = ClusterNamespace.getFullName(analyzer.getClusterName(), db_);
+            db_ = ClusterNamespace.getFullName(analyzer.getClusterName2(), db_);
         }
 
         // If the function name is not fully qualified, it must not be the same as a builtin

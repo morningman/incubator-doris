@@ -96,10 +96,7 @@ public class CreateFileStmt extends DdlStmt {
         if (dbName == null) {
             dbName = analyzer.getDefaultDb();
         } else {
-            if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
-                ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NAME_NULL);
-            }
-            dbName = ClusterNamespace.getFullName(analyzer.getClusterName(), dbName);
+            dbName = ClusterNamespace.getFullName(analyzer.getClusterName2(), dbName);
         }
 
         if (Strings.isNullOrEmpty(dbName)) {

@@ -60,8 +60,8 @@ public class ClusterNamespace {
     }
 
     private static String linkString(String cluster, String name) {
-        if (Strings.isNullOrEmpty(cluster) || Strings.isNullOrEmpty(name)) {
-            return null;
+        if (Strings.isNullOrEmpty(cluster)) {
+            return name;
         }
         if (name.contains(CLUSTER_DELIMITER) || name.equalsIgnoreCase(PaloAuth.ROOT_USER)
                 || name.equalsIgnoreCase(PaloAuth.ADMIN_USER)) {

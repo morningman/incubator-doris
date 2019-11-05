@@ -69,13 +69,13 @@ public class RevokeStmt extends DdlStmt {
     @Override
     public void analyze(Analyzer analyzer) throws AnalysisException {
         if (userIdent != null) {
-            userIdent.analyze(analyzer.getClusterName());
+            userIdent.analyze(analyzer.getClusterName2());
         } else {
             FeNameFormat.checkRoleName(role, false /* can not be superuser */, "Can not revoke from role");
-            role = ClusterNamespace.getFullName(analyzer.getClusterName(), role);
+            role = ClusterNamespace.getFullName(analyzer.getClusterName2(), role);
         }
 
-        tblPattern.analyze(analyzer.getClusterName());
+        tblPattern.analyze(analyzer.getClusterName2());
 
         if (privileges == null || privileges.isEmpty()) {
             throw new AnalysisException("No privileges in revoke statement.");

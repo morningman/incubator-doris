@@ -26,6 +26,7 @@ import org.apache.doris.common.UserException;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 
+@Deprecated
 public class MigrateDbStmt extends DdlStmt {
 
     private ClusterName src;

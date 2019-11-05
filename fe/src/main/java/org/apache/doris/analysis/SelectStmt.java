@@ -30,10 +30,10 @@ import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.ColumnAliasGenerator;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
-import org.apache.doris.common.UserException;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.TableAliasGenerator;
 import org.apache.doris.common.TreeNode;
+import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.SqlUtils;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
@@ -232,7 +232,7 @@ public class SelectStmt extends QueryStmt {
                 if (Strings.isNullOrEmpty(dbName)) {
                     dbName = analyzer.getDefaultDb();
                 } else {
-                    dbName = ClusterNamespace.getFullName(analyzer.getClusterName(), tblRef.getName().getDb());
+                    dbName = ClusterNamespace.getFullName(analyzer.getClusterName2(), tblRef.getName().getDb());
                 }
                 if (Strings.isNullOrEmpty(dbName)) {
                     ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);

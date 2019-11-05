@@ -20,7 +20,6 @@ package org.apache.doris.qe;
 import org.apache.doris.analysis.AdminCancelRepairTableStmt;
 import org.apache.doris.analysis.AdminRepairTableStmt;
 import org.apache.doris.analysis.AdminSetConfigStmt;
-import org.apache.doris.analysis.AlterClusterStmt;
 import org.apache.doris.analysis.AlterDatabaseQuotaStmt;
 import org.apache.doris.analysis.AlterDatabaseRename;
 import org.apache.doris.analysis.AlterSystemStmt;
@@ -30,7 +29,6 @@ import org.apache.doris.analysis.CancelAlterSystemStmt;
 import org.apache.doris.analysis.CancelAlterTableStmt;
 import org.apache.doris.analysis.CancelBackupStmt;
 import org.apache.doris.analysis.CancelLoadStmt;
-import org.apache.doris.analysis.CreateClusterStmt;
 import org.apache.doris.analysis.CreateDbStmt;
 import org.apache.doris.analysis.CreateFileStmt;
 import org.apache.doris.analysis.CreateFunctionStmt;
@@ -42,7 +40,6 @@ import org.apache.doris.analysis.CreateUserStmt;
 import org.apache.doris.analysis.CreateViewStmt;
 import org.apache.doris.analysis.DdlStmt;
 import org.apache.doris.analysis.DeleteStmt;
-import org.apache.doris.analysis.DropClusterStmt;
 import org.apache.doris.analysis.DropDbStmt;
 import org.apache.doris.analysis.DropFileStmt;
 import org.apache.doris.analysis.DropFunctionStmt;
@@ -51,9 +48,7 @@ import org.apache.doris.analysis.DropRoleStmt;
 import org.apache.doris.analysis.DropTableStmt;
 import org.apache.doris.analysis.DropUserStmt;
 import org.apache.doris.analysis.GrantStmt;
-import org.apache.doris.analysis.LinkDbStmt;
 import org.apache.doris.analysis.LoadStmt;
-import org.apache.doris.analysis.MigrateDbStmt;
 import org.apache.doris.analysis.PauseRoutineLoadStmt;
 import org.apache.doris.analysis.RecoverDbStmt;
 import org.apache.doris.analysis.RecoverPartitionStmt;
@@ -73,18 +68,11 @@ import org.apache.doris.load.Load;
 
 public class DdlExecutor {
     public static void execute(Catalog catalog, DdlStmt ddlStmt, String origStmt) throws DdlException, Exception {
-        if (ddlStmt instanceof CreateClusterStmt) {
-            CreateClusterStmt stmt = (CreateClusterStmt) ddlStmt;
-            catalog.createCluster(stmt);
-        } else if (ddlStmt instanceof AlterClusterStmt) {
-            catalog.alterCluster((AlterClusterStmt) ddlStmt);
-        } else if (ddlStmt instanceof DropClusterStmt) {
-            catalog.dropCluster((DropClusterStmt) ddlStmt);
-        } else if (ddlStmt instanceof MigrateDbStmt) {
-            catalog.migrateDb((MigrateDbStmt) ddlStmt);
-        } else if (ddlStmt instanceof LinkDbStmt) {
-            catalog.linkDb((LinkDbStmt) ddlStmt);
-        } else if (ddlStmt instanceof CreateDbStmt) {
+        if (!Catalog.getCurrentCatalog().isTagSystemConverted()) {
+            throw new DdlException("Cluster is not converted to tag system yet. wait and retry");
+        }
+
+        if (ddlStmt instanceof CreateDbStmt) {
             catalog.createDb((CreateDbStmt) ddlStmt);
         } else if (ddlStmt instanceof DropDbStmt) {
             catalog.dropDb((DropDbStmt) ddlStmt);
@@ -196,7 +184,6 @@ public class DdlExecutor {
             catalog.getSmallFileMgr().dropFile((DropFileStmt) ddlStmt);
         } else {
             throw new DdlException("Unknown statement.");
-
         }
     }
 }

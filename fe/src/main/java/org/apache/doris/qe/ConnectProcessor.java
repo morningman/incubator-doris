@@ -69,11 +69,11 @@ public class ConnectProcessor {
     // COM_INIT_DB: change current database of this session.
     private void handleInitDb() {
         String dbName = new String(packetBuf.array(), 1, packetBuf.limit() - 1);
-        if (Strings.isNullOrEmpty(ctx.getClusterName())) {
+        if (Strings.isNullOrEmpty(ctx.getClusterName2())) {
             ctx.getState().setError("Please enter cluster");
             return;
         }
-        dbName = ClusterNamespace.getFullName(ctx.getClusterName(), dbName);
+        dbName = ClusterNamespace.getFullName(ctx.getClusterName2(), dbName);
         try {
             ctx.getCatalog().changeDb(ctx, dbName);
         } catch (DdlException e) {

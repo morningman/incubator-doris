@@ -65,7 +65,7 @@ public class LabelName implements Writable {
             }
             dbName = analyzer.getDefaultDb();
         }
-        dbName = ClusterNamespace.getFullName(analyzer.getClusterName(), dbName);
+        dbName = ClusterNamespace.getFullName(analyzer.getClusterName2(), dbName);
         FeNameFormat.checkLabel(labelName);
     }
 

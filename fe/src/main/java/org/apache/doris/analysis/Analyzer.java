@@ -466,7 +466,7 @@ public class Analyzer {
         if (Strings.isNullOrEmpty(dbName)) {
             dbName = getDefaultDb();
         } else {
-            dbName = ClusterNamespace.getFullName(getClusterName(), tableName.getDb());
+            dbName = ClusterNamespace.getFullName(getClusterName2(), tableName.getDb());
         }
         if (Strings.isNullOrEmpty(dbName)) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
@@ -1442,8 +1442,8 @@ public class Analyzer {
         return globalState.context.getDatabase();
     }
 
-    public String getClusterName() {
-        return globalState.context.getClusterName();
+    public String getClusterName2() {
+        return globalState.context.getClusterName2();
     }
 
     public String getQualifiedUser() {

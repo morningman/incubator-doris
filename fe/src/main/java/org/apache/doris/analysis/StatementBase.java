@@ -17,6 +17,7 @@
 
 package org.apache.doris.analysis;
 
+import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Type;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.ErrorCode;
@@ -67,10 +68,10 @@ public abstract class StatementBase implements ParseNode {
         if (isAnalyzed()) return;
         if (isExplain) analyzer.setIsExplain();
         this.analyzer = analyzer;
-        if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
+        if (Strings.isNullOrEmpty(analyzer.getClusterName2()) && !Catalog.getCurrentCatalog().isTagSystemConverted()) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NO_SELECT_CLUSTER);
         }
-        this.clusterName = analyzer.getClusterName();
+        this.clusterName = analyzer.getClusterName2();
     }
 
     public Analyzer getAnalyzer() { return analyzer; }
@@ -141,13 +142,10 @@ public abstract class StatementBase implements ParseNode {
                 "rewriteExprs() not implemented for this stmt: " + getClass().getSimpleName());
     }
 
-    public String getClusterName() {
+    public String getClusterName2() {
         return clusterName;
     }
 
-    public void setClusterName(String clusterName) {
-        this.clusterName = clusterName;
-    } 
     /**
      * Resets the internal analysis state of this node.
      * For easier maintenance, class members that need to be reset are grouped into

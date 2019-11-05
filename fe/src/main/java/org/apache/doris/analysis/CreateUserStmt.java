@@ -107,7 +107,7 @@ public class CreateUserStmt extends DdlStmt {
     @Override
     public void analyze(Analyzer analyzer) throws UserException {
         super.analyze(analyzer);
-        userIdent.analyze(analyzer.getClusterName());
+        userIdent.analyze(analyzer.getClusterName2());
         // convert plain password to hashed password
         if (!Strings.isNullOrEmpty(password)) {
             if (isPlain) {
@@ -126,7 +126,7 @@ public class CreateUserStmt extends DdlStmt {
                 role = PaloRole.ADMIN_ROLE;
             }
             FeNameFormat.checkRoleName(role, true /* can be admin */, "Can not granted user to role");
-            role = ClusterNamespace.getFullName(analyzer.getClusterName(), role);
+            role = ClusterNamespace.getFullName(analyzer.getClusterName2(), role);
         }
 
         // check if current user has GRANT priv on GLOBAL or DATABASE level.

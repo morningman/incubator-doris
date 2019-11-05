@@ -68,7 +68,7 @@ public class CreateClusterStmt extends DdlStmt {
 
     @Override
     public void analyze(Analyzer analyzer) throws AnalysisException, UserException {
-        ErrorReport.reportAnalysisException(ErrorCode.ERR_DEPRECATED_COMMAND);
+        ErrorReport.reportAnalysisException(ErrorCode.ERR_DEPRECATED_COMMAND, "create cluster");
 
         FeNameFormat.checkDbName(clusterName);
         if (!Catalog.getCurrentCatalog().getAuth().checkGlobalPriv(ConnectContext.get(), PrivPredicate.OPERATOR)) {

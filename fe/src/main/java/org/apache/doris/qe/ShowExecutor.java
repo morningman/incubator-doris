@@ -128,12 +128,12 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collection;
 import java.util.stream.Collectors;
 
 // Execute one show statement.
@@ -389,7 +389,7 @@ public class ShowExecutor {
     private void handleShowDb() throws AnalysisException {
         ShowDbStmt showDbStmt = (ShowDbStmt) stmt;
         List<List<String>> rows = Lists.newArrayList();
-        List<String> dbNames = ctx.getCatalog().getClusterDbNames(ctx.getClusterName());
+        List<String> dbNames = ctx.getCatalog().getClusterDbNames(ctx.getClusterName2());
         PatternMatcher matcher = null;
         if (showDbStmt.getPattern() != null) {
             matcher = PatternMatcher.createMysqlPattern(showDbStmt.getPattern(),
@@ -1280,7 +1280,7 @@ public class ShowExecutor {
 
     private void handleShowBackends() {
         final ShowBackendsStmt showStmt = (ShowBackendsStmt) stmt;
-        List<List<String>> backendInfos = BackendsProcDir.getClusterBackendInfos(showStmt.getClusterName());
+        List<List<String>> backendInfos = BackendsProcDir.getClusterBackendInfos(showStmt.getClusterName2());
 
         for (List<String> row : backendInfos) {
             row.remove(BackendsProcDir.HOSTNAME_INDEX);

@@ -122,7 +122,7 @@ public class ShowRoutineLoadStmt extends ShowStmt {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
             }
         } else {
-            dbFullName = ClusterNamespace.getFullName(getClusterName(), dbName);
+            dbFullName = ClusterNamespace.getFullName(getClusterName2(), dbName);
         }
         name = labelName == null ? null : labelName.getLabelName();
     }

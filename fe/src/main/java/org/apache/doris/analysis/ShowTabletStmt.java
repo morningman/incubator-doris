@@ -31,6 +31,7 @@ import org.apache.doris.common.util.OrderByPair;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.ShowResultSetMetaData;
+
 import com.google.common.base.Strings;
 
 import java.util.ArrayList;
@@ -135,7 +136,7 @@ public class ShowTabletStmt extends ShowStmt {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
             }
         } else {
-            dbName = ClusterNamespace.getFullName(getClusterName(), dbName);
+            dbName = ClusterNamespace.getFullName(getClusterName2(), dbName);
         }
         if (limitElement != null) {
             limitElement.analyze(analyzer);

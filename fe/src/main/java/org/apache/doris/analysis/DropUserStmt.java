@@ -40,7 +40,7 @@ public class DropUserStmt extends DdlStmt {
     @Override
     public void analyze(Analyzer analyzer) throws AnalysisException, UserException {
         super.analyze(analyzer);
-        userIdent.analyze(analyzer.getClusterName());
+        userIdent.analyze(analyzer.getClusterName2());
 
         if (!userIdent.getHost().equals("%")) {
             throw new AnalysisException("Can not drop user with specified host: " + userIdent.getHost());

@@ -178,7 +178,7 @@ public class MysqlProto {
         String db = authPacket.getDb();
         if (!Strings.isNullOrEmpty(db)) {
             try {
-                String dbFullName = ClusterNamespace.getFullName(context.getClusterName(), db);
+                String dbFullName = ClusterNamespace.getFullName(context.getClusterName2(), db);
                 Catalog.getInstance().changeDb(context, dbFullName);
             } catch (DdlException e) {
                 sendResponsePacket(context);

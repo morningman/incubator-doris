@@ -25,8 +25,8 @@ import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.CaseSensibility;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
-import org.apache.doris.common.UserException;
 import org.apache.doris.common.PatternMatcher;
+import org.apache.doris.common.UserException;
 import org.apache.doris.common.proc.UserPropertyProcNode;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
@@ -61,7 +61,7 @@ public class ShowUserPropertyStmt extends ShowStmt {
             user = analyzer.getQualifiedUser();
             // user can see itself's property, no need to check privs
         } else {
-            user = ClusterNamespace.getFullName(getClusterName(), user);
+            user = ClusterNamespace.getFullName(getClusterName2(), user);
 
             if (!Catalog.getCurrentCatalog().getAuth().checkGlobalPriv(ConnectContext.get(), PrivPredicate.GRANT)) {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_SPECIFIC_ACCESS_DENIED_ERROR, "GRANT");

@@ -292,7 +292,10 @@ public class ConnectContext {
         return queryId;
     }
 
-    public String getClusterName() {
+    public String getClusterName2() {
+        if (Catalog.getCurrentCatalog().isTagSystemConverted()) {
+            return "";
+        }
         return clusterName;
     }
 
@@ -362,7 +365,7 @@ public class ConnectContext {
             row.add("" + connectionId);
             row.add(ClusterNamespace.getNameFromFullName(qualifiedUser));
             row.add(mysqlChannel.getRemoteHostPortString());
-            row.add(clusterName);
+            row.add(getClusterName2());
             row.add(ClusterNamespace.getNameFromFullName(currentDb));
             row.add(command.toString());
             row.add("" + (nowMs - startTime) / 1000);

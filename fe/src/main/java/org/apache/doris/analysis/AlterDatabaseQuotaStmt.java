@@ -26,11 +26,11 @@ import org.apache.doris.common.UserException;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AlterDatabaseQuotaStmt extends DdlStmt {
     private String dbName;
@@ -103,7 +103,7 @@ public class AlterDatabaseQuotaStmt extends DdlStmt {
         if (Strings.isNullOrEmpty(dbName)) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
         }
-        dbName = ClusterNamespace.getFullName(getClusterName(), dbName);
+        dbName = ClusterNamespace.getFullName(getClusterName2(), dbName);
         analyzeQuotaQuantity();
     }
 

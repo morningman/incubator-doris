@@ -18,8 +18,8 @@
 package org.apache.doris.analysis;
 
 import org.apache.doris.catalog.Column;
-import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.catalog.InfoSchemaDb;
+import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.ErrorCode;
@@ -78,7 +78,7 @@ public class ShowTableStmt extends ShowStmt {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
             }
         } else {
-            db = ClusterNamespace.getFullName(analyzer.getClusterName(), db);
+            db = ClusterNamespace.getFullName(analyzer.getClusterName2(), db);
         }
 
         // we do not check db privs here. because user may not have any db privs,

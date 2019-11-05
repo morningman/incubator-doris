@@ -72,7 +72,7 @@ public class MasterOpExecutor {
             throw new Exception("Failed to get master client.", e);
         }
         TMasterOpRequest params = new TMasterOpRequest();
-        params.setCluster(ctx.getClusterName());
+        params.setCluster(ctx.getClusterName2());
         params.setSql(originStmt);
         params.setUser(ctx.getQualifiedUser());
         params.setDb(ctx.getDatabase());

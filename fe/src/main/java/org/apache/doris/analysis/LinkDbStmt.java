@@ -28,6 +28,7 @@ import org.apache.doris.qe.ConnectContext;
 
 import com.google.common.base.Strings;
 
+@Deprecated
 public class LinkDbStmt extends DdlStmt {
 
     private ClusterName src;

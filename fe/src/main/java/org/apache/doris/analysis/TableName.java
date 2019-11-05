@@ -50,10 +50,7 @@ public class TableName implements Writable {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
             }
         } else {
-            if (Strings.isNullOrEmpty(analyzer.getClusterName())) {
-                ErrorReport.reportAnalysisException(ErrorCode.ERR_CLUSTER_NAME_NULL);
-            }
-            db = ClusterNamespace.getFullName(analyzer.getClusterName(), db);
+            db = ClusterNamespace.getFullName(analyzer.getClusterName2(), db);
         }
 
         if (Strings.isNullOrEmpty(tbl)) {

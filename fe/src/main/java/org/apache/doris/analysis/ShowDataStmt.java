@@ -17,8 +17,6 @@
 
 package org.apache.doris.analysis;
 
-import com.google.common.base.Strings;
-
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Column;
 import org.apache.doris.catalog.Database;
@@ -38,6 +36,8 @@ import org.apache.doris.common.util.DebugUtil;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.ShowResultSetMetaData;
+
+import com.google.common.base.Strings;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -83,7 +83,7 @@ public class ShowDataStmt extends ShowStmt {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
             }
         } else {
-            dbName = ClusterNamespace.getFullName(getClusterName(), dbName);
+            dbName = ClusterNamespace.getFullName(getClusterName2(), dbName);
         }
         
         Database db = Catalog.getInstance().getDb(dbName);

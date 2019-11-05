@@ -121,7 +121,7 @@ public class ShowLoadWarningsStmt extends ShowStmt {
                     ErrorReport.reportAnalysisException(ErrorCode.ERR_NO_DB_ERROR);
                 }
             } else {
-                dbName = ClusterNamespace.getFullName(getClusterName(), dbName);
+                dbName = ClusterNamespace.getFullName(getClusterName2(), dbName);
             }
 
             // analyze where clause if not null
