@@ -904,7 +904,7 @@ public class Coordinator {
                         List<TScanRangeParams> perNodeScanRanges = value.get(planNodeId);
                         int expectedInstanceNum = 1;
                         if (parallelExecInstanceNum > 1) {
-                            //the scan instance num should not larger than the tablets num
+                            // the scan instance num should not larger than the tablets num
                             expectedInstanceNum = Math.min(perNodeScanRanges.size(), parallelExecInstanceNum);
                         }
                         List<List<TScanRangeParams>> perInstanceScanRanges = ListUtil.splitBySize(perNodeScanRanges,
