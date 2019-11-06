@@ -17,6 +17,12 @@
 
 package org.apache.doris.resource;
 
+import org.apache.doris.common.io.Writable;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 /*
  * Resource is the collective name of the nodes that provide various service capabilities in Doris cluster.
  * Each resource has a unique ID.
@@ -24,7 +30,7 @@ package org.apache.doris.resource;
  * eg:
  *      Backend, Frontend, Broker, RemoteStorage
  */
-public abstract class Resource {
+public abstract class Resource implements Writable {
     protected long id;
     protected TagSet tagSet;
 
@@ -48,5 +54,21 @@ public abstract class Resource {
     public void setTag(Tag.Type type, String tagName) {
         TagSet newTagSet = TagSet.create(Tag.create(type, tagName));
         tagSet.substituteMerge(newTagSet);
+    }
+
+    public void setTagSet(TagSet tagSet) {
+        this.tagSet = tagSet;
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+        out.writeLong(id);
+        tagSet.write(out);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        id = in.readLong();
+        tagSet = TagSet.read(in);
     }
 }

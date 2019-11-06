@@ -18,6 +18,7 @@
 package org.apache.doris.resource;
 
 import org.apache.doris.common.AnalysisException;
+import org.apache.doris.common.io.Writable;
 import org.apache.doris.resource.Tag.Type;
 
 import com.google.common.base.Joiner;
@@ -25,6 +26,9 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,7 +38,7 @@ import java.util.stream.Collectors;
  * TagSet is printed as { "type1" : "tag1,tag2", "type2" : "tag1" }
  * this class is not thread safe.
  */
-public class TagSet {
+public class TagSet implements Writable {
     private Set<Tag> tags = Sets.newHashSet();
 
     private TagSet() {
@@ -160,4 +164,26 @@ public class TagSet {
         return gson.toJson(map);
     }
 
+    @Override
+    public void write(DataOutput out) throws IOException {
+        out.writeInt(tags.size());
+        for (Tag tag : tags) {
+            tag.write(out);
+        }
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        int size = in.readInt();
+        for (int i = 0; i < size; i++) {
+            Tag tag = Tag.read(in);
+            tags.add(tag);
+        }
+    }
+
+    public static TagSet read(DataInput in) throws IOException {
+        TagSet tagSet = new TagSet();
+        tagSet.readFields(in);
+        return tagSet;
+    }
 }

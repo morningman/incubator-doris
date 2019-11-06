@@ -48,7 +48,6 @@ import org.apache.doris.task.AgentTask;
 import org.apache.doris.thrift.TTabletInfo;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -140,13 +139,7 @@ public class SystemHandler extends AlterHandler {
 
         if (alterClause instanceof AddBackendClause) {
             AddBackendClause addBackendClause = (AddBackendClause) alterClause;
-            final String destClusterName = addBackendClause.getDestCluster();
-            
-            if (!Strings.isNullOrEmpty(destClusterName) 
-                    && Catalog.getInstance().getCluster(destClusterName) == null) {
-                throw new DdlException("Cluster: " + destClusterName + " does not exist.");
-            }
-            Catalog.getCurrentSystemInfo().addBackends(addBackendClause.getHostPortPairs(), 
+            Catalog.getCurrentSystemInfo().addBackends(addBackendClause.getHostPortPairs(),
                     addBackendClause.getTagSet());
         } else if (alterClause instanceof DropBackendClause) {
             DropBackendClause dropBackendClause = (DropBackendClause) alterClause;

@@ -68,17 +68,9 @@ public class SystemInfoService {
     private volatile AtomicReference<ImmutableMap<Long, Backend>> idToBackendRef;
     private volatile AtomicReference<ImmutableMap<Long, AtomicLong>> idToReportVersionRef;
 
-    // last backend id used by round robin for sequential choosing backends for
-    // tablet creation
-    private ConcurrentHashMap<String, Long> lastBackendIdForCreationMap;
-    // last backend id used by round robin for sequential choosing backends in
-    // other jobs
-    private ConcurrentHashMap<String, Long> lastBackendIdForOtherMap;
-
-    private long lastBackendIdForCreation = -1;
-    private long lastBackendIdForOther = -1;
-
     private AtomicReference<ImmutableMap<Long, DiskInfo>> pathHashToDishInfoRef;
+
+    private boolean isTagSystemConverted = false;
 
     // sort host backends list by num of backends, descending
     private static final Comparator<List<Backend>> hostBackendsListComparator = new Comparator<List<Backend>> (){
@@ -983,16 +975,20 @@ public class SystemInfoService {
         ImmutableMap<Long, AtomicLong> newIdToReportVersion = ImmutableMap.copyOf(copiedReportVerions);
         idToReportVersionRef.set(newIdToReportVersion);
 
-        // to add be to DEFAULT_CLUSTER
-        if (newBackend.getBackendState() == BackendState.using) {
-            final Cluster cluster = Catalog.getInstance().getCluster(DEFAULT_CLUSTER);
-            if (null != cluster) {
-                // replay log
-                cluster.addBackend(newBackend.getId());
-            } else {
-                // This happens in loading image when fe is restarted, because loadCluster is after loadBackend,
-                // cluster is not created. Be in cluster will be updated in loadCluster.
+        if (isTagSystemConverted) {
+            // to add be to DEFAULT_CLUSTER
+            if (newBackend.getBackendState() == BackendState.using) {
+                final Cluster cluster = Catalog.getInstance().getCluster(DEFAULT_CLUSTER);
+                if (null != cluster) {
+                    // replay log
+                    cluster.addBackend(newBackend.getId());
+                } else {
+                    // This happens in loading image when fe is restarted, because loadCluster is after loadBackend,
+                    // cluster is not created. Be in cluster will be updated in loadCluster.
+                }
             }
+        } else {
+            Catalog.getCurrentCatalog().getTagManger().addResourceTag(newBackend.getId(), newBackend.getTagSet());
         }
     }
 
@@ -1010,12 +1006,16 @@ public class SystemInfoService {
         ImmutableMap<Long, AtomicLong> newIdToReportVersion = ImmutableMap.copyOf(copiedReportVerions);
         idToReportVersionRef.set(newIdToReportVersion);
 
-        // update cluster
-        final Cluster cluster = Catalog.getInstance().getCluster(backend.getOwnerClusterName());
-        if (null != cluster) {
-            cluster.removeBackend(backend.getId());
+        if (!isTagSystemConverted) {
+            // update cluster
+            final Cluster cluster = Catalog.getInstance().getCluster(backend.getOwnerClusterName());
+            if (null != cluster) {
+                cluster.removeBackend(backend.getId());
+            } else {
+                LOG.error("Cluster " + backend.getOwnerClusterName() + " no exist.");
+            }
         } else {
-            LOG.error("Cluster " + backend.getOwnerClusterName() + " no exist.");
+            Catalog.getCurrentCatalog().getTagManger().removeResourceTag(backend.getId(), backend.getTagSet());
         }
     }
 
@@ -1128,15 +1128,19 @@ public class SystemInfoService {
         LOG.debug("update path infos: {}", newPathInfos);
     }
 
-    public void convertToTagSystem(List<Long> backendIds, TagManager tagManager) {
-        for (Long beId : backendIds) {
-            Backend be = idToBackendRef.get().get(beId);
-            if (be == null) {
-                continue;
-            }
-            be.convertToTagSystem();
-            tagManager.addResourceTag(beId, be.getTagSet());
+    public void convertToTagSystem() {
+        if (isTagSystemConverted) {
+            return;
         }
+
+        TagManager tagManager = Catalog.getCurrentCatalog().getTagManger();
+        ImmutableMap<Long, Backend> idToBackends = idToBackendRef.get();
+        for (Backend backend : idToBackends.values()) {
+            backend.convertToTagSystem();
+            tagManager.addResourceTag(backend.getId(), backend.getTagSet());
+        }
+
+        isTagSystemConverted = true;
     }
 }
 

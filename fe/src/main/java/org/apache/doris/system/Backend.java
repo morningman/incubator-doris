@@ -55,6 +55,7 @@ import java.util.stream.Collectors;
  */
 public class Backend extends Resource implements Writable {
 
+    @Deprecated
     public enum BackendState {
         using, /* backend is belong to a cluster*/
         offline,
@@ -77,9 +78,12 @@ public class Backend extends Resource implements Writable {
     private AtomicBoolean isAlive;
 
     private AtomicBoolean isDecommissioned;
+    @Deprecated
     private AtomicInteger decommissionType;
+    @Deprecated
     private AtomicReference<String> ownerClusterName;
     // to index the state in some cluster
+    @Deprecated
     private AtomicInteger backendState;
     // private BackendState backendState;
 
@@ -290,7 +294,7 @@ public class Backend extends Resource implements Writable {
     }
 
     /**
-     * backend execute discommission in cluster , and backendState will be free
+     * backend execute decommission in cluster , and backendState will be free
      * finally
      * 
      * @return
@@ -456,7 +460,7 @@ public class Backend extends Resource implements Writable {
 
     @Override
     public void write(DataOutput out) throws IOException {
-        out.writeLong(id);
+        super.write(out);
         Text.writeString(out, host);
         out.writeInt(heartbeatPort);
         out.writeInt(bePort.get());
@@ -475,16 +479,19 @@ public class Backend extends Resource implements Writable {
             entry.getValue().write(out);
         }
 
-        Text.writeString(out, ownerClusterName.get());
-        out.writeInt(backendState.get());
-        out.writeInt(decommissionType.get());
-
         out.writeInt(brpcPort.get());
+        out.writeBoolean(isTagSystemConverted);
     }
 
     @Override
     public void readFields(DataInput in) throws IOException {
-        id = in.readLong();
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+            id = in.readLong();
+            // tagset will be set when converting to tag system
+        } else {
+            super.readFields(in);
+        }
+
         host = Text.readString(in);
         heartbeatPort = in.readInt();
         bePort.set(in.readInt());
@@ -514,9 +521,13 @@ public class Backend extends Resource implements Writable {
             disksRef.set(ImmutableMap.copyOf(disks));
         }
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_30) {
-            ownerClusterName.set(Text.readString(in));
-            backendState.set(in.readInt());
-            decommissionType.set(in.readInt());
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+                ownerClusterName.set(Text.readString(in));
+                backendState.set(in.readInt());
+                decommissionType.set(in.readInt());
+            } else {
+                // there 3 members are deprecated, leave it empty, and can be removed at next version
+            }
         } else {
             ownerClusterName.set(SystemInfoService.DEFAULT_CLUSTER);
             backendState.set(BackendState.using.ordinal());
@@ -525,6 +536,10 @@ public class Backend extends Resource implements Writable {
 
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_40) {
             brpcPort.set(in.readInt());
+        }
+
+        if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_66) {
+            isTagSystemConverted = in.readBoolean();
         }
     }
 

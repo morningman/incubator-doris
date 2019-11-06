@@ -19,12 +19,8 @@ package org.apache.doris.analysis;
 
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.util.TagUtil;
-import org.apache.doris.resource.Tag;
-import org.apache.doris.resource.Tag.Type;
 import org.apache.doris.resource.TagSet;
 import org.apache.doris.system.Backend;
-
-import com.google.common.base.Strings;
 
 import java.util.List;
 import java.util.Map;
@@ -32,30 +28,11 @@ import java.util.Map;
 public class AddBackendClause extends BackendClause {
     private static final String PROP_TAG_PREFIX = "tag.";
 
-    // be in free state is not owned by any cluster
-    private boolean isFree;
-    // cluster that backend will be added to
-    private String destCluster;
-
     // following members are generated after analyzing
     private TagSet tagSet = Backend.DEFAULT_TAG_SET;
 
     public AddBackendClause(List<String> hostPorts, Map<String, String> properties) {
         super(hostPorts, properties);
-        this.isFree = true;
-        this.destCluster = "";
-    }
-
-    public AddBackendClause(List<String> hostPorts, boolean isFree, Map<String, String> properties) {
-        super(hostPorts, properties);
-        this.isFree = isFree;
-        this.destCluster = "";
-    }
-
-    public AddBackendClause(List<String> hostPorts, String destCluster, Map<String, String> properties) {
-        super(hostPorts, properties);
-        this.isFree = false;
-        this.destCluster = destCluster;
     }
 
     public TagSet getTagSet() {
@@ -69,21 +46,6 @@ public class AddBackendClause extends BackendClause {
         }
         
         TagSet userTagSet = TagUtil.analyzeTagProperties(properties);
-
-        if (userTagSet != null && isFree) {
-            throw new AnalysisException("Can not set tag to a free Backend");
-        }
-
-        if (userTagSet != null && !Strings.isNullOrEmpty(destCluster)) {
-            throw new AnalysisException("Can not set tag when specifying destination cluster");
-        }
-        
-        if (!Strings.isNullOrEmpty(destCluster)) {
-            // change dest cluster to a tag
-            Tag locationTag = Tag.create(Type.LOCATION, destCluster);
-            userTagSet.addTag(locationTag);
-        }
-
         // use user specified tags to substitute the default tag of Backend
         tagSet.substituteMerge(userTagSet);
     }
@@ -92,15 +54,7 @@ public class AddBackendClause extends BackendClause {
     public String toSql() {
         StringBuilder sb = new StringBuilder();
         sb.append("ADD ");
-        if (isFree) {
-            sb.append("FREE ");
-        }
         sb.append("BACKEND ");
-
-        if (!Strings.isNullOrEmpty(destCluster)) {
-            sb.append("to").append(destCluster);
-        }
-
         for (int i = 0; i < hostPorts.size(); i++) {
             sb.append("\"").append(hostPorts.get(i)).append("\"");
             if (i != hostPorts.size() - 1) {
@@ -109,13 +63,4 @@ public class AddBackendClause extends BackendClause {
         }
         return sb.toString();
     }
-
-    public boolean isFree() {
-        return this.isFree;
-    }
-
-    public String getDestCluster() {
-        return destCluster;
-    }
-
 }

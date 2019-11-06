@@ -1781,7 +1781,7 @@ public class Catalog {
             checksum = saveAlterJob(dos, checksum);
             checksum = saveRecycleBin(dos, checksum);
             checksum = saveGlobalVariable(dos, checksum);
-            checksum = saveCluster(dos, checksum);
+            // checksum = saveCluster(dos, checksum);
             checksum = saveBrokers(dos, checksum);
             checksum = saveExportJob(dos, checksum);
             checksum = saveBackupHandler(dos, checksum);
@@ -5392,12 +5392,8 @@ public class Catalog {
         // 1. convert auth
         auth.convertToTagSystem();
 
-        // 2. convert cluster
-        for (Cluster cluster : idToCluster.values()) {
-            List<Long> backendIds = cluster.getBackendIdList();
-            systemInfo.convertToTagSystem(backendIds, tagManager);
-            LOG.info("finished to convert cluster {} to tag system", cluster.getName());
-        }
+        // 2. convert backend
+        systemInfo.convertToTagSystem();
         idToCluster.clear();
         nameToCluster.clear();
 
@@ -5800,8 +5796,11 @@ public class Catalog {
         return infos;
     }
 
+    @Deprecated
     public long loadCluster(DataInputStream dis, long checksum) throws IOException, DdlException {
-        if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_30) {
+        if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_30
+                && Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+
             int clusterCount = dis.readInt();
             checksum ^= clusterCount;
             for (long i = 0; i < clusterCount; ++i) {
@@ -5888,6 +5887,7 @@ public class Catalog {
         db.setDbState(info.getDbState());
     }
 
+    @Deprecated
     public long saveCluster(DataOutputStream dos, long checksum) throws IOException {
         final int clusterCount = idToCluster.size();
         checksum ^= clusterCount;

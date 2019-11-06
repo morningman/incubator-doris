@@ -17,17 +17,11 @@
 
 package org.apache.doris.analysis;
 
-import org.apache.doris.alter.DecommissionBackendJob.DecommissionType;
-
 import java.util.List;
 
 public class DecommissionBackendClause extends BackendClause {
-
-    private DecommissionType type;
-
     public DecommissionBackendClause(List<String> hostPorts) {
         super(hostPorts, null);
-        type = DecommissionType.SystemDecommission;
     }
 
     @Override
@@ -41,13 +35,5 @@ public class DecommissionBackendClause extends BackendClause {
             }
         }
         return sb.toString();
-    }
-
-    public DecommissionType getType() {
-        return type;
-    }
-
-    public void setType(DecommissionType type) {
-        this.type = type;
     }
 }

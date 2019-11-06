@@ -18,10 +18,15 @@
 package org.apache.doris.resource;
 
 import org.apache.doris.common.AnalysisException;
+import org.apache.doris.common.io.Text;
+import org.apache.doris.common.io.Writable;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.Objects;
 
 /*
@@ -31,7 +36,7 @@ import java.util.Objects;
  * 
  * Tag is immutable once it being created.
  */
-public class Tag {
+public class Tag implements Writable {
     public enum Type {
         TYPE, FUNCTION, LOCATION, CUSTOM;
 
@@ -45,8 +50,8 @@ public class Tag {
             "frontend", "backend", "broker", "remote_storage", "store", "computation", "default_cluster");
     private static final String TAG_NAME_REGEX = "^[a-z][a-z0-9_]{0,32}$";
 
-    public final Type type;
-    public final String tag;
+    public Type type;
+    public String tag;
 
     private Tag(Type type, String tag) {
         this.type = type;
@@ -89,5 +94,23 @@ public class Tag {
     @Override
     public String toString() {
         return "{\"" + type.toString() + "\" : \"" + tag + "\"}";
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+        Text.writeString(out, type.name());
+        Text.writeString(out, tag);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+        type = Tag.Type.valueOf(Text.readString(in));
+        tag = Text.readString(in);
+    }
+
+    public static Tag read(DataInput in) throws IOException {
+        Type type = Tag.Type.valueOf(Text.readString(in));
+        String tag = Text.readString(in);
+        return Tag.create(type, tag);
     }
 }
