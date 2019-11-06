@@ -18,6 +18,7 @@
 package org.apache.doris.catalog;
 
 import org.apache.doris.catalog.ReplicaAllocation.AllocationType;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.resource.TagSet;
@@ -28,7 +29,6 @@ import com.google.common.collect.Maps;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,25 +38,21 @@ import java.util.Map;
 public class PartitionInfo implements Writable {
     protected PartitionType type;
     // partition id -> data property
-    protected Map<Long, DataProperty> idToDataProperty;
+    protected Map<Long, DataProperty> idToDataProperty = Maps.newHashMap();
     // partition id -> replication num
-    protected Map<Long, Short> idToReplicationNum;
+    protected Map<Long, Short> idToReplicationNum = Maps.newHashMap();;
     // true if the partition has multi partition columns
     protected boolean isMultiColumnPartition = false;
 
     protected Map<Long, ReplicaAllocation> idToReplicationAllocation;
     private boolean isTagSystemConverted = false;
 
-    public PartitionInfo() {
+    protected PartitionInfo() {
         // for persist
-        this.idToDataProperty = new HashMap<Long, DataProperty>();
-        this.idToReplicationNum = new HashMap<Long, Short>();
     }
 
     public PartitionInfo(PartitionType type) {
         this.type = type;
-        this.idToDataProperty = new HashMap<Long, DataProperty>();
-        this.idToReplicationNum = new HashMap<Long, Short>();
     }
 
     public PartitionType getType() {
@@ -83,9 +79,17 @@ public class PartitionInfo implements Writable {
         idToReplicationNum.put(partitionId, replicationNum);
     }
 
+    public void setReplicationAllocation(long partitionId, ReplicaAllocation replicaAllocation) {
+        idToReplicationAllocation.put(partitionId, replicaAllocation);
+    }
+
     public void dropPartition(long partitionId) {
         idToDataProperty.remove(partitionId);
-        idToReplicationNum.remove(partitionId);
+        if (!isTagSystemConverted) {
+            idToReplicationNum.remove(partitionId);
+        } else {
+            idToReplicationAllocation.remove(partitionId);
+        }
     }
 
     public void addPartition(long partitionId, DataProperty dataProperty, short replicationNum) {
@@ -121,8 +125,7 @@ public class PartitionInfo implements Writable {
                 out.writeBoolean(false);
                 entry.getValue().write(out);
             }
-
-            out.writeShort(idToReplicationNum.get(entry.getKey()));
+            idToReplicationAllocation.get(entry.getKey()).write(out);
         }
     }
 
@@ -140,8 +143,12 @@ public class PartitionInfo implements Writable {
                 idToDataProperty.put(partitionId, DataProperty.read(in));
             }
 
-            short replicationNum = in.readShort();
-            idToReplicationNum.put(partitionId, replicationNum);
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+                short replicationNum = in.readShort();
+                idToReplicationNum.put(partitionId, replicationNum);
+            } else {
+                idToReplicationAllocation.put(partitionId, ReplicaAllocation.read(in));
+            }
         }
     }
 
@@ -176,7 +183,7 @@ public class PartitionInfo implements Writable {
             replicaAllocation.setReplica(AllocationType.LOCAL, newTagSet, entry.getValue());
             idToReplicationAllocation.put(entry.getKey(), replicaAllocation);
         }
-        
+        idToReplicationNum.clear();
         isTagSystemConverted = true;
     }
 }

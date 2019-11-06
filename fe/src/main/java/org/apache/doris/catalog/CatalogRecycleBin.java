@@ -54,7 +54,6 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
     private Map<Long, RecycleDatabaseInfo> idToDatabase;
     private Map<Long, RecycleTableInfo> idToTable;
     private Map<Long, RecyclePartitionInfo> idToPartition;
-
     private Map<Long, Long> idToRecycleTime;
 
     public CatalogRecycleBin() {
@@ -162,7 +161,6 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             if (db.getFullName().equals(dbName)) {
                 iterator.remove();
                 idToRecycleTime.remove(entry.getKey());
-
                 LOG.info("erase database[{}] name: {}", db.getId(), dbName);
             }
         }
@@ -868,5 +866,13 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             dataProperty = DataProperty.read(in);
             replicationNum = in.readShort();
         }
+    }
+
+    public synchronized void convertToTagSystem() {
+        // clear all, for simplicity
+        idToDatabase.clear();
+        idToTable.clear();
+        idToPartition.clear();
+        idToRecycleTime.clear();
     }
 }

@@ -23,10 +23,14 @@ import org.apache.doris.catalog.Column;
 import org.apache.doris.catalog.DataProperty;
 import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.PrimitiveType;
+import org.apache.doris.catalog.ReplicaAllocation;
+import org.apache.doris.catalog.ReplicaAllocation.AllocationType;
 import org.apache.doris.catalog.Type;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.Pair;
+import org.apache.doris.resource.TagSet;
+import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.thrift.TStorageType;
@@ -156,23 +160,32 @@ public class PropertyAnalyzer {
         return shortKeyColumnCount;
     }
     
-    public static Short analyzeReplicationNum(Map<String, String> properties, short oldReplicationNum)
-            throws AnalysisException {
-        Short replicationNum = oldReplicationNum;
-        if (properties != null && properties.containsKey(PROPERTIES_REPLICATION_NUM)) {
-            try {
-                replicationNum = Short.valueOf(properties.get(PROPERTIES_REPLICATION_NUM));
-            } catch (Exception e) {
-                throw new AnalysisException(e.getMessage());
-            }
+    public static ReplicaAllocation analyzeReplicaAllocation(Map<String, String> properties,
+            ReplicaAllocation oldReplicaAlloc) throws AnalysisException {
+        ReplicaAllocation replicaAlloc = oldReplicaAlloc;
+        if (properties != null) {
+            if (properties.containsKey(PROPERTIES_REPLICATION_NUM)) {
+                short replicationNum = 0;
+                try {
+                    replicationNum = Short.valueOf(properties.get(PROPERTIES_REPLICATION_NUM));
+                } catch (Exception e) {
+                    throw new AnalysisException(e.getMessage());
+                }
 
-            if (replicationNum <= 0) {
-                throw new AnalysisException("Replication num should larger than 0. (suggested 3)");
-            }
+                if (replicationNum <= 0) {
+                    throw new AnalysisException("Replication num should larger than 0. (suggested 3)");
+                }
 
-            properties.remove(PROPERTIES_REPLICATION_NUM);
+                replicaAlloc = new ReplicaAllocation();
+                TagSet tagSet = TagSet.copyFrom(Backend.DEFAULT_TAG_SET);
+                replicaAlloc.setReplica(AllocationType.LOCAL, tagSet, replicationNum);
+
+                properties.remove(PROPERTIES_REPLICATION_NUM);
+            } else {
+                // TODO(cmy): new tag format
+            }
         }
-        return replicationNum;
+        return replicaAlloc;
     }
 
     public static String analyzeColumnSeparator(Map<String, String> properties, String oldColumnSeparator) {

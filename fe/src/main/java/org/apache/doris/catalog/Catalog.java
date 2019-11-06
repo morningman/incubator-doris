@@ -2497,39 +2497,6 @@ public class Catalog {
             Database db = this.fullNameToDb.get(dbName);
             db.writeLock();
             try {
-                if (db.getDbState() == DbState.LINK && dbName.equals(db.getAttachDb())) {
-                    // We try to drop a hard link.
-                    final DropLinkDbAndUpdateDbInfo info = new DropLinkDbAndUpdateDbInfo();
-                    fullNameToDb.remove(db.getAttachDb());
-                    db.setDbState(DbState.NORMAL);
-                    info.setUpdateDbState(DbState.NORMAL);
-                    final Cluster cluster = nameToCluster
-                            .get(ClusterNamespace.getClusterNameFromFullName(db.getAttachDb()));
-                    final BaseParam param = new BaseParam();
-                    param.addStringParam(db.getAttachDb());
-                    param.addLongParam(db.getId());
-                    cluster.removeLinkDb(param);
-                    info.setDropDbCluster(cluster.getName());
-                    info.setDropDbId(db.getId());
-                    info.setDropDbName(db.getAttachDb());
-                    editLog.logDropLinkDb(info);
-                    return;
-                }
-
-                if (db.getDbState() == DbState.LINK && dbName.equals(db.getFullName())) {
-                    // We try to drop a db which other dbs attach to it,
-                    // which is not allowed.
-                    ErrorReport.reportDdlException(ErrorCode.ERR_CLUSTER_DB_STATE_LINK_OR_MIGRATE,
-                            ClusterNamespace.getNameFromFullName(dbName));
-                    return;
-                }
-
-                if (dbName.equals(db.getAttachDb()) && db.getDbState() == DbState.MOVE) {
-                    ErrorReport.reportDdlException(ErrorCode.ERR_CLUSTER_DB_STATE_LINK_OR_MIGRATE,
-                            ClusterNamespace.getNameFromFullName(dbName));
-                    return;
-                }
-
                 // save table names for recycling
                 Set<String> tableNames = db.getTableNamesWithLock();
                 unprotectDropDb(db);
@@ -2541,8 +2508,6 @@ public class Catalog {
             // 3. remove db from catalog
             idToDb.remove(db.getId());
             fullNameToDb.remove(db.getFullName());
-            final Cluster cluster = nameToCluster.get(db.getClusterName());
-            cluster.removeDb(dbName, db.getId());
             editLog.logDropDb(dbName);
         } finally {
             unlock();
@@ -2588,8 +2553,10 @@ public class Catalog {
 
             fullNameToDb.remove(dbName);
             idToDb.remove(db.getId());
-            final Cluster cluster = nameToCluster.get(db.getClusterName());
-            cluster.removeDb(dbName, db.getId());
+            if (!isTagSystemConverted) {
+                final Cluster cluster = nameToCluster.get(db.getClusterName());
+                cluster.removeDb(dbName, db.getId());
+            }
         } finally {
             unlock();
         }
@@ -2719,22 +2686,17 @@ public class Catalog {
     public void renameDatabase(AlterDatabaseRename stmt) throws DdlException {
         String fullDbName = stmt.getDbName();
         String newFullDbName = stmt.getNewDbName();
-        String clusterName = stmt.getClusterName();
 
         if (fullDbName.equals(newFullDbName)) {
             throw new DdlException("Same database name");
         }
 
         Database db = null;
-        Cluster cluster = null;
         if (!tryLock(false)) {
             throw new DdlException("Failed to acquire catalog lock. Try again");
         }
         try {
-            cluster = nameToCluster.get(clusterName);
-            if (cluster == null) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_CLUSTER_NO_EXISTS, clusterName);
-            }
+
             // check if db exists
             db = fullNameToDb.get(fullDbName);
             if (db == null) {
@@ -2749,8 +2711,6 @@ public class Catalog {
                 throw new DdlException("Database name[" + newFullDbName + "] is already used");
             }
 
-            cluster.removeDb(db.getFullName(), db.getId());
-            cluster.addDb(newFullDbName, db.getId());
             // 1. rename db
             db.setNameWithLock(newFullDbName);
 
@@ -2771,24 +2731,24 @@ public class Catalog {
         tryLock(true);
         try {
             Database db = fullNameToDb.get(dbName);
-            Cluster cluster = nameToCluster.get(db.getClusterName());
-            cluster.removeDb(db.getFullName(), db.getId());
+            Cluster cluster = null;
+            if (!isTagSystemConverted) {
+                cluster = nameToCluster.get(db.getClusterName());
+                cluster.removeDb(db.getFullName(), db.getId());
+            }
             db.setName(newDbName);
-            cluster.addDb(newDbName, db.getId());
+            if (!isTagSystemConverted) {
+                cluster.addDb(newDbName, db.getId());
+            }
             fullNameToDb.remove(dbName);
             fullNameToDb.put(newDbName, db);
         } finally {
             unlock();
         }
-
         LOG.info("replay rename database {} to {}", dbName, newDbName);
     }
 
     public void createTable(CreateTableStmt stmt) throws DdlException {
-        createTable(stmt, false);
-    }
-
-    public Table createTable(CreateTableStmt stmt, boolean isRestore) throws DdlException {
         String engineName = stmt.getEngineName();
         String dbName = stmt.getDbName();
         String tableName = stmt.getTableName();
@@ -2801,44 +2761,39 @@ public class Catalog {
 
         // only internal table should check quota and cluster capacity
         if (!stmt.isExternal()) {
-            // check cluster capacity
-            Catalog.getCurrentSystemInfo().checkClusterCapacity(stmt.getClusterName());
             // check db quota
             db.checkQuota();
         }
 
         // check if table exists in db
-        if (!isRestore) {
-            db.readLock();
-            try {
-                if (db.getTable(tableName) != null) {
-                    if (stmt.isSetIfNotExists()) {
-                        LOG.info("create table[{}] which already exists", tableName);
-                        return db.getTable(tableName);
-                    } else {
-                        ErrorReport.reportDdlException(ErrorCode.ERR_TABLE_EXISTS_ERROR, tableName);
-                    }
+        db.readLock();
+        try {
+            if (db.getTable(tableName) != null) {
+                if (stmt.isSetIfNotExists()) {
+                    LOG.info("create table[{}] which already exists", tableName);
+                    return;
+                } else {
+                    ErrorReport.reportDdlException(ErrorCode.ERR_TABLE_EXISTS_ERROR, tableName);
                 }
-            } finally {
-                db.readUnlock();
             }
+        } finally {
+            db.readUnlock();
         }
 
         if (engineName.equals("olap")) {
-            return createOlapTable(db, stmt, isRestore);
+            createOlapTable(db, stmt);
         } else if (engineName.equals("mysql")) {
-            return createMysqlTable(db, stmt, isRestore);
+            createMysqlTable(db, stmt);
         } else if (engineName.equals("kudu")) {
-            return createKuduTable(db, stmt);
+            createKuduTable(db, stmt);
         } else if (engineName.equals("broker")) {
-            return createBrokerTable(db, stmt, isRestore);
+            createBrokerTable(db, stmt);
         } else if (engineName.equalsIgnoreCase("elasticsearch") || engineName.equalsIgnoreCase("es")) {
-            return createEsTable(db, stmt);
+            createEsTable(db, stmt);
         } else {
             ErrorReport.reportDdlException(ErrorCode.ERR_UNKNOWN_STORAGE_ENGINE, engineName);
         }
-        Preconditions.checkState(false);
-        return null;
+        return;
     }
 
     public void addPartition(Database db, String tableName, AddPartitionClause addPartitionClause) throws DdlException {
@@ -3211,7 +3166,7 @@ public class Catalog {
         short oldReplicationNum = partitionInfo.getReplicationNum(partition.getId());
         short newReplicationNum = (short) -1;
         try {
-            newReplicationNum = PropertyAnalyzer.analyzeReplicationNum(properties, oldReplicationNum);
+            newReplicationNum = PropertyAnalyzer.analyzeReplicaAllocation(properties, oldReplicationNum);
         } catch (AnalysisException e) {
             throw new DdlException(e.getMessage());
         }
@@ -3393,7 +3348,7 @@ public class Catalog {
     }
 
     // Create olap table and related base index synchronously.
-    private Table createOlapTable(Database db, CreateTableStmt stmt, boolean isRestore) throws DdlException {
+    private void createOlapTable(Database db, CreateTableStmt stmt) throws DdlException {
         String tableName = stmt.getTableName();
         LOG.debug("begin create olap table: {}", tableName);
 
@@ -3650,26 +3605,17 @@ public class Catalog {
         return returnTable;
     }
 
-    private Table createMysqlTable(Database db, CreateTableStmt stmt, boolean isRestore) throws DdlException {
+    private void createMysqlTable(Database db, CreateTableStmt stmt) throws DdlException {
         String tableName = stmt.getTableName();
-
         List<Column> columns = stmt.getColumns();
-
         long tableId = Catalog.getInstance().getNextId();
         MysqlTable mysqlTable = new MysqlTable(tableId, tableName, columns, stmt.getProperties());
         mysqlTable.setComment(stmt.getComment());
-        Table returnTable = null;
-        if (isRestore) {
-            returnTable = mysqlTable;
-            LOG.info("successfully create table[{}-{}] to restore", tableName, tableId);
-        } else {
-            if (!db.createTableWithLock(mysqlTable, false, stmt.isSetIfNotExists())) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_CANT_CREATE_TABLE, tableName, "table already exist");
-            }
-            LOG.info("successfully create table[{}-{}]", tableName, tableId);
+        if (!db.createTableWithLock(mysqlTable, false, stmt.isSetIfNotExists())) {
+            ErrorReport.reportDdlException(ErrorCode.ERR_CANT_CREATE_TABLE, tableName, "table already exist");
         }
-
-        return returnTable;
+        LOG.info("successfully create table[{}-{}]", tableName, tableId);
+        return;
     }
 
     private Table createEsTable(Database db, CreateTableStmt stmt) throws DdlException {
@@ -3788,28 +3734,19 @@ public class Catalog {
         return kuduTable;
     }
 
-    private Table createBrokerTable(Database db, CreateTableStmt stmt, boolean isRestore) throws DdlException {
+    private void createBrokerTable(Database db, CreateTableStmt stmt) throws DdlException {
         String tableName = stmt.getTableName();
-
         List<Column> columns = stmt.getColumns();
-
         long tableId = Catalog.getInstance().getNextId();
         BrokerTable brokerTable = new BrokerTable(tableId, tableName, columns, stmt.getProperties());
         brokerTable.setComment(stmt.getComment());
         brokerTable.setBrokerProperties(stmt.getExtProperties());
 
-        Table returnTable = null;
-        if (isRestore) {
-            returnTable = brokerTable;
-            LOG.info("successfully create table[{}-{}] to restore", tableName, tableId);
-        } else {
-            if (!db.createTableWithLock(brokerTable, false, stmt.isSetIfNotExists())) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_CANT_CREATE_TABLE, tableName, "table already exist");
-            }
-            LOG.info("successfully create table[{}-{}]", tableName, tableId);
+        if (!db.createTableWithLock(brokerTable, false, stmt.isSetIfNotExists())) {
+            ErrorReport.reportDdlException(ErrorCode.ERR_CANT_CREATE_TABLE, tableName, "table already exist");
         }
-
-        return returnTable;
+        LOG.info("successfully create table[{}-{}]", tableName, tableId);
+        return;
     }
 
     public static void getDdlStmt(Table table, List<String> createTableStmt, List<String> addPartitionStmt,
@@ -5416,7 +5353,10 @@ public class Catalog {
         }
         fullNameToDb = newNameToDb;
 
-        // 4. create info schema db
+        // 4. convert recycle bin
+        recycleBin.convertToTagSystem();
+
+        // 5. create info schema db
         final InfoSchemaDb infoDb = new InfoSchemaDb();
         idToDb.put(infoDb.getId(), infoDb);
         fullNameToDb.put(infoDb.getFullName(), infoDb);
