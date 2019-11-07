@@ -79,8 +79,12 @@ public class PartitionInfo implements Writable {
         idToReplicationNum.put(partitionId, replicationNum);
     }
 
-    public void setReplicationAllocation(long partitionId, ReplicaAllocation replicaAllocation) {
+    public void setReplicaAllocation(long partitionId, ReplicaAllocation replicaAllocation) {
         idToReplicationAllocation.put(partitionId, replicaAllocation);
+    }
+
+    public ReplicaAllocation getReplicationAllocation(long partitionId) {
+        return idToReplicationAllocation.get(partitionId);
     }
 
     public void dropPartition(long partitionId) {

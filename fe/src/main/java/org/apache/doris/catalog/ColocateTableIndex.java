@@ -121,6 +121,8 @@ public class ColocateTableIndex implements Writable {
 
     private transient ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
+    private boolean isTagSystemConverted = false;
+
     public ColocateTableIndex() {
 
     }
@@ -160,9 +162,17 @@ public class ColocateTableIndex implements Writable {
                 }
                 groupName2Id.put(fullGroupName, groupId);
                 HashDistributionInfo distributionInfo = (HashDistributionInfo) tbl.getDefaultDistributionInfo();
-                ColocateGroupSchema groupSchema = new ColocateGroupSchema(groupId,
+
+                ColocateGroupSchema groupSchema = null;
+                if (!isTagSystemConverted) {
+                    groupSchema = new ColocateGroupSchema(groupId,
                         distributionInfo.getDistributionColumns(), distributionInfo.getBucketNum(),
-                        tbl.getPartitionInfo().idToReplicationNum.values().stream().findFirst().get());
+                            tbl.getPartitionInfo().idToReplicationNum.values().stream().findFirst().get());
+                } else {
+                    groupSchema = new ColocateGroupSchema(groupId,
+                            distributionInfo.getDistributionColumns(), distributionInfo.getBucketNum(),
+                            tbl.getPartitionInfo().idToReplicationAllocation.values().stream().findFirst().get());
+                }
                 group2Schema.put(groupId, groupSchema);
             }
             group2Tables.put(groupId, tbl.getId());
@@ -697,5 +707,15 @@ public class ColocateTableIndex implements Writable {
         } finally {
             writeUnlock();
         }
+    }
+
+    public void convertToTagSystem() {
+        if (isTagSystemConverted) {
+            return;
+        }
+        for (ColocateGroupSchema groupSchema : group2Schema.values()) {
+            groupSchema.convertToTagSystem();
+        }
+        isTagSystemConverted = true;
     }
 }

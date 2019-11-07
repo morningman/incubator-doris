@@ -20,6 +20,8 @@ package org.apache.doris.system;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.DiskInfo;
+import org.apache.doris.catalog.ReplicaAllocation;
+import org.apache.doris.catalog.ReplicaAllocation.AllocationType;
 import org.apache.doris.cluster.Cluster;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.DdlException;
@@ -1132,6 +1134,35 @@ public class SystemInfoService {
         }
 
         isTagSystemConverted = true;
+    }
+
+    /*
+     * 
+     */
+    public List<Long> chooseBanckendByRaplicaAlloc(ReplicaAllocation replicaAlloc) throws DdlException {
+        if (replicaAlloc.getReplicaNumByType(AllocationType.LOCAL) == 0
+                || replicaAlloc.getReplicaNumByType(AllocationType.REMOTE) > 0) {
+            throw new DdlException("Currently only support LOCAL replica.");
+        }
+        Set<Long> resBackendIds = Sets.newHashSet();
+        Map<TagSet, Short> tagSetMap = replicaAlloc.getTagMapByType(AllocationType.LOCAL);
+        for (Map.Entry<TagSet, Short> entry : tagSetMap.entrySet()) {
+            List<Long> res = Catalog.getCurrentCatalog().getTagManger().getResourceIdsByTags(entry.getKey());
+            if (res.size() < entry.getValue()) {
+                throw new DdlException("failed to get enough backend for allocating replica. find " + res.size()
+                        + ", expected: " + entry.getValue() + ", tags: " + entry.getKey());
+            }
+            Collections.shuffle(res);
+            resBackendIds.
+        }
+
+        short replicaNum = replicaAlloc.getReplicaNumByType(AllocationType.LOCAL);
+        Set<Long> res = Catalog.getCurrentCatalog().getTagManger().getResourceIdsByTags(tagSet);
+        if (res.size() != replicaNum) {
+            throw new DdlException("failed to get enough backend for allocating replica. find " + res.size()
+                    + ", expected: " + replicaNum + ", tags: " + tagSet);
+        }
+        return res;
     }
 }
 

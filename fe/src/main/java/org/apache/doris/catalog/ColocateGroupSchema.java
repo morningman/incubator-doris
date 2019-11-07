@@ -18,10 +18,14 @@
 package org.apache.doris.catalog;
 
 import org.apache.doris.catalog.ColocateTableIndex.GroupId;
+import org.apache.doris.catalog.ReplicaAllocation.AllocationType;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Writable;
+import org.apache.doris.resource.TagSet;
+import org.apache.doris.system.Backend;
 
 import com.google.common.collect.Lists;
 
@@ -38,17 +42,30 @@ public class ColocateGroupSchema implements Writable {
     private GroupId groupId;
     private List<Type> distributionColTypes = Lists.newArrayList();
     private int bucketsNum;
+    @Deprecated
     private short replicationNum;
+    private ReplicaAllocation replicaAllocation;
+
+    private boolean isTagSystemConverted = false;
 
     private ColocateGroupSchema() {
 
     }
 
-    public ColocateGroupSchema(GroupId groupId, List<Column> distributionCols, int bucketsNum, short replicationNum) {
+    public ColocateGroupSchema(GroupId groupId, List<Column> distributionCols, int bucketsNum,
+            ReplicaAllocation replicaAlloc) {
         this.groupId = groupId;
         this.distributionColTypes = distributionCols.stream().map(c -> c.getType()).collect(Collectors.toList());
         this.bucketsNum = bucketsNum;
-        this.replicationNum = replicationNum;
+        this.replicaAllocation = replicaAlloc;
+    }
+
+    @Deprecated
+    public ColocateGroupSchema(GroupId groupId, List<Column> distributionCols, int bucketsNum, short replicaNum) {
+        this.groupId = groupId;
+        this.distributionColTypes = distributionCols.stream().map(c -> c.getType()).collect(Collectors.toList());
+        this.bucketsNum = bucketsNum;
+        this.replicationNum = replicaNum;
     }
 
     public GroupId getGroupId() {
@@ -59,8 +76,8 @@ public class ColocateGroupSchema implements Writable {
         return bucketsNum;
     }
 
-    public short getReplicationNum() {
-        return replicationNum;
+    public ReplicaAllocation getReplicaAllocation() {
+        return replicaAllocation;
     }
 
     public List<Type> getDistributionColTypes() {
@@ -69,7 +86,7 @@ public class ColocateGroupSchema implements Writable {
 
     public void checkColocateSchema(OlapTable tbl) throws DdlException {
         checkDistribution(tbl.getDefaultDistributionInfo());
-        checkReplicationNum(tbl.getPartitionInfo());
+        checkReplicaAllocation(tbl.getPartitionInfo());
     }
 
     public void checkDistribution(DistributionInfo distributionInfo) throws DdlException {
@@ -95,17 +112,11 @@ public class ColocateGroupSchema implements Writable {
         }
     }
 
-    public void checkReplicationNum(PartitionInfo partitionInfo) throws DdlException {
-        for (Short repNum : partitionInfo.idToReplicationNum.values()) {
-            if (repNum != replicationNum) {
+    public void checkReplicaAllocation(PartitionInfo partitionInfo) throws DdlException {
+        for (ReplicaAllocation allocation : partitionInfo.idToReplicationAllocation.values()) {
+            if (!replicaAllocation.equals(allocation)) {
                 ErrorReport.reportDdlException(ErrorCode.ERR_COLOCATE_TABLE_MUST_HAS_SAME_REPLICATION_NUM, replicationNum);
             }
-        }
-    }
-
-    public void checkReplicationNum(short repNum) throws DdlException {
-        if (repNum != replicationNum) {
-            ErrorReport.reportDdlException(ErrorCode.ERR_COLOCATE_TABLE_MUST_HAS_SAME_REPLICATION_NUM, replicationNum);
         }
     }
 
@@ -123,7 +134,7 @@ public class ColocateGroupSchema implements Writable {
             ColumnType.write(out, type);
         }
         out.writeInt(bucketsNum);
-        out.writeShort(replicationNum);
+        replicaAllocation.write(out);
     }
 
     @Override
@@ -134,6 +145,21 @@ public class ColocateGroupSchema implements Writable {
             distributionColTypes.add(ColumnType.read(in));
         }
         bucketsNum = in.readInt();
-        replicationNum = in.readShort();
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+            replicationNum = in.readShort();
+        } else {
+            replicaAllocation = ReplicaAllocation.read(in);
+        }
+    }
+
+    public void convertToTagSystem() {
+        if (isTagSystemConverted) {
+            return;
+        }
+        replicaAllocation = new ReplicaAllocation();
+        TagSet tagSet = TagSet.copyFrom(Backend.DEFAULT_TAG_SET);
+        replicaAllocation.setReplica(AllocationType.LOCAL, tagSet, replicationNum);
+        replicationNum = 0;
+        isTagSystemConverted = true;
     }
 }

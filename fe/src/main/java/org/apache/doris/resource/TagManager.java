@@ -18,9 +18,11 @@
 package org.apache.doris.resource;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -134,9 +136,10 @@ public class TagManager {
     }
 
     // get resource ids by the given set of tags
-    public Set<Long> getResourceIdsByTags(TagSet tagSet) {
+    // return a empty set if tag is empty or no resource meets requirement.
+    public List<Long> getResourceIdsByTags(TagSet tagSet) {
         if (tagSet.isEmpty()) {
-            return Sets.newHashSet();
+            return Lists.newArrayList();
         }
         lock.readLock().lock();
         try {
@@ -153,7 +156,7 @@ public class TagManager {
                     break;
                 }
             }
-            return res;
+            return Lists.newArrayList(res);
         } finally {
             lock.readLock().unlock();
         }

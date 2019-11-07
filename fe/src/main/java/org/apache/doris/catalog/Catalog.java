@@ -3221,7 +3221,7 @@ public class Catalog {
         }
     }
 
-    private Partition createPartitionWithIndices(String clusterName, long dbId, long tableId,
+    private Partition createPartitionWithIndices(long dbId, long tableId,
                                                  long baseIndexId, long partitionId, String partitionName,
                                                  Map<Long, Short> indexIdToShortKeyColumnCount,
                                                  Map<Long, Integer> indexIdToSchemaHash,
@@ -3230,12 +3230,11 @@ public class Catalog {
                                                  KeysType keysType,
                                                  DistributionInfo distributionInfo,
                                                  TStorageMedium storageMedium,
-                                                 short replicationNum,
+                                                 ReplicaAllocation replicaAlloc,
                                                  Pair<Long, Long> versionInfo,
                                                  Set<String> bfColumns,
                                                  double bfFpp,
-                                                 Set<Long> tabletIdSet,
-                                                 boolean isRestore) throws DdlException {
+                                                 Set<Long> tabletIdSet) throws DdlException {
         // create base index first.
         Preconditions.checkArgument(baseIndexId != -1);
         MaterializedIndex baseIndex = new MaterializedIndex(baseIndexId, IndexState.NORMAL);
@@ -3271,72 +3270,67 @@ public class Catalog {
             // create tablets
             int schemaHash = indexIdToSchemaHash.get(indexId);
             TabletMeta tabletMeta = new TabletMeta(dbId, tableId, partitionId, indexId, schemaHash, storageMedium);
-            createTablets(clusterName, index, ReplicaState.NORMAL, distributionInfo, version, versionHash,
-                    replicationNum, tabletMeta, tabletIdSet);
+            createTablets(index, ReplicaState.NORMAL, distributionInfo, version, versionHash,
+                    replicaAlloc, tabletMeta, tabletIdSet);
 
             boolean ok = false;
             String errMsg = null;
 
-            if (!isRestore) {
-                // add create replica task for olap
-                short shortKeyColumnCount = indexIdToShortKeyColumnCount.get(indexId);
-                TStorageType storageType = indexIdToStorageType.get(indexId);
-                List<Column> schema = indexIdToSchema.get(indexId);
-                int totalTaskNum = index.getTablets().size() * replicationNum;
-                MarkedCountDownLatch<Long, Long> countDownLatch = new MarkedCountDownLatch<Long, Long>(totalTaskNum);
-                AgentBatchTask batchTask = new AgentBatchTask();
-                for (Tablet tablet : index.getTablets()) {
-                    long tabletId = tablet.getId();
-                    for (Replica replica : tablet.getReplicas()) {
-                        long backendId = replica.getBackendId();
-                        countDownLatch.addMark(backendId, tabletId);
-                        CreateReplicaTask task = new CreateReplicaTask(backendId, dbId, tableId,
-                                partitionId, indexId, tabletId,
-                                shortKeyColumnCount, schemaHash,
-                                version, versionHash,
-                                keysType,
-                                storageType, storageMedium,
-                                schema, bfColumns, bfFpp,
-                                countDownLatch);
-                        batchTask.addTask(task);
-                        // add to AgentTaskQueue for handling finish report.
-                        // not for resending task
-                        AgentTaskQueue.addTask(task);
+            // add create replica task for olap
+            short shortKeyColumnCount = indexIdToShortKeyColumnCount.get(indexId);
+            TStorageType storageType = indexIdToStorageType.get(indexId);
+            List<Column> schema = indexIdToSchema.get(indexId);
+            int totalTaskNum = index.getTablets().size() * replicationNum;
+            MarkedCountDownLatch<Long, Long> countDownLatch = new MarkedCountDownLatch<Long, Long>(totalTaskNum);
+            AgentBatchTask batchTask = new AgentBatchTask();
+            for (Tablet tablet : index.getTablets()) {
+                long tabletId = tablet.getId();
+                for (Replica replica : tablet.getReplicas()) {
+                    long backendId = replica.getBackendId();
+                    countDownLatch.addMark(backendId, tabletId);
+                    CreateReplicaTask task = new CreateReplicaTask(backendId, dbId, tableId,
+                            partitionId, indexId, tabletId,
+                            shortKeyColumnCount, schemaHash,
+                            version, versionHash,
+                            keysType,
+                            storageType, storageMedium,
+                            schema, bfColumns, bfFpp,
+                            countDownLatch);
+                    batchTask.addTask(task);
+                    // add to AgentTaskQueue for handling finish report.
+                    // not for resending task
+                    AgentTaskQueue.addTask(task);
+                }
+            }
+            AgentTaskExecutor.submit(batchTask);
+
+            // estimate timeout
+            long timeout = Config.tablet_create_timeout_second * 1000L * totalTaskNum;
+            timeout = Math.min(timeout, Config.max_create_table_timeout_second * 1000);
+            try {
+                ok = countDownLatch.await(timeout, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                LOG.warn("InterruptedException: ", e);
+                ok = false;
+            }
+
+            if (!ok || !countDownLatch.getStatus().ok()) {
+                errMsg = "Failed to create partition[" + partitionName + "]. Timeout.";
+                // clear tasks
+                AgentTaskQueue.removeBatchTask(batchTask, TTaskType.CREATE);
+
+                if (!countDownLatch.getStatus().ok()) {
+                    errMsg += " Error: " + countDownLatch.getStatus().getErrorMsg();
+                } else {
+                    List<Entry<Long, Long>> unfinishedMarks = countDownLatch.getLeftMarks();
+                    // only show at most 3 results
+                    List<Entry<Long, Long>> subList = unfinishedMarks.subList(0, Math.min(unfinishedMarks.size(), 3));
+                    if (!subList.isEmpty()) {
+                        errMsg += " Unfinished mark: " + Joiner.on(", ").join(subList);
                     }
                 }
-                AgentTaskExecutor.submit(batchTask);
-
-                // estimate timeout
-                long timeout = Config.tablet_create_timeout_second * 1000L * totalTaskNum;
-                timeout = Math.min(timeout, Config.max_create_table_timeout_second * 1000);
-                try {
-                    ok = countDownLatch.await(timeout, TimeUnit.MILLISECONDS);
-                } catch (InterruptedException e) {
-                    LOG.warn("InterruptedException: ", e);
-                    ok = false;
-                }
-
-                if (!ok || !countDownLatch.getStatus().ok()) {
-                    errMsg = "Failed to create partition[" + partitionName + "]. Timeout.";
-                    // clear tasks
-                    AgentTaskQueue.removeBatchTask(batchTask, TTaskType.CREATE);
-
-                    if (!countDownLatch.getStatus().ok()) {
-                        errMsg += " Error: " + countDownLatch.getStatus().getErrorMsg();
-                    } else {
-                        List<Entry<Long, Long>> unfinishedMarks = countDownLatch.getLeftMarks();
-                        // only show at most 3 results
-                        List<Entry<Long, Long>> subList = unfinishedMarks.subList(0, Math.min(unfinishedMarks.size(), 3));
-                        if (!subList.isEmpty()) {
-                            errMsg += " Unfinished mark: " + Joiner.on(", ").join(subList);
-                        }
-                    }
-                    LOG.warn(errMsg);
-                    throw new DdlException(errMsg);
-                }
-            } else {
-                // do nothing
-                // restore task will be done in RestoreJob
+                LOG.warn(errMsg);
+                throw new DdlException(errMsg);
             }
 
             if (index.getId() != baseIndexId) {
@@ -3453,13 +3447,13 @@ public class Catalog {
             partitionInfo.setDataProperty(partitionId, dataProperty);
 
             // analyze replication num
-            short replicationNum = FeConstants.default_replication_num;
+            ReplicaAllocation replicaAlloc = ReplicaAllocation.DEFAULT_ALLOCATION;
             try {
-                replicationNum = PropertyAnalyzer.analyzeReplicationNum(properties, replicationNum);
+                replicaAlloc = PropertyAnalyzer.analyzeReplicaAllocation(properties, replicaAlloc);
             } catch (AnalysisException e) {
                 throw new DdlException(e.getMessage());
             }
-            partitionInfo.setReplicationNum(partitionId, replicationNum);
+            partitionInfo.setReplicaAllocation(partitionId, replicaAlloc);
         }
 
         // check colocation properties
@@ -3508,7 +3502,6 @@ public class Catalog {
         // if failed in any step, use this set to do clear things
         Set<Long> tabletIdSet = new HashSet<Long>();
 
-        Table returnTable = null;
         // create partition
         try {
             if (partitionInfo.getType() == PartitionType.UNPARTITIONED) {
@@ -3517,7 +3510,7 @@ public class Catalog {
                 String partitionName = tableName;
                 long partitionId = partitionNameToId.get(partitionName);
                 // create partition
-                Partition partition = createPartitionWithIndices(db.getClusterName(), db.getId(),
+                Partition partition = createPartitionWithIndices(db.getId(),
                         olapTable.getId(), olapTable.getBaseIndexId(),
                         partitionId, partitionName,
                         olapTable.getIndexIdToShortKeyColumnCount(),
@@ -3527,16 +3520,16 @@ public class Catalog {
                         keysType,
                         distributionInfo,
                         partitionInfo.getDataProperty(partitionId).getStorageMedium(),
-                        partitionInfo.getReplicationNum(partitionId),
+                        partitionInfo.getReplicationAllocation(partitionId),
                         versionInfo, bfColumns, bfFpp,
-                        tabletIdSet, isRestore);
+                        tabletIdSet);
                 olapTable.addPartition(partition);
             } else if (partitionInfo.getType() == PartitionType.RANGE) {
                 try {
                     // just for remove entries in stmt.getProperties(),
                     // and then check if there still has unknown properties
                     PropertyAnalyzer.analyzeDataProperty(stmt.getProperties(), DataProperty.DEFAULT_HDD_DATA_PROPERTY);
-                    PropertyAnalyzer.analyzeReplicationNum(properties, FeConstants.default_replication_num);
+                    PropertyAnalyzer.analyzeReplicaAllocation(properties, ReplicaAllocation.DEFAULT_ALLOCATION);
 
                     if (properties != null && !properties.isEmpty()) {
                         // here, all properties should be checked
@@ -3558,37 +3551,29 @@ public class Catalog {
                             olapTable.getIndexIdToSchema(),
                             keysType, distributionInfo,
                             dataProperty.getStorageMedium(),
-                            partitionInfo.getReplicationNum(entry.getValue()),
+                            partitionInfo.getReplicationAllocation(entry.getValue()),
                             versionInfo, bfColumns, bfFpp,
-                            tabletIdSet, isRestore);
+                            tabletIdSet);
                     olapTable.addPartition(partition);
                 }
             } else {
                 throw new DdlException("Unsupport partition method: " + partitionInfo.getType().name());
             }
-
-            if (isRestore) {
-                // ATTN: do not add this table to db.
-                // if add, replica info may be removed when handling tablet
-                // report,
-                // cause be does not have real data file
-                returnTable = olapTable;
-                LOG.info("successfully create table[{};{}] to restore", tableName, tableId);
-            } else {
-                if (!db.createTableWithLock(olapTable, false, stmt.isSetIfNotExists())) {
-                    ErrorReport.reportDdlException(ErrorCode.ERR_CANT_CREATE_TABLE, tableName, "table already exists");
-                }
-
-                // we have added these index to memory, only need to persist here
-                if (getColocateTableIndex().isColocateTable(tableId)) {
-                    GroupId groupId = getColocateTableIndex().getGroup(tableId);
-                    List<List<Long>> backendsPerBucketSeq = getColocateTableIndex().getBackendsPerBucketSeq(groupId);
-                    ColocatePersistInfo info = ColocatePersistInfo.createForAddTable(groupId, tableId, backendsPerBucketSeq);
-                    editLog.logColocateAddTable(info);
-                }
-
-                LOG.info("successfully create table[{};{}]", tableName, tableId);
+            
+            if (!db.createTableWithLock(olapTable, false, stmt.isSetIfNotExists())) {
+                ErrorReport.reportDdlException(ErrorCode.ERR_CANT_CREATE_TABLE, tableName, "table already exists");
             }
+            
+            // we have added these index to memory, only need to persist here
+            if (getColocateTableIndex().isColocateTable(tableId)) {
+                GroupId groupId = getColocateTableIndex().getGroup(tableId);
+                List<List<Long>> backendsPerBucketSeq = getColocateTableIndex().getBackendsPerBucketSeq(groupId);
+                ColocatePersistInfo info = ColocatePersistInfo.createForAddTable(groupId, tableId, backendsPerBucketSeq);
+                editLog.logColocateAddTable(info);
+            }
+            
+            LOG.info("successfully create table[{};{}]", tableName, tableId);
+            
         } catch (DdlException e) {
             for (Long tabletId : tabletIdSet) {
                 Catalog.getCurrentInvertedIndex().deleteTablet(tabletId);
@@ -3601,8 +3586,7 @@ public class Catalog {
 
             throw e;
         }
-
-        return returnTable;
+        return;
     }
 
     private void createMysqlTable(Database db, CreateTableStmt stmt) throws DdlException {
@@ -4014,10 +3998,9 @@ public class Catalog {
         }
     }
 
-    private void createTablets(String clusterName, MaterializedIndex index, ReplicaState replicaState,
-                               DistributionInfo distributionInfo, long version, long versionHash, short replicationNum,
-                               TabletMeta tabletMeta, Set<Long> tabletIdSet) throws DdlException {
-        Preconditions.checkArgument(replicationNum > 0);
+    private void createTablets(MaterializedIndex index, ReplicaState replicaState,
+            DistributionInfo distributionInfo, long version, long versionHash, ReplicaAllocation replicaAlloc,
+            TabletMeta tabletMeta, Set<Long> tabletIdSet) throws DdlException {
 
         DistributionInfoType distributionInfoType = distributionInfo.getType();
         if (distributionInfoType == DistributionInfoType.HASH) {
@@ -4058,7 +4041,7 @@ public class Catalog {
                 if (chooseBackendsArbitrary) {
                     // This is the first colocate table in the group, or just a normal table,
                     // randomly choose backends
-                    chosenBackendIds = chosenBackendIdBySeq(replicationNum, clusterName);
+                    chosenBackendIds = chosenBackendIdBySeq(replicaAlloc);
                     backendsPerBucketSeq.add(chosenBackendIds);
                 } else {
                     // get backends from existing backend sequence
@@ -4085,10 +4068,10 @@ public class Catalog {
     }
 
     // create replicas for tablet with random chosen backends
-    private List<Long> chosenBackendIdBySeq(int replicationNum, String clusterName) throws DdlException {
-        List<Long> chosenBackendIds = Catalog.getCurrentSystemInfo().seqChooseBackendIds(replicationNum, true, true, clusterName);
+    private List<Long> chosenBackendIdBySeq(ReplicaAllocation replicaAlloc) throws DdlException {
+        List<Long> chosenBackendIds = systemInfo.chooseBanckendByRaplicaAlloc(replicaAlloc);
         if (chosenBackendIds == null) {
-            throw new DdlException("Failed to find enough host in all backends. need: " + replicationNum);
+            throw new DdlException("Failed to find enough host in all backends. need: " + replicaAlloc);
         }
         return chosenBackendIds;
     }

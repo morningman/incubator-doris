@@ -30,6 +30,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,8 @@ import java.util.stream.Collectors;
  * this class is not thread safe.
  */
 public class TagSet implements Writable {
+    public static final TagSet EMPTY_TAGSET = new TagSet();
+
     private Set<Tag> tags = Sets.newHashSet();
 
     private TagSet() {
@@ -162,6 +165,23 @@ public class TagSet implements Writable {
             }
         }
         return gson.toJson(map);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(tags);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof TagSet)) {
+            return false;
+        }
+        TagSet tagSet = (TagSet) obj;
+        return tags.equals(tagSet.tags);
     }
 
     @Override
