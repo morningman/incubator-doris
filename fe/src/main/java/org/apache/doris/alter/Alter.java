@@ -77,7 +77,6 @@ public class Alter {
     public void processAlterTable(AlterTableStmt stmt) throws UserException {
         TableName dbTableName = stmt.getTbl();
         String dbName = dbTableName.getDb();
-        final String clusterName = stmt.getClusterName();
 
         Database db = Catalog.getInstance().getDb(dbName);
         if (db == null) {
@@ -85,7 +84,7 @@ public class Alter {
         }
 
         // check cluster capacity
-        Catalog.getCurrentSystemInfo().checkClusterCapacity(clusterName);
+        // Catalog.getCurrentSystemInfo().checkClusterCapacity(clusterName);
 
         // schema change ops can appear several in one alter stmt without other alter ops entry
         boolean hasSchemaChange = false;

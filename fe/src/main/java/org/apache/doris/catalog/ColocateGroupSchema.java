@@ -114,9 +114,14 @@ public class ColocateGroupSchema implements Writable {
 
     public void checkReplicaAllocation(PartitionInfo partitionInfo) throws DdlException {
         for (ReplicaAllocation allocation : partitionInfo.idToReplicationAllocation.values()) {
-            if (!replicaAllocation.equals(allocation)) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_COLOCATE_TABLE_MUST_HAS_SAME_REPLICATION_NUM, replicationNum);
-            }
+            checkReplicaAllocation(allocation);
+        }
+    }
+
+    public void checkReplicaAllocation(ReplicaAllocation replicaAlloc) throws DdlException {
+        if (!replicaAllocation.equals(replicaAlloc)) {
+            ErrorReport.reportDdlException(ErrorCode.ERR_COLOCATE_TABLE_MUST_HAS_SAME_REPLICATION_NUM,
+                    replicaAlloc);
         }
     }
 

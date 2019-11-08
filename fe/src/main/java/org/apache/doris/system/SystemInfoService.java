@@ -34,6 +34,7 @@ import org.apache.doris.resource.TagSet;
 import org.apache.doris.system.Backend.BackendState;
 import org.apache.doris.thrift.TStatusCode;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -908,7 +909,7 @@ public class SystemInfoService {
         this.idToReportVersionRef = null;
     }
 
-    public static Pair<String, Integer> validateHostAndPort(String hostPort) throws AnalysisException {
+    public static Pair<String, Integer> o(String hostPort) throws AnalysisException {
         hostPort = hostPort.replaceAll("\\s+", "");
         if (hostPort.isEmpty()) {
             throw new AnalysisException("Invalid host port: " + hostPort);
@@ -1137,14 +1138,24 @@ public class SystemInfoService {
     }
 
     /*
+     * select a list of backend id by replica allocation.
+     * NOTICE: currently each backend should has one and only one LOCATION tag. So when getting backend
+     * by different LOCATION tag, there will be no overlapping.
+     * This make the selection of backend more easily, because if a backend has multi LOCATION tag, eg:
      * 
+     *  Backend1        Backend2        Backend3        Backend4
+     *  A               A               A
+     *                  B               B               B
+     *                  
+     *  Backend 2 and 3 have multi LOCALTION tags: A and B, if user want 2 replicas on A and 1 replica on B,
+     *  it is very difficult to allocate the replica evenly.
      */
-    public List<Long> chooseBanckendByRaplicaAlloc(ReplicaAllocation replicaAlloc) throws DdlException {
+    public List<Long> selectBanckendByRaplicaAlloc(ReplicaAllocation replicaAlloc) throws DdlException {
         if (replicaAlloc.getReplicaNumByType(AllocationType.LOCAL) == 0
                 || replicaAlloc.getReplicaNumByType(AllocationType.REMOTE) > 0) {
             throw new DdlException("Currently only support LOCAL replica.");
         }
-        Set<Long> resBackendIds = Sets.newHashSet();
+        List<Long> resBackendIds = Lists.newArrayList();
         Map<TagSet, Short> tagSetMap = replicaAlloc.getTagMapByType(AllocationType.LOCAL);
         for (Map.Entry<TagSet, Short> entry : tagSetMap.entrySet()) {
             List<Long> res = Catalog.getCurrentCatalog().getTagManger().getResourceIdsByTags(entry.getKey());
@@ -1153,16 +1164,10 @@ public class SystemInfoService {
                         + ", expected: " + entry.getValue() + ", tags: " + entry.getKey());
             }
             Collections.shuffle(res);
-            resBackendIds.
+            resBackendIds.addAll(res.subList(0, entry.getValue()));
         }
-
-        short replicaNum = replicaAlloc.getReplicaNumByType(AllocationType.LOCAL);
-        Set<Long> res = Catalog.getCurrentCatalog().getTagManger().getResourceIdsByTags(tagSet);
-        if (res.size() != replicaNum) {
-            throw new DdlException("failed to get enough backend for allocating replica. find " + res.size()
-                    + ", expected: " + replicaNum + ", tags: " + tagSet);
-        }
-        return res;
+        Preconditions.checkState(resBackendIds.size() == replicaAlloc.getReplicaNumByType(AllocationType.LOCAL));
+        return resBackendIds;
     }
 }
 

@@ -40,6 +40,7 @@ public class PartitionInfo implements Writable {
     // partition id -> data property
     protected Map<Long, DataProperty> idToDataProperty = Maps.newHashMap();
     // partition id -> replication num
+    @Deprecated
     protected Map<Long, Short> idToReplicationNum = Maps.newHashMap();;
     // true if the partition has multi partition columns
     protected boolean isMultiColumnPartition = false;

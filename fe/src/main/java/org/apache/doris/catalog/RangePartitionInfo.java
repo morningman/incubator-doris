@@ -21,6 +21,8 @@ import org.apache.doris.analysis.PartitionKeyDesc;
 import org.apache.doris.analysis.SingleRangePartitionDesc;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.DdlException;
+import org.apache.doris.common.FeMetaVersion;
+import org.apache.doris.persist.PartitionPersistInfo;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BoundType;
@@ -190,17 +192,20 @@ public class RangePartitionInfo extends PartitionInfo {
             throw new DdlException("Invalid key range: " + e.getMessage());
         }
         idToDataProperty.put(partitionId, desc.getPartitionDataProperty());
-        idToReplicationNum.put(partitionId, desc.getReplicationNum());
+        idToReplicationAllocation.put(partitionId, desc.getReplicaAlloc());
         return range;
     }
 
-    // for catalog restore
-    public void unprotectHandleNewSinglePartitionDesc(long partitionId, Range<PartitionKey> range,
-                                                      DataProperty dataProperty, short replicationNum)
+    public void replayAddNewSinglePartitionRange(PartitionPersistInfo info)
             throws DdlException {
-        idToRange.put(partitionId, range);
-        idToDataProperty.put(partitionId, dataProperty);
-        idToReplicationNum.put(partitionId, replicationNum);
+        Partition partition = info.getPartition();
+        idToRange.put(partition.getId(), info.getRange());
+        idToDataProperty.put(partition.getId(), info.getDataProperty());
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+            idToReplicationNum.put(partition.getId(), info.getReplicationNum());
+        } else {
+            idToReplicationAllocation.put(partition.getId(), info.getReplicaAlloc());
+        }
     }
 
     public void setRange(long partitionId, Range<PartitionKey> range) {

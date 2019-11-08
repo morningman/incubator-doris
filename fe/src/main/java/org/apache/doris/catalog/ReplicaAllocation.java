@@ -49,6 +49,10 @@ public class ReplicaAllocation implements Writable {
         return (short) typeToTag.row(type).values().stream().mapToInt(Short::valueOf).sum();
     }
 
+    public short getReplicaNum() {
+        return (short) typeToTag.values().stream().mapToInt(Short::valueOf).sum();
+    }
+
     public Map<TagSet, Short> getTagMapByType(AllocationType type) {
         if (!typeToTag.containsRow(type)) {
             return Maps.newHashMap();

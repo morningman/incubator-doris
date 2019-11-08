@@ -17,10 +17,13 @@
 
 package org.apache.doris.persist;
 
+import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.DataProperty;
 import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.PartitionKey;
 import org.apache.doris.catalog.RangePartitionInfo;
+import org.apache.doris.catalog.ReplicaAllocation;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Writable;
 
 import com.google.common.collect.Range;
@@ -36,21 +39,22 @@ public class PartitionPersistInfo implements Writable {
 
     private Range<PartitionKey> range;
     private DataProperty dataProperty;
+    @Deprecated
     private short replicationNum;
+    private ReplicaAllocation replicaAlloc;
     
     public PartitionPersistInfo() {
     }
 
     public PartitionPersistInfo(long dbId, long tableId, Partition partition, Range<PartitionKey> range,
-                                DataProperty dataProperty, short replicationNum) {
+            DataProperty dataProperty, ReplicaAllocation replicaAlloc) {
         this.dbId = dbId;
         this.tableId = tableId;
         this.partition = partition;
 
         this.range = range;
         this.dataProperty = dataProperty;
-
-        this.replicationNum = replicationNum;
+        this.replicaAlloc = replicaAlloc;
     }
     
     public Long getDbId() {
@@ -77,6 +81,10 @@ public class PartitionPersistInfo implements Writable {
         return replicationNum;
     }
 
+    public ReplicaAllocation getReplicaAlloc() {
+        return replicaAlloc;
+    }
+
     public void write(DataOutput out) throws IOException {
         out.writeLong(dbId);
         out.writeLong(tableId);
@@ -84,7 +92,7 @@ public class PartitionPersistInfo implements Writable {
 
         RangePartitionInfo.writeRange(out, range);
         dataProperty.write(out);
-        out.writeShort(replicationNum);
+        replicaAlloc.write(out);
     }
  
     public void readFields(DataInput in) throws IOException {
@@ -94,7 +102,11 @@ public class PartitionPersistInfo implements Writable {
 
         range = RangePartitionInfo.readRange(in);
         dataProperty = DataProperty.read(in);
-        replicationNum = in.readShort();
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+            replicationNum = in.readShort();
+        } else {
+            replicaAlloc = ReplicaAllocation.read(in);
+        }
     }
     
     public boolean equals(Object obj) {

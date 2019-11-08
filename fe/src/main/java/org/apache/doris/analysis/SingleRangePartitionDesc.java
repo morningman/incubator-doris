@@ -19,8 +19,8 @@ package org.apache.doris.analysis;
 
 import org.apache.doris.analysis.PartitionKeyDesc.PartitionRangeType;
 import org.apache.doris.catalog.DataProperty;
+import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.common.AnalysisException;
-import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.FeNameFormat;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.util.PrintableMap;
@@ -42,7 +42,7 @@ public class SingleRangePartitionDesc {
     private Map<String, String> properties;
 
     private DataProperty partitionDataProperty;
-    private Short replicationNum;
+    private ReplicaAllocation replicaAlloc;
     private Pair<Long, Long> versionInfo;
 
     public SingleRangePartitionDesc(boolean ifNotExists, String partName, PartitionKeyDesc partitionKeyDesc,
@@ -56,7 +56,6 @@ public class SingleRangePartitionDesc {
         this.properties = properties;
 
         this.partitionDataProperty = DataProperty.DEFAULT_HDD_DATA_PROPERTY;
-        this.replicationNum = FeConstants.default_replication_num;
     }
 
     public boolean isSetIfNotExists() {
@@ -75,8 +74,8 @@ public class SingleRangePartitionDesc {
         return partitionDataProperty;
     }
 
-    public short getReplicationNum() {
-        return replicationNum;
+    public ReplicaAllocation getReplicaAlloc() {
+        return replicaAlloc;
     }
 
     public Pair<Long, Long> getVersionInfo() {
@@ -112,10 +111,7 @@ public class SingleRangePartitionDesc {
         Preconditions.checkNotNull(partitionDataProperty);
 
         // analyze replication num
-        replicationNum = PropertyAnalyzer.analyzeReplicationNum(properties, FeConstants.default_replication_num);
-        if (replicationNum == null) {
-            throw new AnalysisException("Invalid replication number: " + replicationNum);
-        }
+        replicaAlloc = PropertyAnalyzer.analyzeReplicaAllocation(properties, ReplicaAllocation.DEFAULT_ALLOCATION);
 
         // analyze version info
         versionInfo = PropertyAnalyzer.analyzeVersionInfo(properties);
