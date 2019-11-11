@@ -97,9 +97,15 @@ public class PartitionInfo implements Writable {
         }
     }
 
+    @Deprecated
     public void addPartition(long partitionId, DataProperty dataProperty, short replicationNum) {
         idToDataProperty.put(partitionId, dataProperty);
         idToReplicationNum.put(partitionId, replicationNum);
+    }
+
+    public void addPartition(long partitionId, DataProperty dataProperty, ReplicaAllocation replicaAlloc) {
+        idToDataProperty.put(partitionId, dataProperty);
+        idToReplicationAllocation.put(partitionId, replicaAlloc);
     }
 
     public static PartitionInfo read(DataInput in) throws IOException {

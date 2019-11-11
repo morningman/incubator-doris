@@ -636,7 +636,7 @@ public class RollupHandler extends AlterHandler {
     }
 
     @Override
-    public void process(List<AlterClause> alterClauses, String clusterName, Database db, OlapTable olapTable)
+    public void process(List<AlterClause> alterClauses, Database db, OlapTable olapTable)
             throws DdlException {
         for (AlterClause alterClause : alterClauses) {
             if (alterClause instanceof AddRollupClause) {

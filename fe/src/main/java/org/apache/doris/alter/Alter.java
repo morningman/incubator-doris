@@ -190,9 +190,9 @@ public class Alter {
             }
 
             if (hasSchemaChange || hasModifyProp) {
-                schemaChangeHandler.process(alterClauses, clusterName, db, olapTable);
+                schemaChangeHandler.process(alterClauses, db, olapTable);
             } else if (hasAddRollup || hasDropRollup) {
-                rollupHandler.process(alterClauses, clusterName, db, olapTable);
+                rollupHandler.process(alterClauses, db, olapTable);
             } else if (hasPartition) {
                 Preconditions.checkState(alterClauses.size() == 1);
                 AlterClause alterClause = alterClauses.get(0);
@@ -223,7 +223,7 @@ public class Alter {
     }
 
     public void processAlterCluster(AlterSystemStmt stmt) throws DdlException {
-        clusterHandler.process(Arrays.asList(stmt.getAlterClause()), stmt.getClusterName(), null, null);
+        clusterHandler.process(Arrays.asList(stmt.getAlterClause()), null, null);
     }
 
     private void processRename(Database db, OlapTable table, List<AlterClause> alterClauses) throws DdlException {

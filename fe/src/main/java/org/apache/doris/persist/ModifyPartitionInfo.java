@@ -17,7 +17,10 @@
 
 package org.apache.doris.persist;
 
+import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.DataProperty;
+import org.apache.doris.catalog.ReplicaAllocation;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Writable;
 
 import java.io.DataInput;
@@ -30,19 +33,21 @@ public class ModifyPartitionInfo implements Writable {
     private long tableId;
     private long partitionId;
     private DataProperty dataProperty;
+    @Deprecated
     private short replicationNum;
+    private ReplicaAllocation replicaAlloc;
 
     public ModifyPartitionInfo() {
         // for persist
     }
 
     public ModifyPartitionInfo(long dbId, long tableId, long partitionId,
-                               DataProperty dataProperty, short replicationNum) {
+            DataProperty dataProperty, ReplicaAllocation replicaAlloc) {
         this.dbId = dbId;
         this.tableId = tableId;
         this.partitionId = partitionId;
         this.dataProperty = dataProperty;
-        this.replicationNum = replicationNum;
+        this.replicaAlloc = replicaAlloc;
     }
 
     public long getDbId() {
@@ -65,6 +70,10 @@ public class ModifyPartitionInfo implements Writable {
         return replicationNum;
     }
 
+    public ReplicaAllocation getReplicaAlloc() {
+        return replicaAlloc;
+    }
+
     public static ModifyPartitionInfo read(DataInput in) throws IOException {
         ModifyPartitionInfo info = new ModifyPartitionInfo();
         info.readFields(in);
@@ -84,7 +93,12 @@ public class ModifyPartitionInfo implements Writable {
             dataProperty.write(out);
         }
 
-        out.writeShort(replicationNum);
+        if (replicaAlloc == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            replicaAlloc.write(out);
+        }
     }
 
     @Override
@@ -100,7 +114,14 @@ public class ModifyPartitionInfo implements Writable {
             dataProperty = null;
         }
 
-        replicationNum = in.readShort();
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+            replicationNum = in.readShort();
+        } else {
+            if (in.readBoolean()) {
+                replicaAlloc = ReplicaAllocation.read(in);
+            }
+        }
+
     }
 
 }

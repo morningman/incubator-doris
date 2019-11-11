@@ -807,20 +807,23 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
         private Partition partition;
         private Range<PartitionKey> range;
         private DataProperty dataProperty;
+        @Deprecated
         private short replicationNum;
+        private ReplicaAllocation replicaAlloc;
 
         public RecyclePartitionInfo() {
             // for persist
         }
 
         public RecyclePartitionInfo(long dbId, long tableId, Partition partition,
-                                    Range<PartitionKey> range, DataProperty dataProperty, short replicationNum) {
+                Range<PartitionKey> range, DataProperty dataProperty,
+                ReplicaAllocation replicaAlloc) {
             this.dbId = dbId;
             this.tableId = tableId;
             this.partition = partition;
             this.range = range;
             this.dataProperty = dataProperty;
-            this.replicationNum = replicationNum;
+            this.replicaAlloc = replicaAlloc;
         }
 
         public long getDbId() {
@@ -843,8 +846,13 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             return dataProperty;
         }
 
+        @Deprecated
         public short getReplicationNum() {
             return replicationNum;
+        }
+
+        public ReplicaAllocation getReplicaAlloc() {
+            return replicaAlloc;
         }
 
         @Override

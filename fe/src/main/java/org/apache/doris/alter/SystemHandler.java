@@ -136,7 +136,7 @@ public class SystemHandler extends AlterHandler {
 
     @Override
     // add synchronized to avoid process 2 or more stmt at same time
-    public synchronized void process(List<AlterClause> alterClauses, String clusterName, Database dummyDb,
+    public synchronized void process(List<AlterClause> alterClauses, Database dummyDb,
             OlapTable dummyTbl) throws DdlException {
         Preconditions.checkArgument(alterClauses.size() == 1);
         AlterClause alterClause = alterClauses.get(0);

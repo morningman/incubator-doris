@@ -3183,8 +3183,15 @@ public class Catalog {
             if (info.getDataProperty() != null) {
                 partitionInfo.setDataProperty(info.getPartitionId(), info.getDataProperty());
             }
-            if (info.getReplicationNum() != (short) -1) {
-                partitionInfo.setReplicationNum(info.getPartitionId(), info.getReplicationNum());
+
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+                if (info.getReplicationNum() != (short) -1) {
+                    partitionInfo.setReplicationNum(info.getPartitionId(), info.getReplicationNum());
+                }
+            } else {
+                if (info.getReplicaAlloc() != null) {
+                    partitionInfo.setReplicaAllocation(info.getPartitionId(), info.getReplicaAlloc());
+                }
             }
         } finally {
             db.writeUnlock();
@@ -4339,11 +4346,8 @@ public class Catalog {
                                     dbId, tableId, partitionId);
 
                             // log
-                            ModifyPartitionInfo info =
-                                    new ModifyPartitionInfo(db.getId(), olapTable.getId(),
-                                            partition.getId(),
-                                            DataProperty.DEFAULT_HDD_DATA_PROPERTY,
-                                            (short) -1);
+                            ModifyPartitionInfo info = new ModifyPartitionInfo(db.getId(), olapTable.getId(),
+                                    partition.getId(), DataProperty.DEFAULT_HDD_DATA_PROPERTY, null);
                             editLog.logModifyPartition(info);
                         }
                     } // end for partitions
@@ -5878,8 +5882,8 @@ public class Catalog {
                 // which is the right behavior.
                 long oldPartitionId = entry.getValue();
                 long newPartitionId = getNextId();
-                Partition newPartition = createPartitionWithIndices(db.getClusterName(),
-                        db.getId(), copiedTbl.getId(), copiedTbl.getBaseIndexId(),
+                Partition newPartition = createPartitionWithIndices(db.getId(),
+                        copiedTbl.getId(), copiedTbl.getBaseIndexId(),
                         newPartitionId, entry.getKey(),
                         copiedTbl.getIndexIdToShortKeyColumnCount(),
                         copiedTbl.getIndexIdToSchemaHash(),
@@ -5888,12 +5892,11 @@ public class Catalog {
                         copiedTbl.getKeysType(),
                         copiedTbl.getDefaultDistributionInfo(),
                         copiedTbl.getPartitionInfo().getDataProperty(oldPartitionId).getStorageMedium(),
-                        copiedTbl.getPartitionInfo().getReplicationNum(oldPartitionId),
+                        copiedTbl.getPartitionInfo().getReplicationAllocation(oldPartitionId),
                         null /* version info */,
                         copiedTbl.getCopiedBfColumns(),
                         copiedTbl.getBfFpp(),
-                        tabletIdSet,
-                        false /* not restore */);
+                        tabletIdSet);
                 newPartitions.add(newPartition);
             }
         } catch (DdlException e) {

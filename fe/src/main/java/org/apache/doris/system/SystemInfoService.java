@@ -909,7 +909,7 @@ public class SystemInfoService {
         this.idToReportVersionRef = null;
     }
 
-    public static Pair<String, Integer> o(String hostPort) throws AnalysisException {
+    public static Pair<String, Integer> validateHostAndPort(String hostPort) throws AnalysisException {
         hostPort = hostPort.replaceAll("\\s+", "");
         if (hostPort.isEmpty()) {
             throw new AnalysisException("Invalid host port: " + hostPort);
