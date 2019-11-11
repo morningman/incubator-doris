@@ -111,7 +111,7 @@ public class SingleRangePartitionDesc {
         Preconditions.checkNotNull(partitionDataProperty);
 
         // analyze replication num
-        replicaAlloc = PropertyAnalyzer.analyzeReplicaAllocation(properties, ReplicaAllocation.DEFAULT_ALLOCATION);
+        replicaAlloc = PropertyAnalyzer.analyzeReplicaAllocation(properties, ReplicaAllocation.createDefault());
 
         // analyze version info
         versionInfo = PropertyAnalyzer.analyzeVersionInfo(properties);

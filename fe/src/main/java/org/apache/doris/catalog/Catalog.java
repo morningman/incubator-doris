@@ -3424,7 +3424,7 @@ public class Catalog {
             partitionInfo.setDataProperty(partitionId, dataProperty);
 
             // analyze replication num
-            ReplicaAllocation replicaAlloc = ReplicaAllocation.DEFAULT_ALLOCATION;
+            ReplicaAllocation replicaAlloc = ReplicaAllocation.createDefault();
             try {
                 replicaAlloc = PropertyAnalyzer.analyzeReplicaAllocation(properties, replicaAlloc);
             } catch (AnalysisException e) {
@@ -3506,7 +3506,7 @@ public class Catalog {
                     // just for remove entries in stmt.getProperties(),
                     // and then check if there still has unknown properties
                     PropertyAnalyzer.analyzeDataProperty(stmt.getProperties(), DataProperty.DEFAULT_HDD_DATA_PROPERTY);
-                    PropertyAnalyzer.analyzeReplicaAllocation(properties, ReplicaAllocation.DEFAULT_ALLOCATION);
+                    PropertyAnalyzer.analyzeReplicaAllocation(properties, ReplicaAllocation.createDefault());
 
                     if (properties != null && !properties.isEmpty()) {
                         // here, all properties should be checked
@@ -4705,6 +4705,7 @@ public class Catalog {
                 if (partitionInfo.getType() == PartitionType.RANGE) {
                     int bucketsNum = -1;
                     short replicationNum = -1;
+                    ReplicaAllocation replicaAlloc = null;
                     for (Partition partition : table.getPartitions()) {
                         if (bucketsNum == -1) {
                             bucketsNum = partition.getDistributionInfo().getBucketNum();
@@ -4712,10 +4713,19 @@ public class Catalog {
                             throw new DdlException("Partitions in table " + table.getName() + " have different buckets number");
                         }
                         
-                        if (replicationNum == -1) {
-                            replicationNum = partitionInfo.getReplicationNum(partition.getId());
-                        } else if (replicationNum != partitionInfo.getReplicationNum(partition.getId())) {
-                            throw new DdlException("Partitions in table " + table.getName() + " have different replication number");
+                        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+                            if (replicationNum == -1) {
+                                replicationNum = partitionInfo.getReplicationNum2(partition.getId());
+                            } else if (replicationNum != partitionInfo.getReplicationNum2(partition.getId())) {
+                                throw new DdlException("Partitions in table " + table.getName() + " have different replication number");
+                            }
+                        } else {
+                            if (replicaAlloc == null) {
+                                replicaAlloc = partitionInfo.getReplicationAllocation(partition.getId());
+                            } else if (!replicaAlloc.isSameAlloc(partitionInfo.getReplicationAllocation(partition.getId()))) {
+                                throw new DdlException("Partitions in table " + table.getName()
+                                        + " have different replication allocation");
+                            }
                         }
                     }
                 }
@@ -5568,8 +5578,8 @@ public class Catalog {
 
                         OlapTable olapTable = (OlapTable) table;
                         for (Partition partition : olapTable.getPartitions()) {
-                            final short replicationNum = olapTable.getPartitionInfo()
-                                    .getReplicationNum(partition.getId());
+                            // TODO(cmy): what's this getMigrations() for?
+                            final short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
                             for (MaterializedIndex materializedIndex : partition.getMaterializedIndices(IndexExtState.ALL)) {
                                 if (materializedIndex.getState() != IndexState.NORMAL) {
                                     continue;

@@ -130,7 +130,7 @@ public class OlapTableSink extends DataSink {
         tSink.setTuple_id(tupleDescriptor.getId().asInt());
         int numReplicas = 1;
         for (Partition partition : dstTable.getPartitions()) {
-            numReplicas = dstTable.getPartitionInfo().getReplicationNum(partition.getId());
+            numReplicas = dstTable.getPartitionInfo().getReplicationNum2(partition.getId());
             break;
         }
         tSink.setNum_replicas(numReplicas);
@@ -298,7 +298,7 @@ public class OlapTableSink extends DataSink {
         // BE id -> path hash
         Multimap<Long, Long> allBePathsMap = HashMultimap.create();
         for (Partition partition : table.getPartitions()) {
-            int quorum = table.getPartitionInfo().getReplicationNum(partition.getId()) / 2 + 1;            
+            int quorum = table.getPartitionInfo().getReplicationNum2(partition.getId()) / 2 + 1;
             for (MaterializedIndex index : partition.getMaterializedIndices(IndexExtState.ALL)) {
                 // we should ensure the replica backend is alive
                 // otherwise, there will be a 'unknown node id, id=xxx' error for stream load

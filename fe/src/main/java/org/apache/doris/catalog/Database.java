@@ -346,6 +346,7 @@ public class Database extends MetaObject implements Writable {
         return idToTable.get(tableId);
     }
 
+    @Deprecated
     public int getMaxReplicationNum() {
         int ret = 0;
         readLock();
@@ -356,7 +357,7 @@ public class Database extends MetaObject implements Writable {
                 }
                 OlapTable olapTable = (OlapTable) table;
                 for (Partition partition : olapTable.getPartitions()) {
-                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partition.getId());
+                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
                     if (ret < replicationNum) {
                         ret = replicationNum;
                     }

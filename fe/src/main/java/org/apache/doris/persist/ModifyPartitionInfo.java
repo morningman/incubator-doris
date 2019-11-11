@@ -66,6 +66,7 @@ public class ModifyPartitionInfo implements Writable {
         return dataProperty;
     }
 
+    @Deprecated
     public short getReplicationNum() {
         return replicationNum;
     }

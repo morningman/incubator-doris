@@ -68,7 +68,7 @@ public class PartitionInfo implements Writable {
         idToDataProperty.put(partitionId, newDataProperty);
     }
 
-    public short getReplicationNum(long partitionId) {
+    public short getReplicationNum2(long partitionId) {
         if (isTagSystemConverted) {
             return idToReplicationAllocation.get(partitionId).getReplicaNumByType(AllocationType.LOCAL);
         } else {
@@ -76,6 +76,7 @@ public class PartitionInfo implements Writable {
         }
     }
 
+    @Deprecated
     public void setReplicationNum(long partitionId, short replicationNum) {
         idToReplicationNum.put(partitionId, replicationNum);
     }

@@ -92,7 +92,12 @@ public class PartitionPersistInfo implements Writable {
 
         RangePartitionInfo.writeRange(out, range);
         dataProperty.write(out);
-        replicaAlloc.write(out);
+        if (replicaAlloc == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            replicaAlloc.write(out);
+        }
     }
  
     public void readFields(DataInput in) throws IOException {
@@ -105,7 +110,9 @@ public class PartitionPersistInfo implements Writable {
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
             replicationNum = in.readShort();
         } else {
-            replicaAlloc = ReplicaAllocation.read(in);
+            if (in.readBoolean()) {
+                replicaAlloc = ReplicaAllocation.read(in);
+            }
         }
     }
     

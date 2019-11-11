@@ -509,7 +509,7 @@ public class ColocateTableIndex implements Writable {
                 info.add(Joiner.on(", ").join(group2Tables.get(groupId)));
                 ColocateGroupSchema groupSchema = group2Schema.get(groupId);
                 info.add(String.valueOf(groupSchema.getBucketsNum()));
-                info.add(String.valueOf(groupSchema.getReplicationNum()));
+                info.add(String.valueOf(groupSchema.getReplicaAllocation()));
                 List<String> cols = groupSchema.getDistributionColTypes().stream().map(
                         e -> e.toSql()).collect(Collectors.toList());
                 info.add(Joiner.on(", ").join(cols));

@@ -285,7 +285,7 @@ public class ConsistencyChecker extends MasterDaemon {
                                 new PriorityQueue<MetaObject>(1, COMPARATOR);
                         for (Partition partition : table.getPartitions()) {
                             // check partition's replication num. if 1 replication. skip
-                            if (table.getPartitionInfo().getReplicationNum(partition.getId()) == (short) 1) {
+                            if (table.getPartitionInfo().getReplicationNum2(partition.getId()) == (short) 1) {
                                 LOG.debug("partition[{}]'s replication num is 1. ignore", partition.getId());
                                 continue;
                             }

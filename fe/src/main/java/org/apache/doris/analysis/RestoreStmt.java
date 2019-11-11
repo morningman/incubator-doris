@@ -17,12 +17,14 @@
 
 package org.apache.doris.analysis;
 
+import org.apache.doris.catalog.ReplicaAllocation;
+import org.apache.doris.catalog.ReplicaAllocation.AllocationType;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
-import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.PrintableMap;
+import org.apache.doris.system.Backend;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
@@ -38,8 +40,9 @@ public class RestoreStmt extends AbstractBackupStmt {
     private final static String PROP_BACKUP_TIMESTAMP = "backup_timestamp";
     private final static String PROP_META_VERSION = "meta_version";
 
+    private ReplicaAllocation replicaAlloc = ReplicaAllocation.createDefault();
+
     private boolean allowLoad = false;
-    private int replicationNum = FeConstants.default_replication_num;
     private String backupTimestamp = null;
     private int metaVersion = -1;
 
@@ -51,8 +54,8 @@ public class RestoreStmt extends AbstractBackupStmt {
         return allowLoad;
     }
     
-    public int getReplicationNum() {
-        return replicationNum;
+    public ReplicaAllocation getReplicaAlloc() {
+        return replicaAlloc;
     }
 
     public String getBackupTimestamp() {
@@ -102,7 +105,8 @@ public class RestoreStmt extends AbstractBackupStmt {
         // replication num
         if (copiedProperties.containsKey(PROP_REPLICATION_NUM)) {
             try {
-                replicationNum = Integer.valueOf(copiedProperties.get(PROP_REPLICATION_NUM));
+                int replicationNum = Integer.valueOf(copiedProperties.get(PROP_REPLICATION_NUM));
+                replicaAlloc.setReplica(AllocationType.LOCAL, Backend.DEFAULT_TAG_SET, (short) replicationNum);
             } catch (NumberFormatException e) {
                 ErrorReport.reportAnalysisException(ErrorCode.ERR_COMMON_ERROR,
                                                     "Invalid replication num format: "

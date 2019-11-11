@@ -393,7 +393,7 @@ public class LoadChecker extends MasterDaemon {
                         return null;
                     }
                     
-                    short replicationNum = table.getPartitionInfo().getReplicationNum(partition.getId());
+                    short replicationNum = table.getPartitionInfo().getReplicationNum2(partition.getId());
                     // check all indices (base + roll up (not include ROLLUP state index))
                     List<MaterializedIndex> indices = partition.getMaterializedIndices(IndexExtState.ALL);
                     for (MaterializedIndex index : indices) {

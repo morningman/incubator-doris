@@ -514,7 +514,7 @@ public class ReportHandler extends Daemon {
                         continue;
                     }
 
-                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partition.getId());
+                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
 
                     long indexId = invertedIndex.getIndexId(tabletId);
                     MaterializedIndex index = partition.getIndex(indexId);

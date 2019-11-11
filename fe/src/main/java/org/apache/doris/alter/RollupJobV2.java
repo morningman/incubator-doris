@@ -387,7 +387,8 @@ public class RollupJobV2 extends AlterJobV2 {
 
                 long visiableVersion = partition.getVisibleVersion();
                 long visiableVersionHash = partition.getVisibleVersionHash();
-                short expectReplicationNum = tbl.getPartitionInfo().getReplicationNum(partition.getId());
+                // TODO(cmy): check replica by allocation, not just number
+                short expectReplicationNum = tbl.getPartitionInfo().getReplicationNum2(partition.getId());
 
                 MaterializedIndex rollupIndex = entry.getValue();
                 for (Tablet rollupTablet : rollupIndex.getTablets()) {

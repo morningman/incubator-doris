@@ -29,6 +29,7 @@ import org.apache.doris.service.ExecuteEnv;
 import org.apache.doris.system.Backend;
 import org.apache.doris.thrift.TNetworkAddress;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import org.apache.logging.log4j.LogManager;
@@ -115,11 +116,8 @@ public class LoadAction extends RestBaseAction {
         }
 
         // Choose a backend sequentially.
-        List<Long> backendIds = Catalog.getCurrentSystemInfo().seqChooseBackendIds(1, true, false, clusterName);
-        if (backendIds == null) {
-            throw new DdlException("No backend alive.");
-        }
-
+        List<Long> backendIds = Catalog.getCurrentSystemInfo().randomSelectBackend(1);
+        Preconditions.checkState(backendIds.size() == 1);
         Backend backend = Catalog.getCurrentSystemInfo().getBackend(backendIds.get(0));
         if (backend == null) {
             throw new DdlException("No backend alive.");

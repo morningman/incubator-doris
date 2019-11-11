@@ -17,11 +17,6 @@
 
 package org.apache.doris.common.proc;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Range;
-
 import org.apache.doris.catalog.Column;
 import org.apache.doris.catalog.DataProperty;
 import org.apache.doris.catalog.Database;
@@ -38,6 +33,11 @@ import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.util.DebugUtil;
 import org.apache.doris.common.util.TimeUtils;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Range;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -120,7 +120,7 @@ public class PartitionsProcDir implements ProcDirInterface {
 
                     partitionInfo.add(distributionInfo.getBucketNum());
                     
-                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partitionId);
+                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partitionId);
                     partitionInfo.add(String.valueOf(replicationNum));
                     
                     DataProperty dataProperty = rangePartitionInfo.getDataProperty(partitionId);
@@ -171,7 +171,7 @@ public class PartitionsProcDir implements ProcDirInterface {
 
                     partitionInfo.add(distributionInfo.getBucketNum());
 
-                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partitionId);
+                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partitionId);
                     partitionInfo.add(String.valueOf(replicationNum));
 
                     DataProperty dataProperty = olapTable.getPartitionInfo().getDataProperty(partitionId);

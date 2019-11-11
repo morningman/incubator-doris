@@ -417,7 +417,8 @@ public class SchemaChangeJobV2 extends AlterJobV2 {
 
                 long visiableVersion = partition.getVisibleVersion();
                 long visiableVersionHash = partition.getVisibleVersionHash();
-                short expectReplicationNum = tbl.getPartitionInfo().getReplicationNum(partition.getId());
+                // TODO(cmy): check replica by allocation, not just number
+                short expectReplicationNum = tbl.getPartitionInfo().getReplicationNum2(partition.getId());
 
                 Map<Long, MaterializedIndex> shadowIndexMap = partitionIndexMap.row(partitionId);
                 for (Map.Entry<Long, MaterializedIndex> entry : shadowIndexMap.entrySet()) {

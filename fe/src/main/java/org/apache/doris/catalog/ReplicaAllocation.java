@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class ReplicaAllocation implements Writable {
 
-    public static final ReplicaAllocation DEFAULT_ALLOCATION;
+    private static final ReplicaAllocation DEFAULT_ALLOCATION;
     static {
         DEFAULT_ALLOCATION = new ReplicaAllocation();
         TagSet tagSet = TagSet.copyFrom(Backend.DEFAULT_TAG_SET);
@@ -29,6 +29,10 @@ public class ReplicaAllocation implements Writable {
     }
 
     private Table<AllocationType, TagSet, Short> typeToTag = HashBasedTable.create();
+
+    public static ReplicaAllocation createDefault() {
+        return new ReplicaAllocation(DEFAULT_ALLOCATION);
+    }
 
     public ReplicaAllocation() {
 

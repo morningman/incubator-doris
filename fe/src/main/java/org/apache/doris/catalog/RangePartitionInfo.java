@@ -86,9 +86,16 @@ public class RangePartitionInfo extends PartitionInfo {
         idToRange.remove(partitionId);
     }
 
+    @Deprecated
     public void addPartition(long partitionId, Range<PartitionKey> range, DataProperty dataProperty,
             short replicationNum) {
-        addPartition(partitionId, dataProperty, replicationNum);
+        super.addPartition(partitionId, dataProperty, replicationNum);
+        idToRange.put(partitionId, range);
+    }
+
+    public void addPartition(long partitionId, Range<PartitionKey> range, DataProperty dataProperty,
+            ReplicaAllocation replicaAlloc) {
+        super.addPartition(partitionId, dataProperty, replicaAlloc);
         idToRange.put(partitionId, range);
     }
 

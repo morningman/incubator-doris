@@ -23,6 +23,7 @@ import org.apache.doris.common.Config;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.common.util.MasterDaemon;
@@ -102,8 +103,7 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
     }
 
     public synchronized boolean recyclePartition(long dbId, long tableId, Partition partition,
-                                                 Range<PartitionKey> range, DataProperty dataProperty,
-                                                 short replicationNum) {
+            Range<PartitionKey> range, DataProperty dataProperty, ReplicaAllocation replicaAlloc) {
         if (idToPartition.containsKey(partition.getId())) {
             LOG.error("partition[{}] already in recycle bin.", partition.getId());
             return false;
@@ -114,7 +114,7 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
 
         // recycle partition
         RecyclePartitionInfo partitionInfo = new RecyclePartitionInfo(dbId, tableId, partition,
-                                                                      range, dataProperty, replicationNum);
+                range, dataProperty, replicaAlloc);
         idToRecycleTime.put(partition.getId(), System.currentTimeMillis());
         idToPartition.put(partition.getId(), partitionInfo);
         LOG.info("recycle partition[{}-{}]", partition.getId(), partition.getName());
@@ -522,7 +522,7 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
         long partitionId = recoverPartition.getId();
         partitionInfo.setRange(partitionId, recoverRange);
         partitionInfo.setDataProperty(partitionId, recoverPartitionInfo.getDataProperty());
-        partitionInfo.setReplicationNum(partitionId, recoverPartitionInfo.getReplicationNum());
+        partitionInfo.setReplicaAllocation(partitionId, recoverPartitionInfo.getReplicaAlloc());
 
         // remove from recycle bin
         idToPartition.remove(partitionId);
@@ -551,7 +551,11 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             RangePartitionInfo rangePartitionInfo = (RangePartitionInfo) table.getPartitionInfo();
             rangePartitionInfo.setRange(partitionId, partitionInfo.getRange());
             rangePartitionInfo.setDataProperty(partitionId, partitionInfo.getDataProperty());
-            rangePartitionInfo.setReplicationNum(partitionId, partitionInfo.getReplicationNum());
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+                rangePartitionInfo.setReplicationNum(partitionId, partitionInfo.getReplicationNum());
+            } else {
+                rangePartitionInfo.setReplicaAllocation(partitionId, partitionInfo.getReplicaAlloc());
+            }
 
             iterator.remove();
             idToRecycleTime.remove(partitionId);
@@ -645,7 +649,6 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
                 }
             } // end for indices
         }
-
     }
 
     @Override
@@ -862,7 +865,12 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             partition.write(out);
             RangePartitionInfo.writeRange(out, range);
             dataProperty.write(out);
-            out.writeShort(replicationNum);
+            if (replicaAlloc == null) {
+                out.writeBoolean(false);
+            } else {
+                out.writeBoolean(true);
+                replicaAlloc.write(out);
+            }
         }
 
         @Override
@@ -872,7 +880,13 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             partition = Partition.read(in);
             range = RangePartitionInfo.readRange(in);
             dataProperty = DataProperty.read(in);
-            replicationNum = in.readShort();
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_66) {
+                replicationNum = in.readShort();
+            } else {
+                if (in.readBoolean()) {
+                    replicaAlloc = ReplicaAllocation.read(in);
+                }
+            }
         }
     }
 

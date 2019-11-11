@@ -646,7 +646,7 @@ public class RollupJob extends AlterJob {
                         continue;
                     }
 
-                    short expectReplicationNum = olapTable.getPartitionInfo().getReplicationNum(partition.getId());
+                    short expectReplicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
                     MaterializedIndex rollupIndex = entry.getValue();
                     for (Tablet rollupTablet : rollupIndex.getTablets()) {
                         // yiguolei: the rollup tablet only contains the replica that is healthy at rollup time

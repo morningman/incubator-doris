@@ -397,7 +397,7 @@ public class SchemaChangeJob extends AlterJob {
                 List<AgentTask> tasks = new LinkedList<AgentTask>();
                 for (Partition partition : olapTable.getPartitions()) {
                     long partitionId = partition.getId();
-                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partitionId);
+                    short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partitionId);
                     for (Long indexId : this.changedIndexIdToSchema.keySet()) {
                         MaterializedIndex alterIndex = partition.getIndex(indexId);
                         if (alterIndex == null) {
@@ -675,7 +675,8 @@ public class SchemaChangeJob extends AlterJob {
                 OlapTable olapTable = (OlapTable) table;
                 for (Partition partition : olapTable.getPartitions()) {
                     long partitionId = partition.getId();
-                    short expectReplicationNum = olapTable.getPartitionInfo().getReplicationNum(partition.getId());
+                    // TODO(cmy): check replica by allocation, not just number
+                    short expectReplicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
                     boolean hasUnfinishedIndex = false;
                     for (long indexId : this.changedIndexIdToSchema.keySet()) {
                         MaterializedIndex materializedIndex = partition.getIndex(indexId);

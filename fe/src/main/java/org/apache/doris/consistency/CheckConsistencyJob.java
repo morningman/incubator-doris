@@ -146,7 +146,7 @@ public class CheckConsistencyJob {
             }
 
             // check partition's replication num. if 1 replication. skip
-            short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partition.getId());
+            short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
             if (replicationNum == (short) 1) {
                 LOG.debug("partition[{}]'s replication num is 1.");
                 return false;

@@ -78,7 +78,7 @@ public class MetadataViewer {
             for (String partName : partitions) {
                 Partition partition = olapTable.getPartition(partName);
                 long visibleVersion = partition.getVisibleVersion();
-                short replicationNum = olapTable.getPartitionInfo().getReplicationNum(partition.getId());
+                short replicationNum = olapTable.getPartitionInfo().getReplicationNum2(partition.getId());
 
                 for (MaterializedIndex index : partition.getMaterializedIndices(IndexExtState.VISIBLE)) {
                     int schemaHash = olapTable.getSchemaHashByIndexId(index.getId());

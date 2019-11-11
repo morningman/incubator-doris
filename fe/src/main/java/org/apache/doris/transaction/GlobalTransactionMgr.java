@@ -408,7 +408,7 @@ public class GlobalTransactionMgr implements Writable {
                     transactionState.prolongPublishTimeout();
                 }
 
-                int quorumReplicaNum = table.getPartitionInfo().getReplicationNum(partition.getId()) / 2 + 1;
+                int quorumReplicaNum = table.getPartitionInfo().getReplicationNum2(partition.getId()) / 2 + 1;
                 for (MaterializedIndex index : allIndices) {
                     for (Tablet tablet : index.getTablets()) {
                         int successReplicaNum = 0;
@@ -748,7 +748,7 @@ public class GlobalTransactionMgr implements Writable {
                                  transactionState);
                         continue;
                     }
-                    int quorumReplicaNum = partitionInfo.getReplicationNum(partitionId) / 2 + 1;
+                    int quorumReplicaNum = partitionInfo.getReplicationNum2(partitionId) / 2 + 1;
 
                     List<MaterializedIndex> allIndices = null;
                     if (transactionState.getLoadedTblIndexes().isEmpty()) {
