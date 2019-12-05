@@ -212,8 +212,7 @@ public abstract class PrivEntry implements Comparable<PrivEntry>, Writable {
         isClassNameWrote = false;
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         origHost = Text.readString(in);
         try {
             hostPattern = PatternMatcher.createMysqlPattern(origHost, CaseSensibility.HOST.getCaseSensibility());

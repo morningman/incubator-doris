@@ -17,14 +17,15 @@
 
 package org.apache.doris.persist;
 
+import org.apache.doris.common.io.Text;
+import org.apache.doris.common.io.Writable;
+
+import com.google.common.collect.Lists;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
-
-import org.apache.doris.common.io.Text;
-import org.apache.doris.common.io.Writable;
-import com.google.common.collect.Lists;
 
 public class ClusterInfo implements Writable {
 
@@ -66,6 +67,12 @@ public class ClusterInfo implements Writable {
         this.newInstanceNum = 0;
     }
 
+    public static ClusterInfo read(DataInput in) throws IOException {
+        ClusterInfo info = new ClusterInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, clusterName);
@@ -77,8 +84,7 @@ public class ClusterInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         clusterName = Text.readString(in);
         clusterId = in.readLong();
         instanceNum = in.readInt();

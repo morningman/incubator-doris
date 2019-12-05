@@ -543,6 +543,12 @@ public class ExportJob implements Writable {
         return Status.OK;
     }
 
+    public static ExportJob read(DataInput in) throws IOException {
+        ExportJob exportJob = new ExportJob();
+        exportJob.readFields(in);
+        return exportJob;
+    }
+
     @Override
     public String toString() {
         return "ExportJob [jobId=" + id
@@ -606,8 +612,7 @@ public class ExportJob implements Writable {
         tableName.write(out);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         isReplayed = true;
         id = in.readLong();
         dbId = in.readLong();
@@ -640,7 +645,7 @@ public class ExportJob implements Writable {
         startTimeMs = in.readLong();
         finishTimeMs = in.readLong();
         progress = in.readInt();
-        failMsg.readFields(in);
+        failMsg = ExportFailMsg.read(in);
 
         if (in.readBoolean()) {
             brokerDesc = BrokerDesc.read(in);
@@ -700,14 +705,19 @@ public class ExportJob implements Writable {
             return state;
         }
 
+        public static StateTransfer read(DataInput in) throws IOException {
+            StateTransfer stateTransfer = new StateTransfer();
+            stateTransfer.readFields(in);
+            return stateTransfer;
+        }
+
         @Override
         public void write(DataOutput out) throws IOException {
             out.writeLong(jobId);
             Text.writeString(out, state.name());
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             jobId = in.readLong();
             state = JobState.valueOf(Text.readString(in));
         }

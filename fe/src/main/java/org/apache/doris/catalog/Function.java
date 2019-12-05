@@ -19,14 +19,16 @@ package org.apache.doris.catalog;
 
 import static org.apache.doris.common.io.IOUtils.writeOptionString;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import org.apache.doris.analysis.FunctionName;
 import org.apache.doris.analysis.HdfsURI;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.thrift.TFunction;
 import org.apache.doris.thrift.TFunctionBinaryType;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -609,8 +611,7 @@ public class Function implements Writable {
         throw new Error("Origin function cannot be serialized");
     }
 
-    @Override
-    public void readFields(DataInput input) throws IOException {
+    protected void readFields(DataInput input) throws IOException {
         id = input.readLong();
         name = FunctionName.read(input);
         retType = ColumnType.read(input);

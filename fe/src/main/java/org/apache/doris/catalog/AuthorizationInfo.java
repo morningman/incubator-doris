@@ -43,7 +43,7 @@ public class AuthorizationInfo implements Writable {
     private Set<String> tableNameList;
 
     // only for persist
-    public AuthorizationInfo() {
+    private AuthorizationInfo() {
     }
 
     public AuthorizationInfo(String dbName, Set<String> tableNameList) {
@@ -57,6 +57,12 @@ public class AuthorizationInfo implements Writable {
 
     public Set<String> getTableNameList() {
         return tableNameList;
+    }
+
+    public static AuthorizationInfo read(DataInput in) throws IOException {
+        AuthorizationInfo info = new AuthorizationInfo();
+        info.readFields(in);
+        return info;
     }
 
     @Override
@@ -78,8 +84,7 @@ public class AuthorizationInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         if (in.readBoolean()) {
             dbName = Text.readString(in);
         }

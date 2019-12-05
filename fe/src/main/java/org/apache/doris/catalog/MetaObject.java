@@ -56,8 +56,7 @@ public class MetaObject implements Writable {
         out.writeLong(lastCheckTime);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_22) {
             this.signature = in.readLong();
         }
@@ -66,5 +65,4 @@ public class MetaObject implements Writable {
             this.lastCheckTime = in.readLong();
         }
     }
-
 }

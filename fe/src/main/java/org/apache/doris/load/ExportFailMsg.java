@@ -62,6 +62,12 @@ public class ExportFailMsg implements Writable {
         this.msg = msg;
     }
 
+    public static ExportFailMsg read(DataInput in) throws IOException {
+        ExportFailMsg msg = new ExportFailMsg();
+        msg.readFields(in);
+        return msg;
+    }
+
     @Override
     public String toString() {
         return "ExportFailMsg [cancelType=" + cancelType + ", msg=" + msg + "]";
@@ -73,8 +79,7 @@ public class ExportFailMsg implements Writable {
         Text.writeString(out, msg);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         cancelType = CancelType.valueOf(Text.readString(in));
         msg = Text.readString(in);
     }

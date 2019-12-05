@@ -33,6 +33,10 @@ public class TabletCommitInfo implements Writable {
     private long tabletId;
     private long backendId;
 
+    private TabletCommitInfo() {
+        // TODO Auto-generated constructor stub
+    }
+
     public TabletCommitInfo(long tabletId, long backendId) {
         super();
         this.tabletId = tabletId;
@@ -55,14 +59,19 @@ public class TabletCommitInfo implements Writable {
         return commitInfos;
     }
 
+    public static TabletCommitInfo read(DataInput in) throws IOException {
+        TabletCommitInfo info = new TabletCommitInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(tabletId);
         out.writeLong(backendId);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         tabletId = in.readLong();
         backendId = in.readLong();
     }

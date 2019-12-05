@@ -511,8 +511,7 @@ public class BackupJobInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         String json = Text.readString(in);
         genFromJson(json, this);
         int size = in.readInt();

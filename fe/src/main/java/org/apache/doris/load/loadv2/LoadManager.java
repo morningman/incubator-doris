@@ -87,7 +87,14 @@ public class LoadManager implements Writable{
 
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
+    private LoadManager() {
+    }
+
     public LoadManager(LoadJobScheduler loadJobScheduler) {
+        this.loadJobScheduler = loadJobScheduler;
+    }
+
+    public void setLoadJobScheduler(LoadJobScheduler loadJobScheduler) {
         this.loadJobScheduler = loadJobScheduler;
     }
 
@@ -687,6 +694,12 @@ public class LoadManager implements Writable{
         removeOldLoadJob();
     }
 
+    public static LoadManager read(DataInput in) throws IOException {
+        LoadManager manager = new LoadManager();
+        manager.readFields(in);
+        return manager;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         List<LoadJob> loadJobs = idToLoadJob.values().stream().filter(this::needSave).collect(Collectors.toList());
@@ -697,7 +710,6 @@ public class LoadManager implements Writable{
         }
     }
 
-    @Override
     public void readFields(DataInput in) throws IOException {
         int size = in.readInt();
         for (int i = 0; i < size; i++) {

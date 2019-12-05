@@ -61,8 +61,7 @@ public abstract class RoutineLoadProgress implements Writable {
         Text.writeString(out, loadDataSourceType.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         if (!isTypeRead) {
             loadDataSourceType = LoadDataSourceType.valueOf(Text.readString(in));
             isTypeRead = true;

@@ -142,7 +142,7 @@ public class DbPrivEntry extends PrivEntry {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
 
         origDb = Text.readString(in);

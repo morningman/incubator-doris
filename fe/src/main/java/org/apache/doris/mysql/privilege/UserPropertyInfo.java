@@ -66,8 +66,7 @@ public class UserPropertyInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         user = Text.readString(in);
         int size = in.readInt();
         for (int i = 0; i < size; i++) {

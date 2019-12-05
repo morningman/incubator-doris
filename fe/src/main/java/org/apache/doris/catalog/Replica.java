@@ -467,8 +467,7 @@ public class Replica implements Writable {
         out.writeLong(lastSuccessVersionHash);
     }
      
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         id = in.readLong();
         backendId = in.readLong();
         version = in.readLong();

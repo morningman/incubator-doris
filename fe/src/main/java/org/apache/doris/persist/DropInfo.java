@@ -62,8 +62,7 @@ public class DropInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tableId = in.readLong();
 

@@ -20,9 +20,9 @@ package org.apache.doris.common.io;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -294,8 +294,14 @@ public class Text implements Writable {
         }
     }
 
+    public static Text read(DataInput in) throws IOException {
+        Text text = new Text();
+        text.readFields(in);
+        return text;
+    }
+
     // Deserialize
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int newLength = in.readInt();
         setCapacity(newLength, false);
         in.readFully(bytes, 0, newLength);

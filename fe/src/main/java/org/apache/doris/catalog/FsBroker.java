@@ -111,8 +111,7 @@ public class FsBroker implements Writable, Comparable<FsBroker> {
         out.writeInt(port);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         ip = Text.readString(in);
         port = in.readInt();
     }

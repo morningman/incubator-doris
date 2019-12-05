@@ -17,8 +17,8 @@
 
 package org.apache.doris.common.io;
 
-import java.io.DataOutput;
 import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 
 /**
@@ -75,5 +75,5 @@ public interface Writable {
      * @param in <code>DataInput</code> to deseriablize this object from.
      * @throws IOException
      */
-    void readFields(DataInput in) throws IOException;
+    // void readFields(DataInput in) throws IOException;
 }

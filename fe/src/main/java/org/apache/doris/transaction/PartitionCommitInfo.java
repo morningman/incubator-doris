@@ -17,11 +17,11 @@
 
 package org.apache.doris.transaction;
 
+import org.apache.doris.common.io.Writable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-
-import org.apache.doris.common.io.Writable;
 
 public class PartitionCommitInfo implements Writable {
 
@@ -29,7 +29,7 @@ public class PartitionCommitInfo implements Writable {
     private long version;
     private long versionHash;
 
-    public PartitionCommitInfo() {
+    private PartitionCommitInfo() {
         
     }
 
@@ -40,6 +40,12 @@ public class PartitionCommitInfo implements Writable {
         this.versionHash = versionHash;
     }
 
+    public static PartitionCommitInfo read(DataInput in) throws IOException {
+        PartitionCommitInfo info = new PartitionCommitInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(partitionId);
@@ -47,8 +53,7 @@ public class PartitionCommitInfo implements Writable {
         out.writeLong(versionHash);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         partitionId = in.readLong();
         version = in.readLong();
         versionHash = in.readLong();

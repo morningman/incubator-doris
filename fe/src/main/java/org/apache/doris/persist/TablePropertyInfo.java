@@ -60,6 +60,12 @@ public class TablePropertyInfo implements Writable {
         return groupId;
     }
 
+    public static TablePropertyInfo read(DataInput in) throws IOException {
+        TablePropertyInfo info = new TablePropertyInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(tableId);
@@ -77,8 +83,7 @@ public class TablePropertyInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         long dbId = -1;
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_55) {
             dbId = in.readLong();

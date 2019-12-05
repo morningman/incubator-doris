@@ -507,6 +507,12 @@ public class TransactionState implements Writable {
         LOG.info("prolong the timeout of publish version task for transaction: {}", transactionId);
     }
 
+    public static TransactionState read(DataInput in) throws IOException {
+        TransactionState state = new TransactionState();
+        state.readFields(in);
+        return state;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(transactionId);
@@ -538,15 +544,13 @@ public class TransactionState implements Writable {
         out.writeLong(timeoutMs);
     }
     
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         transactionId = in.readLong();
         label = Text.readString(in);
         dbId = in.readLong();
         int size = in.readInt();
         for (int i = 0; i < size; i++) {
-            TableCommitInfo info = new TableCommitInfo();
-            info.readFields(in);
+            TableCommitInfo info = TableCommitInfo.read(in);
             idToTableCommitInfos.put(info.getTableId(), info);
         }
         coordinator = Text.readString(in);

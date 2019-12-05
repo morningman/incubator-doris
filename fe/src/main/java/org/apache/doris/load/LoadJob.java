@@ -689,6 +689,12 @@ public class LoadJob implements Writable {
         resourceInfo = null;
     }
 
+    public static LoadJob read(DataInput in) throws IOException {
+        LoadJob job = new LoadJob();
+        job.readFields(in);
+        return job;
+    }
+
     public void write(DataOutput out) throws IOException {
         out.writeLong(id);
         out.writeLong(dbId);
@@ -829,7 +835,7 @@ public class LoadJob implements Writable {
         }
     }
 
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         long version = Catalog.getCurrentCatalogJournalVersion();
 
         id = in.readLong();
@@ -871,8 +877,7 @@ public class LoadJob implements Writable {
             idToTableLoadInfo = new HashMap<Long, TableLoadInfo>();
             for (int i = 0; i < count; ++i) {
                 long key = in.readLong();
-                TableLoadInfo value = new TableLoadInfo();
-                value.readFields(in);
+                TableLoadInfo value = TableLoadInfo.read(in);
                 idToTableLoadInfo.put(key, value); 
             }
         }
@@ -967,8 +972,7 @@ public class LoadJob implements Writable {
                 }
             }
             if (in.readBoolean()) {
-                this.deleteInfo = new DeleteInfo();
-                this.deleteInfo.readFields(in);
+                this.deleteInfo = DeleteInfo.read(in);
             }
         }
 

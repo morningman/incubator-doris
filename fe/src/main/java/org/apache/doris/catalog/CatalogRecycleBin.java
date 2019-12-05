@@ -660,6 +660,12 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
         eraseDatabase(currentTimeMs);
     }
     
+    public static CatalogRecycleBin read(DataInput in) throws IOException {
+        CatalogRecycleBin bin = new CatalogRecycleBin();
+        bin.readFields(in);
+        return bin;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         int count = idToDatabase.size();
@@ -691,29 +697,25 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int count = in.readInt();
         for (int i = 0; i < count; i++) {
             long id = in.readLong();
-            RecycleDatabaseInfo dbInfo = new RecycleDatabaseInfo();
-            dbInfo.readFields(in);
+            RecycleDatabaseInfo dbInfo = RecycleDatabaseInfo.read(in);
             idToDatabase.put(id, dbInfo);
         }
 
         count = in.readInt();
         for (int i = 0; i < count; i++) {
             long id = in.readLong();
-            RecycleTableInfo tableInfo = new RecycleTableInfo();
-            tableInfo.readFields(in);
+            RecycleTableInfo tableInfo = RecycleTableInfo.read(in);
             idToTable.put(id, tableInfo);
         }
 
         count = in.readInt();
         for (int i = 0; i < count; i++) {
             long id = in.readLong();
-            RecyclePartitionInfo partitionInfo = new RecyclePartitionInfo();
-            partitionInfo.readFields(in);
+            RecyclePartitionInfo partitionInfo = RecyclePartitionInfo.read(in);
             idToPartition.put(id, partitionInfo);
         }
 
@@ -725,12 +727,11 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
         }
     }
 
-    public class RecycleDatabaseInfo implements Writable {
+    public static class RecycleDatabaseInfo implements Writable {
         private Database db;
-        private Set<String> tableNames;
+        private Set<String> tableNames = Sets.newHashSet();
 
-        public RecycleDatabaseInfo() {
-            tableNames = Sets.newHashSet();
+        private RecycleDatabaseInfo() {
         }
 
         public RecycleDatabaseInfo(Database db, Set<String> tableNames) {
@@ -746,6 +747,12 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             return tableNames;
         }
 
+        public static RecycleDatabaseInfo read(DataInput in) throws IOException {
+            RecycleDatabaseInfo info = new RecycleDatabaseInfo();
+            info.readFields(in);
+            return info;
+        }
+
         @Override
         public void write(DataOutput out) throws IOException {
             db.write(out);
@@ -757,8 +764,7 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             }
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             db = Database.read(in);
             
             int count  = in.readInt();
@@ -769,11 +775,11 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
         }
     }
 
-    public class RecycleTableInfo implements Writable {
+    public static class RecycleTableInfo implements Writable {
         private long dbId;
         private Table table;
 
-        public RecycleTableInfo() {
+        private RecycleTableInfo() {
             // for persist
         }
         
@@ -790,20 +796,25 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             return table;
         }
 
+        public static RecycleTableInfo read(DataInput in) throws IOException {
+            RecycleTableInfo info = new RecycleTableInfo();
+            info.readFields(in);
+            return info;
+        }
+
         @Override
         public void write(DataOutput out) throws IOException {
             out.writeLong(dbId);
             table.write(out);
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             dbId = in.readLong();
             table = Table.read(in);
         }
     }
 
-    public class RecyclePartitionInfo implements Writable {
+    public static class RecyclePartitionInfo implements Writable {
         private long dbId;
         private long tableId;
         private Partition partition;
@@ -849,6 +860,12 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             return replicationNum;
         }
 
+        public static RecyclePartitionInfo read(DataInput in) throws IOException {
+            RecyclePartitionInfo info = new RecyclePartitionInfo();
+            info.readFields(in);
+            return info;
+        }
+
         @Override
         public void write(DataOutput out) throws IOException {
             out.writeLong(dbId);
@@ -859,8 +876,7 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             out.writeShort(replicationNum);
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             dbId = in.readLong();
             tableId = in.readLong();
             partition = Partition.read(in);

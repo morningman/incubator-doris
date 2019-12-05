@@ -17,26 +17,33 @@
 
 package org.apache.doris.transaction;
 
+import org.apache.doris.common.io.Writable;
+
+import com.google.common.collect.Maps;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
-
-import org.apache.doris.common.io.Writable;
-import com.google.common.collect.Maps;
 
 public class TableCommitInfo implements Writable {
     
     private long tableId;
     private Map<Long, PartitionCommitInfo> idToPartitionCommitInfo;
 
-    public TableCommitInfo() {
+    private TableCommitInfo() {
         
     }
     
     public TableCommitInfo(long tableId) {
         this.tableId = tableId;
         idToPartitionCommitInfo = Maps.newHashMap();
+    }
+
+    public static TableCommitInfo read(DataInput in) throws IOException {
+        TableCommitInfo info = new TableCommitInfo();
+        info.readFields(in);
+        return info;
     }
 
     @Override
@@ -53,16 +60,14 @@ public class TableCommitInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         tableId = in.readLong();
         boolean hasPartitionInfo = in.readBoolean();
         idToPartitionCommitInfo = Maps.newHashMap();
         if (hasPartitionInfo) {
             int elementNum = in.readInt();
             for (int i = 0; i < elementNum; ++i) {
-                PartitionCommitInfo partitionCommitInfo = new PartitionCommitInfo();
-                partitionCommitInfo.readFields(in);
+                PartitionCommitInfo partitionCommitInfo = PartitionCommitInfo.read(in);
                 idToPartitionCommitInfo.put(partitionCommitInfo.getPartitionId(), partitionCommitInfo);
             }
         }

@@ -162,8 +162,7 @@ public class DiskInfo implements Writable {
         Text.writeString(out, state.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         this.rootPath = Text.readString(in);
         this.totalCapacityB = in.readLong();
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_36) {

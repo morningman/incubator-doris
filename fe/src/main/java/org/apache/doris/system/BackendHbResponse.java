@@ -85,7 +85,7 @@ public class BackendHbResponse extends HeartbeatResponse implements Writable {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
         beId = in.readLong();
         bePort = in.readInt();

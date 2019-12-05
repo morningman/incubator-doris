@@ -152,8 +152,7 @@ public class PrivBitSet implements Writable {
         out.writeLong(set);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         set = in.readLong();
     }
 }

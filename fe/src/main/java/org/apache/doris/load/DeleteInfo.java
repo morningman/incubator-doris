@@ -17,12 +17,6 @@
 
 package org.apache.doris.load;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Text;
@@ -31,6 +25,12 @@ import org.apache.doris.load.AsyncDeleteJob.DeleteState;
 import org.apache.doris.persist.ReplicaPersistInfo;
 
 import com.google.common.collect.Lists;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DeleteInfo implements Writable {
 
@@ -140,6 +140,12 @@ public class DeleteInfo implements Writable {
         this.partitionVersionHash = newVersionHash;
     }
 
+    public static DeleteInfo read(DataInput in) throws IOException {
+        DeleteInfo info = new DeleteInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(dbId);
@@ -170,8 +176,7 @@ public class DeleteInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tableId = in.readLong();
         partitionId = in.readLong();

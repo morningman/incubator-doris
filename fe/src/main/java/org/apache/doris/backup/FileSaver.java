@@ -37,7 +37,6 @@ public class FileSaver extends FileSaverI {
         Text.writeString(out, name);
     }
 
-    @Override
     public void readFields(DataInput in) throws IOException {
         throw new NotImplementedException();
     }

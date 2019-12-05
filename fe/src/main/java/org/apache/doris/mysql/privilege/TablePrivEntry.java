@@ -138,7 +138,7 @@ public class TablePrivEntry extends DbPrivEntry {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
 
         origTbl = Text.readString(in);

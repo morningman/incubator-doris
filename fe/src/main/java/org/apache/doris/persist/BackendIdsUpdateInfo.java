@@ -17,23 +17,29 @@
 
 package org.apache.doris.persist;
 
+import org.apache.doris.common.io.Writable;
+
+import com.google.common.collect.Lists;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.doris.common.io.Writable;
-import com.google.common.collect.Lists;
-
 public class BackendIdsUpdateInfo implements Writable {
-    private List<Long> backendIds;
-    
-    public BackendIdsUpdateInfo() {
-        this.backendIds = Lists.newArrayList();
+    private List<Long> backendIds = Lists.newArrayList();
+
+    private BackendIdsUpdateInfo() {
     }
 
     public BackendIdsUpdateInfo(List<Long> backends) {
         this.backendIds = backends;
+    }
+    
+    public static BackendIdsUpdateInfo read(DataInput in) throws IOException {
+        BackendIdsUpdateInfo info = new BackendIdsUpdateInfo();
+        info.readFields(in);
+        return info;
     }
 
     @Override
@@ -44,8 +50,7 @@ public class BackendIdsUpdateInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int backendCount = in.readInt();
         while (backendCount-- > 0) {
             backendIds.add(in.readLong());

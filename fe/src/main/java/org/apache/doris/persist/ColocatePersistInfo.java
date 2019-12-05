@@ -81,6 +81,12 @@ public class ColocatePersistInfo implements Writable {
         return backendsPerBucketSeq;
     }
 
+    public static ColocatePersistInfo read(DataInput in) throws IOException {
+        ColocatePersistInfo info = new ColocatePersistInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(tableId);
@@ -97,8 +103,7 @@ public class ColocatePersistInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         tableId = in.readLong();
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_55) {
             long grpId = in.readLong();

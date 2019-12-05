@@ -515,14 +515,13 @@ public class UserProperty implements Writable {
             int clusterNum = in.readInt();
             for (int i = 0; i < clusterNum; ++i) {
                 String cluster = Text.readString(in);
-                DppConfig dppConfig = new DppConfig();
-                dppConfig.readFields(in);
+                DppConfig dppConfig = DppConfig.read(in);
                 clusterToDppConfig.put(cluster, dppConfig);
             }
         }
 
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_21) {
-            whiteList.readFields(in);
+            whiteList = WhiteList.read(in);
         }
 
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_43) {

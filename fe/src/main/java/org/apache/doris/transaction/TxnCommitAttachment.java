@@ -81,8 +81,7 @@ public abstract class TxnCommitAttachment implements Writable {
         Text.writeString(out, sourceType.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         if (!isTypeRead) {
             sourceType = LoadJobSourceType.valueOf(Text.readString(in));
             isTypeRead = true;

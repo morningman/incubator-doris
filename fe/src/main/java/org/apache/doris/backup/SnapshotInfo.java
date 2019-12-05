@@ -129,8 +129,7 @@ public class SnapshotInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tblId = in.readLong();
         partitionId = in.readLong();

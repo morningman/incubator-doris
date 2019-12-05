@@ -820,8 +820,7 @@ public class BackupJob extends AbstractJob {
         // snapshot info
         size = in.readInt();
         for (int i = 0; i < size; i++) {
-            SnapshotInfo snapshotInfo = new SnapshotInfo();
-            snapshotInfo.readFields(in);
+            SnapshotInfo snapshotInfo = SnapshotInfo.read(in);
             snapshotInfos.put(snapshotInfo.getTabletId(), snapshotInfo);
         }
 

@@ -96,8 +96,7 @@ public class HeartbeatResponse implements Writable {
         Text.writeString(out, status.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         if (!isTypeRead) {
             type = Type.valueOf(Text.readString(in));
             isTypeRead = true;

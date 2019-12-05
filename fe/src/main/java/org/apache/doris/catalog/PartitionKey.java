@@ -252,8 +252,7 @@ public class PartitionKey implements Comparable<PartitionKey>, Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int count = in.readInt();
         for (int i = 0; i < count; i++) {
             PrimitiveType type = PrimitiveType.valueOf(Text.readString(in));

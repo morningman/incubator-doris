@@ -401,6 +401,12 @@ public class SessionVariable implements Serializable, Writable {
         return tResult;
     }
 
+    public static SessionVariable read(DataInput in) throws IOException {
+        SessionVariable variable = new SessionVariable();
+        variable.readFields(in);
+        return variable;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         JSONObject root = new JSONObject();
@@ -440,8 +446,7 @@ public class SessionVariable implements Serializable, Writable {
         Text.writeString(out, root.toString());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_67) {
             codegenLevel = in.readInt();
             netBufferLength = in.readInt();

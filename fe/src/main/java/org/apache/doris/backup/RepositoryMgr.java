@@ -139,8 +139,7 @@ public class RepositoryMgr extends Daemon implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int size = in.readInt();
         for (int i = 0; i < size; i++) {
             Repository repo = Repository.read(in);

@@ -111,9 +111,8 @@ public class BDBJournalCursor implements JournalCursor {
                     // Recreate the data String.
                     byte[] retData = theData.getData();
                     DataInputStream in = new DataInputStream(new ByteArrayInputStream(retData));
-                    ret = new JournalEntity();
                     try {
-                        ret.readFields(in);
+                        ret = JournalEntity.read(in);
                     } catch (Exception e) {
                         LOG.error("fail to read journal entity key={}, will exit", currentKey, e);
                         System.exit(-1);

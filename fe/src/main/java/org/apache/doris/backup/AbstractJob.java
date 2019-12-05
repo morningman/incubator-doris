@@ -205,8 +205,7 @@ public abstract class AbstractJob implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         if (!isTypeRead) {
             type = JobType.valueOf(Text.readString(in));
             isTypeRead = true;

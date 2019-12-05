@@ -127,7 +127,7 @@ public class RLTaskTxnCommitAttachment extends TxnCommitAttachment {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
         filteredRows = in.readLong();
         loadedRows = in.readLong();

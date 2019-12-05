@@ -253,7 +253,7 @@ public class VariableMgr {
     public static void read(DataInputStream in) throws IOException, DdlException {
         wlock.lock();
         try {
-            globalSessionVariable.readFields(in);
+            globalSessionVariable = SessionVariable.read(in);
         } finally {
             wlock.unlock();
         }

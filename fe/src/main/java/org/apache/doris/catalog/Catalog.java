@@ -1503,8 +1503,7 @@ public class Catalog {
             int loadJobCount = dis.readInt();
             newChecksum ^= loadJobCount;
             for (int j = 0; j < loadJobCount; j++) {
-                LoadJob job = new LoadJob();
-                job.readFields(dis);
+                LoadJob job = LoadJob.read(dis);
                 long currentTimeMs = System.currentTimeMillis();
 
                 // Delete the history load jobs that are older than
@@ -1528,8 +1527,7 @@ public class Catalog {
                 int deleteCount = dis.readInt();
                 newChecksum ^= deleteCount;
                 for (int j = 0; j < deleteCount; j++) {
-                    DeleteInfo deleteInfo = new DeleteInfo();
-                    deleteInfo.readFields(dis);
+                    DeleteInfo deleteInfo = DeleteInfo.read(dis);
                     long currentTimeMs = System.currentTimeMillis();
 
                     // Delete the history delete jobs that are older than
@@ -1543,8 +1541,7 @@ public class Catalog {
 
         // load error hub info
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_24) {
-            LoadErrorHub.Param param = new LoadErrorHub.Param();
-            param.readFields(dis);
+            LoadErrorHub.Param param = LoadErrorHub.Param.read(dis);
             load.setLoadErrorHubInfo(param);
         }
 
@@ -1559,8 +1556,7 @@ public class Catalog {
                 int deleteJobCount = dis.readInt();
                 newChecksum ^= deleteJobCount;
                 for (int j = 0; j < deleteJobCount; j++) {
-                    LoadJob job = new LoadJob();
-                    job.readFields(dis);
+                    LoadJob job = LoadJob.read(dis);
                     long currentTimeMs = System.currentTimeMillis();
 
                     // Delete the history load jobs that are older than
@@ -1585,8 +1581,7 @@ public class Catalog {
             for (int i = 0; i < size; ++i) {
                 long jobId = dis.readLong();
                 newChecksum ^= jobId;
-                ExportJob job = new ExportJob();
-                job.readFields(dis);
+                ExportJob job = ExportJob.read(dis);
                 exportMgr.unprotectAddJob(job);
             }
         }
@@ -1698,9 +1693,7 @@ public class Catalog {
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_43) {
             int size = dis.readInt();
             long newChecksum = checksum ^ size;
-            UserPropertyMgr tmpUserPropertyMgr = new UserPropertyMgr();
-            tmpUserPropertyMgr.readFields(dis);
-
+            UserPropertyMgr tmpUserPropertyMgr = UserPropertyMgr.read(dis);
             // transform it. the old UserPropertyMgr is deprecated
             tmpUserPropertyMgr.transform(auth);
             return newChecksum;
@@ -1718,12 +1711,12 @@ public class Catalog {
         return checksum;
     }
 
-    public long loadRecycleBin(DataInputStream dis, long checksum) throws IOException {
+    private long loadRecycleBin(DataInputStream dis, long checksum) throws IOException {
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_10) {
-            Catalog.getCurrentRecycleBin().readFields(dis);
+            recycleBin = CatalogRecycleBin.read(dis);
             if (!isCheckpointThread()) {
                 // add tablet in Recycle bin to TabletInvertedIndex
-                Catalog.getCurrentRecycleBin().addTabletToInvertedIndex();
+                recycleBin.addTabletToInvertedIndex();
             }
         }
         return checksum;
@@ -1752,7 +1745,7 @@ public class Catalog {
 
     public long loadSmallFiles(DataInputStream in, long checksum) throws IOException {
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_52) {
-            smallFileMgr.readFields(in);
+            smallFileMgr = SmallFileMgr.read(in);
         }
         return checksum;
     }

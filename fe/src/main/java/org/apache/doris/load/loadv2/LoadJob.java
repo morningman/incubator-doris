@@ -953,8 +953,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
         Text.writeString(out, timezone);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         if (!isJobTypeRead) {
             jobType = EtlJobType.valueOf(Text.readString(in));
             isJobTypeRead = true;
@@ -987,8 +986,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
         }
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_56) {
             if (in.readBoolean()) {
-                authorizationInfo = new AuthorizationInfo();
-                authorizationInfo.readFields(in);
+                authorizationInfo = AuthorizationInfo.read(in);
             }
         }
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_61) {

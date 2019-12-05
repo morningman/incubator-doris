@@ -56,6 +56,7 @@ public class HashDistributionInfo extends DistributionInfo {
         return bucketNum;
     }
 
+    @Override
     public void write(DataOutput out) throws IOException {
         super.write(out);
         int columnCount = distributionColumns.size();
@@ -66,7 +67,8 @@ public class HashDistributionInfo extends DistributionInfo {
         out.writeInt(bucketNum);
     }
 
-    public void readFields(DataInput in) throws IOException {
+    @Override
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
         int columnCount = in.readInt();
         for (int i = 0; i < columnCount; i++) {

@@ -72,8 +72,7 @@ public class MiniEtlJobInfo extends EtlJobInfo {
         super.readFields(in);
         int taskNum = in.readInt();
         for (int i = 0; i < taskNum; ++i) {
-            MiniEtlTaskInfo taskInfo = new MiniEtlTaskInfo();
-            taskInfo.readFields(in);
+            MiniEtlTaskInfo taskInfo = MiniEtlTaskInfo.read(in);
             idToEtlTask.put(taskInfo.getId(), taskInfo);
         }
     }

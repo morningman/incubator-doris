@@ -17,13 +17,13 @@
 
 package org.apache.doris.persist;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 import org.apache.doris.catalog.Database.DbState;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
 public class DropLinkDbAndUpdateDbInfo implements Writable {
 
@@ -67,16 +67,21 @@ public class DropLinkDbAndUpdateDbInfo implements Writable {
         return linkDbInfo.getId();
     }
 
+    public static DropLinkDbAndUpdateDbInfo read(DataInput in) throws IOException {
+        DropLinkDbAndUpdateDbInfo info = new DropLinkDbAndUpdateDbInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, state.toString());
         linkDbInfo.write(out);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         state = DbState.valueOf(Text.readString(in));
-        linkDbInfo.readFields(in);
+        linkDbInfo = LinkDbInfo.read(in);
     }
 
 }

@@ -88,7 +88,7 @@ public class FrontendHbResponse extends HeartbeatResponse implements Writable {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
         name = Text.readString(in);
         queryPort = in.readInt();

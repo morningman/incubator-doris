@@ -108,10 +108,18 @@ public class GlobalTransactionMgr implements Writable {
 
     private List<ClearTransactionTask> clearTransactionTasks = Lists.newArrayList();
 
+    private GlobalTransactionMgr() {
+
+    }
+
     public GlobalTransactionMgr(Catalog catalog) {
         this.catalog = catalog;
     }
     
+    public void setCatalog(Catalog catalog) {
+        this.catalog = catalog;
+    }
+
     public TxnStateCallbackFactory getCallbackFactory() {
         return callbackFactory;
     }
@@ -1331,12 +1339,10 @@ public class GlobalTransactionMgr implements Writable {
         idGenerator.write(out);
     }
     
-    @Override
     public void readFields(DataInput in) throws IOException {
         int numTransactions = in.readInt();
         for (int i = 0; i < numTransactions; ++i) {
-            TransactionState transactionState = new TransactionState();
-            transactionState.readFields(in);
+            TransactionState transactionState = TransactionState.read(in);
             TransactionState preTxnState = idToTransactionState.get(transactionState.getTransactionId());
             idToTransactionState.put(transactionState.getTransactionId(), transactionState);
             updateTxnLabels(transactionState);
@@ -1344,6 +1350,12 @@ public class GlobalTransactionMgr implements Writable {
                                   transactionState);
         }
         idGenerator.readFields(in);
+    }
+
+    public static GlobalTransactionMgr read(DataInput in) throws IOException {
+        GlobalTransactionMgr mgr = new GlobalTransactionMgr();
+        mgr.readFields(in);
+        return mgr;
     }
 
     public TransactionState getTransactionStateByCallbackIdAndStatus(long callbackId, Set<TransactionStatus> status) {

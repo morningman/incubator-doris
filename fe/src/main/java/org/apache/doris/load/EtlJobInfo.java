@@ -24,10 +24,10 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 public class EtlJobInfo implements Writable {
-    private EtlStatus jobStatus;
+    private EtlStatus jobStatus = new EtlStatus();
 
-    public EtlJobInfo() {
-        jobStatus = new EtlStatus();
+    protected EtlJobInfo() {
+
     }
     
     public EtlStatus getJobStatus() {
@@ -36,6 +36,12 @@ public class EtlJobInfo implements Writable {
 
     public void setJobStatus(EtlStatus jobStatus) {
         this.jobStatus = jobStatus;
+    }
+
+    public static EtlJobInfo read(DataInput in) throws IOException {
+        EtlJobInfo etlJobInfo = new EtlJobInfo();
+        etlJobInfo.readFields(in);
+        return etlJobInfo;
     }
 
     @Override
@@ -48,8 +54,7 @@ public class EtlJobInfo implements Writable {
         jobStatus.write(out);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         jobStatus.readFields(in);
     }
     

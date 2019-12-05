@@ -348,6 +348,12 @@ public class DppConfig implements Writable {
         return priority;
     }
 
+    public static DppConfig read(DataInput in) throws IOException {
+        DppConfig config = new DppConfig();
+        config.readFields(in);
+        return config;
+    }
+
     @Override
     public String toString() {
         return "DppConfig{paloPath=" + paloPath + ", httpPort=" + httpPort + ", hadoopConfigs=" + hadoopConfigs + "}";
@@ -381,8 +387,7 @@ public class DppConfig implements Writable {
         Text.writeString(out, priority.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         boolean readPaloPath = false;
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_12) {
             if (in.readBoolean()) {

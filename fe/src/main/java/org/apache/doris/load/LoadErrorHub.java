@@ -178,6 +178,12 @@ public abstract class LoadErrorHub {
             return info;
         }
 
+        public static Param read(DataInput in) throws IOException {
+            Param param = new Param();
+            param.readFields(in);
+            return param;
+        }
+
         @Override
         public void write(DataOutput out) throws IOException {
             Text.writeString(out, type.name());
@@ -195,17 +201,14 @@ public abstract class LoadErrorHub {
             }
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             type = HubType.valueOf(Text.readString(in));
             switch (type) {
                 case MYSQL_TYPE:
-                    mysqlParam = new MysqlLoadErrorHub.MysqlParam();
-                    mysqlParam.readFields(in);
+                    mysqlParam = MysqlLoadErrorHub.MysqlParam.read(in);
                     break;
                 case BROKER_TYPE:
-                    brokerParam = new BrokerLoadErrorHub.BrokerParam();
-                    brokerParam.readFields(in);
+                    brokerParam = BrokerLoadErrorHub.BrokerParam.read(in);
                     break;
                 case NULL_TYPE:
                     break;

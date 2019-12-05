@@ -77,8 +77,7 @@ public class ColocateTableIndex implements Writable {
             out.writeLong(grpId);
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             dbId = in.readLong();
             grpId = in.readLong();
         }
@@ -512,6 +511,12 @@ public class ColocateTableIndex implements Writable {
         return infos;
     }
 
+    public static ColocateTableIndex read(DataInput in) throws IOException {
+        ColocateTableIndex index = new ColocateTableIndex();
+        index.readFields(in);
+        return index;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         int size = groupName2Id.size();
@@ -545,7 +550,6 @@ public class ColocateTableIndex implements Writable {
         }
     }
 
-    @Override
     public void readFields(DataInput in) throws IOException {
         int size = in.readInt();
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_55) {

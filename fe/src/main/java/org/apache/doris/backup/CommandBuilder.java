@@ -95,6 +95,12 @@ public class CommandBuilder implements Writable {
         ObjectWriter.writeAsJson(remotePropFilePath, remoteProperties);
     }
 
+    public static CommandBuilder read(DataInput in) throws IOException {
+        CommandBuilder builder = new CommandBuilder();
+        builder.readFields(in);
+        return builder;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, remotePropFilePath);
@@ -106,8 +112,7 @@ public class CommandBuilder implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         remotePropFilePath = Text.readString(in);
         int size = in.readInt();
         for (int i = 0; i < size; i++) {

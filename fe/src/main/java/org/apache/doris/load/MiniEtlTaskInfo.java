@@ -56,6 +56,12 @@ public class MiniEtlTaskInfo implements Writable {
         return taskStatus;
     }
     
+    public static MiniEtlTaskInfo read(DataInput in) throws IOException {
+        MiniEtlTaskInfo info = new MiniEtlTaskInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(id);
@@ -63,8 +69,7 @@ public class MiniEtlTaskInfo implements Writable {
         out.writeLong(tableId);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         id = in.readLong();
         backendId = in.readLong();
         tableId = in.readLong();

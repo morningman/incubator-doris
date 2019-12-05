@@ -250,6 +250,12 @@ public class WhiteList implements Writable {
         }
     }
 
+    public static WhiteList read(DataInput in) throws IOException {
+        WhiteList whiteList = new WhiteList();
+        whiteList.readFields(in);
+        return whiteList;
+    }
+
     @Override
     public String toString() {
         return domainMap.toString();
@@ -277,8 +283,7 @@ public class WhiteList implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_43) {
             int ipWhiteListsLen = in.readInt();
             for (int i = 0; i < ipWhiteListsLen; i++) {

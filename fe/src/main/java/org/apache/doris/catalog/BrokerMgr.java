@@ -356,7 +356,7 @@ public class BrokerMgr {
         public String brokerName;
         public List<FsBroker> brokerAddresses;
 
-        public ModifyBrokerInfo() {
+        private ModifyBrokerInfo() {
         }
 
         public ModifyBrokerInfo(String brokerName, List<FsBroker> brokerAddresses) {
@@ -373,8 +373,7 @@ public class BrokerMgr {
             }
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             brokerName = Text.readString(in);
             int size = in.readInt();
             brokerAddresses = Lists.newArrayList();
@@ -383,7 +382,7 @@ public class BrokerMgr {
             }
         }
 
-        public static ModifyBrokerInfo readIn(DataInput in) throws IOException {
+        public static ModifyBrokerInfo read(DataInput in) throws IOException {
             ModifyBrokerInfo info = new ModifyBrokerInfo();
             info.readFields(in);
             return info;

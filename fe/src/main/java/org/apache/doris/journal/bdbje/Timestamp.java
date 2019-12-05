@@ -35,13 +35,18 @@ public class Timestamp implements Writable {
         return this.timestamp;
     }
 
+    public static Timestamp read(DataInput in) throws IOException {
+        Timestamp timestamp = new Timestamp();
+        timestamp.readFields(in);
+        return timestamp;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(timestamp);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         timestamp = in.readLong();
     }
     

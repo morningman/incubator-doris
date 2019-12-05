@@ -17,12 +17,12 @@
 
 package org.apache.doris.persist;
 
+import org.apache.doris.common.io.Text;
+import org.apache.doris.common.io.Writable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-
-import org.apache.doris.common.io.Text;
-import org.apache.doris.common.io.Writable;
 
 public class LinkDbInfo implements Writable {
     private String cluster;
@@ -56,6 +56,12 @@ public class LinkDbInfo implements Writable {
         this.id = id;
     }
 
+    public static LinkDbInfo read(DataInput in) throws IOException {
+        LinkDbInfo info = new LinkDbInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, cluster);
@@ -64,8 +70,7 @@ public class LinkDbInfo implements Writable {
 
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         cluster = Text.readString(in);
         name = Text.readString(in);
         id = in.readLong();

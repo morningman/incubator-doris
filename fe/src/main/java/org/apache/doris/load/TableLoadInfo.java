@@ -18,6 +18,7 @@
 package org.apache.doris.load;
 
 import org.apache.doris.common.io.Writable;
+
 import com.google.common.collect.Maps;
 
 import java.io.DataInput;
@@ -70,6 +71,12 @@ public class TableLoadInfo implements Writable {
         return -1;
     }
 
+    public static TableLoadInfo read(DataInput in) throws IOException {
+        TableLoadInfo info = new TableLoadInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         int count = idToPartitionLoadInfo.size();
@@ -87,8 +94,7 @@ public class TableLoadInfo implements Writable {
         }
     }
  
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int count = in.readInt();
         for (int i = 0; i < count; i++) {
             long key = in.readLong();

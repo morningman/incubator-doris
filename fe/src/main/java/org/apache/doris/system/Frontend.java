@@ -127,8 +127,7 @@ public class Frontend implements Writable {
         Text.writeString(out, nodeName);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         role = FrontendNodeType.valueOf(Text.readString(in));
         if (role == FrontendNodeType.REPLICA) {
             // this is for compatibility.

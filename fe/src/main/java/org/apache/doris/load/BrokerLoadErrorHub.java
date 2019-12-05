@@ -52,13 +52,19 @@ public class BrokerLoadErrorHub extends LoadErrorHub {
         private Map<String, String> prop = Maps.newHashMap();
 
         // for persist
-        public BrokerParam() {
+        private BrokerParam() {
         }
 
         public BrokerParam(String brokerName, String path, Map<String, String> prop) {
             this.brokerName = brokerName;
             this.path = path;
             this.prop = prop;
+        }
+
+        public static BrokerParam read(DataInput in) throws IOException {
+            BrokerParam brokerParam = new BrokerParam();
+            brokerParam.readFields(in);
+            return brokerParam;
         }
 
         @Override
@@ -72,8 +78,7 @@ public class BrokerLoadErrorHub extends LoadErrorHub {
             }
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             brokerName = Text.readString(in);
             path = Text.readString(in);
             int size = in.readInt();

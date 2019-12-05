@@ -71,8 +71,7 @@ public class TruncateTableInfo implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tblId = in.readLong();
         int size = in.readInt();

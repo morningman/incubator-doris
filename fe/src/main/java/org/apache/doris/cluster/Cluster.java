@@ -17,12 +17,12 @@
 
 package org.apache.doris.cluster;
 
-import com.google.common.base.Preconditions;
 import org.apache.doris.catalog.InfoSchemaDb;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.persist.LinkDbInfo;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
@@ -237,8 +237,7 @@ public class Cluster implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         id = in.readLong();
         name = Text.readString(in);
         Long len = in.readLong();
@@ -259,16 +258,14 @@ public class Cluster implements Writable {
         count = in.readInt();
         while (count-- > 0) {
             final String key = Text.readString(in);
-            final LinkDbInfo value = new LinkDbInfo();
-            value.readFields(in);
+            final LinkDbInfo value = LinkDbInfo.read(in);
             linkDbNames.put(key, value);
         }
 
         count = in.readInt();
         while (count-- > 0) {
             final long key = in.readLong();
-            final LinkDbInfo value = new LinkDbInfo();
-            value.readFields(in);
+            final LinkDbInfo value = LinkDbInfo.read(in);
             linkDbIds.put(key, value);
         }
     }

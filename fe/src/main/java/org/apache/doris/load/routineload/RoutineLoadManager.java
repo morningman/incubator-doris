@@ -599,6 +599,12 @@ public class RoutineLoadManager implements Writable {
                  .build());
     }
 
+    public static RoutineLoadManager read(DataInput in) throws IOException {
+        RoutineLoadManager manager = new RoutineLoadManager();
+        manager.readFields(in);
+        return manager;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeInt(idToRoutineLoadJob.size());
@@ -607,7 +613,6 @@ public class RoutineLoadManager implements Writable {
         }
     }
 
-    @Override
     public void readFields(DataInput in) throws IOException {
         int size = in.readInt();
         for (int i = 0; i < size; i++) {

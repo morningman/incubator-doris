@@ -18,7 +18,6 @@
 package org.apache.doris.load.loadv2;
 
 
-import com.google.common.collect.Maps;
 import org.apache.doris.analysis.BrokerDesc;
 import org.apache.doris.analysis.DataDescription;
 import org.apache.doris.analysis.LoadStmt;
@@ -56,6 +55,7 @@ import org.apache.doris.transaction.TransactionState;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import org.apache.logging.log4j.LogManager;
@@ -529,11 +529,11 @@ public class BrokerLoadJob extends LoadJob {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
         brokerDesc = BrokerDesc.read(in);
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_61) {
-            dataSourceInfo.readFields(in);
+            dataSourceInfo = PullLoadSourceInfo.read(in);
         }
 
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_58) {

@@ -151,9 +151,9 @@ public class BDBTool {
         if (status == OperationStatus.SUCCESS) {
             byte[] retData = value.getData();
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(retData));
-            JournalEntity entity = new JournalEntity();
+            JournalEntity entity = null;
             try {
-                entity.readFields(in);
+                entity = JournalEntity.read(in);
             } catch (Exception e) {
                 e.printStackTrace();
                 System.err.println("Fail to read journal entity for key: " + key + ". reason: " + e.getMessage());

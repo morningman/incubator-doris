@@ -28,7 +28,7 @@ public class RecoverInfo implements Writable {
     private long tableId;
     private long partitionId;
 
-    public RecoverInfo() {
+    private RecoverInfo() {
         // for persist
     }
 
@@ -50,6 +50,12 @@ public class RecoverInfo implements Writable {
         return partitionId;
     }
 
+    public static RecoverInfo read(DataInput in) throws IOException {
+        RecoverInfo info = new RecoverInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(dbId);
@@ -57,8 +63,7 @@ public class RecoverInfo implements Writable {
         out.writeLong(partitionId);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tableId = in.readLong();
         partitionId = in.readLong();

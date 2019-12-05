@@ -79,8 +79,7 @@ public class DatabaseInfo implements Writable {
         Text.writeString(out, this.dbState.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         this.dbName = Text.readString(in);
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_10) {
             newDbName = Text.readString(in);

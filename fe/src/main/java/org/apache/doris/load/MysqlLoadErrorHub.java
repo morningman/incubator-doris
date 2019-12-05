@@ -112,6 +112,12 @@ public class MysqlLoadErrorHub extends LoadErrorHub {
             return table;
         }
 
+        public static MysqlParam read(DataInput in) throws IOException {
+            MysqlParam param = new MysqlParam();
+            param.readFields(in);
+            return param;
+        }
+
         @Override
         public void write(DataOutput out) throws IOException {
             Text.writeString(out, host);
@@ -122,8 +128,7 @@ public class MysqlLoadErrorHub extends LoadErrorHub {
             Text.writeString(out, table);
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             host = Text.readString(in);
             port = in.readInt();
             user = Text.readString(in);

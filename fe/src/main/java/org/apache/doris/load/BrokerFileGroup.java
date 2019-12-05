@@ -313,8 +313,7 @@ public class BrokerFileGroup implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         tableId = in.readLong();
         valueSeparator = Text.readString(in);
         lineDelimiter = Text.readString(in);

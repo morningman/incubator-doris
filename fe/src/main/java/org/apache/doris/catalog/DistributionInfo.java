@@ -68,8 +68,7 @@ public abstract class DistributionInfo implements Writable {
         Text.writeString(out, type.name());
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         type = DistributionInfoType.valueOf(Text.readString(in));
     }
 

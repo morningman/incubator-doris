@@ -229,9 +229,8 @@ public class BDBJEJournal implements Journal {
                 // Recreate the data String.
                 byte[] retData = theData.getData();
                 DataInputStream in = new DataInputStream(new ByteArrayInputStream(retData));
-                ret = new JournalEntity();
                 try {
-                    ret.readFields(in);
+                    ret = JournalEntity.read(in);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

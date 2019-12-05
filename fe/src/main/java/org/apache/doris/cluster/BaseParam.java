@@ -17,14 +17,15 @@
 
 package org.apache.doris.cluster;
 
+import org.apache.doris.common.io.Text;
+import org.apache.doris.common.io.Writable;
+
+import com.google.common.collect.Lists;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
-
-import org.apache.doris.common.io.Text;
-import org.apache.doris.common.io.Writable;
-import com.google.common.collect.Lists;
 
 public class BaseParam implements Writable {
 
@@ -71,6 +72,12 @@ public class BaseParam implements Writable {
         this.floatParams.add(value);
     }
 
+    public static BaseParam read(DataInput in) throws IOException {
+        BaseParam baseParam = new BaseParam();
+        baseParam.readFields(in);
+        return baseParam;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeInt(strParams.size());
@@ -90,8 +97,7 @@ public class BaseParam implements Writable {
 
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int count = in.readInt();
         while (count-- > 0) {
             strParams.add(Text.readString(in));
@@ -106,7 +112,6 @@ public class BaseParam implements Writable {
         while (count-- > 0) {
             floatParams.add(in.readFloat());
         }
-
     }
 
 }

@@ -131,8 +131,7 @@ public class UserResource implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         resource = ResourceGroup.readIn(in);
         ImmutableSortedMap.Builder<String, AtomicInteger> builder =
                 ImmutableSortedMap.orderedBy(String.CASE_INSENSITIVE_ORDER);

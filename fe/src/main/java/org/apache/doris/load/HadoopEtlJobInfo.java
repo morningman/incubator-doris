@@ -72,6 +72,12 @@ public class HadoopEtlJobInfo extends EtlJobInfo {
         this.dppConfig = dppConfig;
     }
 
+    public static HadoopEtlJobInfo read(DataInput in) throws IOException {
+        HadoopEtlJobInfo info = new HadoopEtlJobInfo();
+        info.readFields(in);
+        return info;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         super.write(out);
@@ -88,7 +94,7 @@ public class HadoopEtlJobInfo extends EtlJobInfo {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    protected void readFields(DataInput in) throws IOException {
         super.readFields(in);
         cluster = Text.readString(in);
         etlJobId = Text.readString(in);
@@ -96,8 +102,7 @@ public class HadoopEtlJobInfo extends EtlJobInfo {
 
         if (Catalog.getCurrentCatalogJournalVersion() >= 7) {
             if (in.readBoolean()) {
-                dppConfig = new DppConfig();
-                dppConfig.readFields(in);
+                dppConfig = DppConfig.read(in);
             }
         }
     }

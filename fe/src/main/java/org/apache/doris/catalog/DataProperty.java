@@ -66,8 +66,7 @@ public class DataProperty implements Writable {
         out.writeLong(cooldownTimeMs);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         storageMedium = TStorageMedium.valueOf(Text.readString(in));
         cooldownTimeMs = in.readLong();
     }

@@ -106,8 +106,7 @@ public class RestoreFileMapping implements Writable {
             }
         }
 
-        @Override
-        public void readFields(DataInput in) throws IOException {
+        private void readFields(DataInput in) throws IOException {
             int size = in.readInt();
             chain = new Long[size];
             for (int i = 0; i < size; i++) {
@@ -172,8 +171,7 @@ public class RestoreFileMapping implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         int size = in.readInt();
         for (int i = 0; i < size; i++) {
             IdChain key = IdChain.read(in);

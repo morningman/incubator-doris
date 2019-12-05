@@ -38,7 +38,7 @@ public class PartitionPersistInfo implements Writable {
     private DataProperty dataProperty;
     private short replicationNum;
     
-    public PartitionPersistInfo() {
+    private PartitionPersistInfo() {
     }
 
     public PartitionPersistInfo(long dbId, long tableId, Partition partition, Range<PartitionKey> range,
@@ -77,6 +77,13 @@ public class PartitionPersistInfo implements Writable {
         return replicationNum;
     }
 
+    public static PartitionPersistInfo read(DataInput in) throws IOException {
+        PartitionPersistInfo info = new PartitionPersistInfo();
+        info.readFields(in);
+        return info;
+    }
+
+    @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(dbId);
         out.writeLong(tableId);
@@ -87,7 +94,7 @@ public class PartitionPersistInfo implements Writable {
         out.writeShort(replicationNum);
     }
  
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tableId = in.readLong();
         partition = Partition.read(in);

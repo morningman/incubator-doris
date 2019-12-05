@@ -19,10 +19,6 @@ package org.apache.doris.catalog;
 
 import static org.apache.doris.common.io.IOUtils.writeOptionString;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gson.Gson;
 import org.apache.doris.analysis.CreateFunctionStmt;
 import org.apache.doris.analysis.FunctionName;
 import org.apache.doris.analysis.HdfsURI;
@@ -30,6 +26,12 @@ import org.apache.doris.common.io.Text;
 import org.apache.doris.thrift.TFunction;
 import org.apache.doris.thrift.TFunctionBinaryType;
 import org.apache.doris.thrift.TScalarFunction;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.gson.Gson;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -291,7 +293,7 @@ public class ScalarFunction extends Function {
     }
 
     @Override
-    public void readFields(DataInput input) throws IOException {
+    protected void readFields(DataInput input) throws IOException {
         super.readFields(input);
         symbolName = Text.readString(input);
         if (input.readBoolean()) {

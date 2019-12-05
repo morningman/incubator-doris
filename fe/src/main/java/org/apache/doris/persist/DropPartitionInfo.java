@@ -17,8 +17,8 @@
 
 package org.apache.doris.persist;
 
-import org.apache.doris.common.io.Writable;
 import org.apache.doris.common.io.Text;
+import org.apache.doris.common.io.Writable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -29,7 +29,7 @@ public class DropPartitionInfo implements Writable {
     private Long tableId;
     private String partitionName;
     
-    public DropPartitionInfo() {
+    private DropPartitionInfo() {
     }
 
     public DropPartitionInfo(Long dbId, Long tableId, String partitionName) {
@@ -50,13 +50,20 @@ public class DropPartitionInfo implements Writable {
         return partitionName;
     }
 
+    public static DropPartitionInfo read(DataInput in) throws IOException {
+        DropPartitionInfo info = new DropPartitionInfo();
+        info.readFields(in);
+        return info;
+    }
+
+    @Override
     public void write(DataOutput out) throws IOException {
         out.writeLong(dbId);
         out.writeLong(tableId);
         Text.writeString(out, partitionName);
     }
  
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         dbId = in.readLong();
         tableId = in.readLong();
         partitionName = Text.readString(in);

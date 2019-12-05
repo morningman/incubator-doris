@@ -30,7 +30,7 @@ public class MasterInfo implements Writable {
     private int httpPort;
     private int rpcPort;
 
-    public MasterInfo() {
+    private MasterInfo() {
         this.ip = "";
         this.httpPort = 0;
         this.rpcPort = 0;
@@ -66,6 +66,12 @@ public class MasterInfo implements Writable {
         this.rpcPort = rpcPort;
     }
 
+    public static MasterInfo read(DataInput in) throws IOException {
+        MasterInfo masterInfo = new MasterInfo();
+        masterInfo.readFields(in);
+        return masterInfo;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, ip);
@@ -73,8 +79,7 @@ public class MasterInfo implements Writable {
         out.writeInt(rpcPort);
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         ip = Text.readString(in);
         httpPort = in.readInt();
         rpcPort = in.readInt();

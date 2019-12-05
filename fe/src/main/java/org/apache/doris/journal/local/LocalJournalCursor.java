@@ -191,14 +191,12 @@ public final class LocalJournalCursor implements JournalCursor {
         ret.setOpCode(opCode);
         switch (opCode) {
             case OperationType.OP_SAVE_NEXTID: {
-                Text text = new Text();
-                text.readFields(in);
+                Text text = Text.read(in);
                 ret.setData(text);
                 break;
             }
             case OperationType.OP_SAVE_TRANSACTION_ID: {
-                Text text = new Text();
-                text.readFields(in);
+                Text text = Text.read(in);
                 ret.setData(text);
                 break;
             }
@@ -209,39 +207,33 @@ public final class LocalJournalCursor implements JournalCursor {
                 break;
             }
             case OperationType.OP_DROP_DB: {
-                Text text = new Text();
-                text.readFields(in);
+                Text text = Text.read(in);
                 ret.setData(text);
                 break;
             }
             case OperationType.OP_ALTER_DB:
             case OperationType.OP_RENAME_DB: {
-                DatabaseInfo info = new DatabaseInfo();
-                info.readFields(in);
+                DatabaseInfo info = DatabaseInfo.read(in);
                 ret.setData(info);
                 break;
             }
             case OperationType.OP_CREATE_TABLE: {
-                CreateTableInfo info = new CreateTableInfo();
-                info.readFields(in);
+                CreateTableInfo info = CreateTableInfo.read(in);
                 ret.setData(info);
                 break;
             }
             case OperationType.OP_DROP_TABLE: {
-                DropInfo info = new DropInfo();
-                info.readFields(in);
+                DropInfo info = DropInfo.read(in);
                 ret.setData(info);
                 break;
             }
             case OperationType.OP_ADD_PARTITION: {
-                PartitionPersistInfo info = new PartitionPersistInfo();
-                info.readFields(in);
+                PartitionPersistInfo info = PartitionPersistInfo.read(in);
                 ret.setData(info);
                 break;
             }
             case OperationType.OP_DROP_PARTITION: {
-                DropPartitionInfo info = new DropPartitionInfo();
-                info.readFields(in);
+                DropPartitionInfo info = DropPartitionInfo.read(in);
                 ret.setData(info);
                 break;
             }
@@ -253,16 +245,14 @@ public final class LocalJournalCursor implements JournalCursor {
             case OperationType.OP_ERASE_DB:
             case OperationType.OP_ERASE_TABLE:
             case OperationType.OP_ERASE_PARTITION: {
-                Text text = new Text();
-                text.readFields(in);
+                Text text = Text.read(in);
                 ret.setData(text);
                 break;
             }
             case OperationType.OP_RECOVER_DB:
             case OperationType.OP_RECOVER_TABLE:
             case OperationType.OP_RECOVER_PARTITION: {
-                RecoverInfo recoverInfo = new RecoverInfo();
-                recoverInfo.readFields(in);
+                RecoverInfo recoverInfo = RecoverInfo.read(in);
                 ret.setData(recoverInfo);
                 break;
             }
@@ -306,14 +296,12 @@ public final class LocalJournalCursor implements JournalCursor {
             case OperationType.OP_LOAD_QUORUM:
             case OperationType.OP_LOAD_DONE:
             case OperationType.OP_LOAD_CANCEL: {
-                LoadJob job = new LoadJob();
-                job.readFields(in);
+                LoadJob job = LoadJob.read(in);
                 ret.setData(job);
                 break;
             }
             case OperationType.OP_FINISH_SYNC_DELETE: {
-                DeleteInfo info = new DeleteInfo();
-                info.readFields(in);
+                DeleteInfo info = DeleteInfo.read(in);
                 ret.setData(info);
                 break;
             }
@@ -343,26 +331,22 @@ public final class LocalJournalCursor implements JournalCursor {
                 break;
             }
             case OperationType.OP_SET_LOAD_ERROR_HUB: {
-                LoadErrorHub.Param param = new LoadErrorHub.Param();
-                param.readFields(in);
+                LoadErrorHub.Param param = LoadErrorHub.Param.read(in);
                 ret.setData(param);
                 break;
             }
             case OperationType.OP_MASTER_INFO_CHANGE: {
-                MasterInfo info = new MasterInfo();
-                info.readFields(in);
+                MasterInfo info = MasterInfo.read(in);
                 ret.setData(info);
                 break;
             }
             case OperationType.OP_TIMESTAMP: {
-                Timestamp stamp = new Timestamp();
-                stamp.readFields(in);
+                Timestamp stamp = Timestamp.read(in);
                 ret.setData(stamp);
                 break;
             }
             case OperationType.OP_META_VERSION: {
-                Text text = new Text();
-                text.readFields(in);
+                Text text = Text.read(in);
                 ret.setData(text);
                 break;
             }

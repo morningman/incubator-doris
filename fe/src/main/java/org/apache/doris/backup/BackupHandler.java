@@ -565,8 +565,7 @@ public class BackupHandler extends MasterDaemon implements Writable {
         }
     }
 
-    @Override
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         repoMgr = RepositoryMgr.read(in);
 
         int size = in.readInt();

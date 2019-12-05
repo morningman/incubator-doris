@@ -20,10 +20,10 @@ package org.apache.doris.persist;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
-import org.apache.doris.common.io.Writable;
-import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Text;
+import org.apache.doris.common.io.Writable;
+import org.apache.doris.system.SystemInfoService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,12 +55,13 @@ public class CreateTableInfo implements Writable {
         return table;
     }
 
+    @Override
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, dbName);
         table.write(out);
     }
  
-    public void readFields(DataInput in) throws IOException {
+    private void readFields(DataInput in) throws IOException {
         if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_30) {
             dbName = ClusterNamespace.getFullName(SystemInfoService.DEFAULT_CLUSTER, Text.readString(in));
         } else {
