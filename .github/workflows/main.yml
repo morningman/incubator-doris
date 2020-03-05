@@ -1,0 +1,19 @@
+name: Doris Build
+
+on:
+  push:
+    branches: [ action_test ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: pull image
+      run: docker pull apachedoris/doris-dev:build-env-1.2
+    - name: start container
+      run: docker run -it -v ./:/root/incubator-doris apachedoris/doris-dev:build-env-1.2
+    - name: build
+      run: cd /root/incubator-doris && sh build.sh
+
