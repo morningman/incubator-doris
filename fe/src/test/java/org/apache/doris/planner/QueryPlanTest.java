@@ -125,6 +125,29 @@ public class QueryPlanTest {
                 "PROPERTIES (\n" + 
                 "\"replication_num\" = \"1\"\n" + 
                 ");");
+        
+        createTable("CREATE TABLE `test`.`bfp_flow_dsp_impression` (\n" +
+                "  `event_day` date NOT NULL COMMENT \"\",\n" + 
+                "  `time` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `app_sid` varchar(200) NOT NULL COMMENT \"\",\n" + 
+                "  `dsp_id` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `tu` varchar(100) NOT NULL COMMENT \"\",\n" + 
+                "  `ssp` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `new_ttp` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `traffic_source` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `platform` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `adclass` varchar(10) NOT NULL COMMENT \"\",\n" + 
+                "  `tag_id` varchar(220) NOT NULL COMMENT \"\",\n" + 
+                "  `normal_impression` bigint(20) SUM NOT NULL COMMENT \"\",\n" + 
+                "  `spam_impression` bigint(20) SUM NOT NULL COMMENT \"\",\n" + 
+                "  `total_impression` bigint(20) SUM NOT NULL COMMENT \"\"\n" + 
+                ") ENGINE=OLAP\n" + 
+                "AGGREGATE KEY(`event_day`, `time`, `app_sid`, `dsp_id`, `tu`, `ssp`, `new_ttp`, `traffic_source`, `platform`, `adclass`, `tag_id`)\n" + 
+                "COMMENT \"OLAP\"\n" + 
+                "DISTRIBUTED BY HASH(`event_day`) BUCKETS 32\n" + 
+                "PROPERTIES (\n" + 
+                "\"replication_num\" = \"1\"\n" + 
+                ");");
     }
 
     @AfterClass
@@ -371,6 +394,12 @@ public class QueryPlanTest {
         ShowCreateDbStmt showCreateSchemaStmt = (ShowCreateDbStmt) UtFrameUtils.parseAndAnalyzeStmt(showCreateSchemaSql, connectContext);
         ShowCreateDbStmt showCreateDbStmt = (ShowCreateDbStmt) UtFrameUtils.parseAndAnalyzeStmt(showCreateDbSql, connectContext);
         Assert.assertEquals(showCreateDbStmt.toSql(), showCreateSchemaStmt.toSql());
+    }
+
+    @Test
+    public void mytest() throws Exception {
+        String sql = "SELECT event_day, time, sum(normal_impression) FROM test.bfp_flow_dsp_impression WHERE event_day in ('2020-03-16 00:01:02') GROUP BY event_day, time";
+        UtFrameUtils.getSQLPlanOrErrorMsg(connectContext, "explain " + sql);
     }
 
 }

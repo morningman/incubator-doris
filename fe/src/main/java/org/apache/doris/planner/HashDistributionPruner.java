@@ -17,6 +17,7 @@
 
 package org.apache.doris.planner;
 
+import org.apache.doris.analysis.Expr;
 import org.apache.doris.analysis.InPredicate;
 import org.apache.doris.analysis.LiteralExpr;
 import org.apache.doris.analysis.SlotRef;
@@ -96,10 +97,20 @@ public class HashDistributionPruner implements DistributionPruner {
             // return all SubPartition
             return Lists.newArrayList(bucketsList);
         }
-
-        if (!(inPredicate.getChild(0) instanceof SlotRef)) {
-            // return all SubPartition
-            return Lists.newArrayList(bucketsList);
+        if (null != inPredicate) {
+            /*
+             * When the distribution key is with type DATE, and predicate is `col in ("2020-03-24")`.
+             * The predicate will be analyzed as:
+             *      cast(col as DATETIME) in (DateLiteral("2020-03-24", DATETIME))
+             *      
+             * So we need to unwrap the cast expr to get the real slot ref.
+             */
+            List<Expr> childrenWithoutCast = inPredicate.getChildrenWithoutCast();
+            Expr child0 = childrenWithoutCast.get(0);
+            if (!(child0 instanceof SlotRef)) {
+                // return all SubPartition
+                return Lists.newArrayList(bucketsList);
+            }
         }
         Set<Long> resultSet = Sets.newHashSet();
         int inElementNum = inPredicate.getInElementNum();
@@ -107,6 +118,9 @@ public class HashDistributionPruner implements DistributionPruner {
         int childrenNum = inPredicate.getChildren().size();
         for (int i = 1; i < childrenNum; ++i) {
             LiteralExpr expr = (LiteralExpr) inPredicate.getChild(i);
+            if (expr.getType().getPrimitiveType() != keyColumn.getDataType()) {
+                return Lists.newArrayList(bucketsList);
+            }
             hashKey.pushColumn(expr, keyColumn.getDataType());
             Collection<Long> subList = prune(columnId + 1, hashKey, newComplex);
             resultSet.addAll(subList);
