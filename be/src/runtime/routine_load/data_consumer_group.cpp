@@ -14,10 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+#include "librdkafka/rdkafka.h"
+#include "librdkafka/rdkafkacpp.h"
 
-
+#include "runtime/routine_load/data_consumer.h"
 #include "runtime/routine_load/data_consumer_group.h"
 #include "runtime/routine_load/kafka_consumer_pipe.h"
+#include "runtime/stream_load/stream_load_context.h"
 
 namespace doris {
 
@@ -101,6 +104,14 @@ Status KafkaDataConsumerGroup::start_all(StreamLoadContext* ctx) {
     // copy one
     std::map<int32_t, int64_t> cmt_offset = ctx->kafka_info->cmt_offset;
 
+    //improve performance
+    Status (KafkaConsumerPipe::*append_data)(const char* data, size_t size);
+    if (ctx->format == TFileFormatType::FORMAT_JSON) {
+        append_data = &KafkaConsumerPipe::append_json;
+    } else {
+        append_data = &KafkaConsumerPipe::append_with_line_delimiter;
+    }
+
     MonotonicStopWatch watch;
     watch.start();
     Status st;
@@ -152,9 +163,9 @@ Status KafkaDataConsumerGroup::start_all(StreamLoadContext* ctx) {
                 << ", offset: " << msg->offset()
                 << ", len: " << msg->len();
 
-            st = kafka_pipe->append_with_line_delimiter(
-                    static_cast<const char *>(msg->payload()),
+            (kafka_pipe.get()->*append_data)(static_cast<const char *>(msg->payload()),
                     static_cast<size_t>(msg->len()));
+
             if (st.ok()) {
                 left_rows--;
                 left_bytes -= msg->len();

@@ -20,6 +20,7 @@ namespace java org.apache.doris.thrift
 
 include "Status.thrift"
 include "Types.thrift"
+include "PlanNodes.thrift"
 include "AgentService.thrift"
 include "PaloInternalService.thrift"
 include "DorisExternalService.thrift"
@@ -54,11 +55,12 @@ struct TRoutineLoadTask {
     6: optional string db
     7: optional string tbl
     8: optional string label
-    9: optional i64 max_interval_s
-    10: optional i64 max_batch_rows
-    11: optional i64 max_batch_size
-    12: optional TKafkaLoadInfo kafka_load_info
-    13: optional PaloInternalService.TExecPlanFragmentParams params
+    9: optional PlanNodes.TFileFormatType format
+    10: optional i64 max_interval_s
+    11: optional i64 max_batch_rows
+    12: optional i64 max_batch_size
+    13: optional TKafkaLoadInfo kafka_load_info
+    14: optional PaloInternalService.TExecPlanFragmentParams params
 }
 
 struct TKafkaMetaProxyRequest {

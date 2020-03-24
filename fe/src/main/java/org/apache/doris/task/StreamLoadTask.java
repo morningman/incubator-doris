@@ -52,6 +52,8 @@ public class StreamLoadTask {
     private long txnId;
     private TFileType fileType;
     private TFileFormatType formatType;
+    private String jsonPathFile;
+    private String jsonPath;
 
     // optional
     private List<ImportColumnDesc> columnExprDescs = Lists.newArrayList();
@@ -70,6 +72,8 @@ public class StreamLoadTask {
         this.txnId = txnId;
         this.fileType = fileType;
         this.formatType = formatType;
+        this.jsonPath = "";
+        this.jsonPathFile = "";
     }
 
     public TUniqueId getId() {
@@ -124,6 +128,22 @@ public class StreamLoadTask {
         return timeout;
     }
 
+    public String getJsonPathFile() {
+        return jsonPathFile;
+    }
+
+    public void setJsonPathFile(String jsonPathFile) {
+        this.jsonPathFile = jsonPathFile;
+    }
+
+    public String getJsonPath() {
+        return jsonPath;
+    }
+
+    public void setJsonPath(String jsonPath) {
+        this.jsonPath = jsonPath;
+    }
+
     public static StreamLoadTask fromTStreamLoadPutRequest(TStreamLoadPutRequest request) throws UserException {
         StreamLoadTask streamLoadTask = new StreamLoadTask(request.getLoadId(), request.getTxnId(),
                                                            request.getFileType(), request.getFormatType());
@@ -171,12 +191,23 @@ public class StreamLoadTask {
         if (request.isSetExecMemLimit()) {
             execMemLimit = request.getExecMemLimit();
         }
+        if (request.getFormatType() == TFileFormatType.FORMAT_JSON) {
+            if (request.getJsonpath() != null) {
+                jsonPath = request.getJsonpath();
+            } else if (request.getJsonpath_file() != null) {
+                jsonPathFile = request.getJsonpath_file();
+            }
+        }
     }
 
     public static StreamLoadTask fromRoutineLoadJob(RoutineLoadJob routineLoadJob) {
         TUniqueId dummyId = new TUniqueId();
+        TFileFormatType fileFormatType = TFileFormatType.FORMAT_CSV_PLAIN;
+        if (routineLoadJob.getFormat().equals("json")) {
+            fileFormatType = TFileFormatType.FORMAT_JSON;
+        }
         StreamLoadTask streamLoadTask = new StreamLoadTask(dummyId, -1L /* dummy txn id*/,
-                TFileType.FILE_STREAM, TFileFormatType.FORMAT_CSV_PLAIN);
+                TFileType.FILE_STREAM, fileFormatType);
         streamLoadTask.setOptionalFromRoutineLoadJob(routineLoadJob);
         return streamLoadTask;
     }
@@ -193,6 +224,11 @@ public class StreamLoadTask {
         strictMode = routineLoadJob.isStrictMode();
         timezone = routineLoadJob.getTimezone();
         timeout = (int) routineLoadJob.getMaxBatchIntervalS() * 2;
+        if (!routineLoadJob.getJsonPath().isEmpty()) {
+            jsonPath = routineLoadJob.getJsonPath();
+        } else if (!routineLoadJob.getJsonPathFile().isEmpty()) {
+            jsonPathFile = routineLoadJob.getJsonPathFile();
+        }
     }
 
     // used for stream load
