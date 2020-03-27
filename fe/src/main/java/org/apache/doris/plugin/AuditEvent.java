@@ -17,83 +17,194 @@
 
 package org.apache.doris.plugin;
 
-import org.apache.doris.qe.ConnectContext;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 public class AuditEvent {
-    /**
-     * Audit plugin event type
-     */
-    public final static short AUDIT_CONNECTION = 1;
-    public final static short AUDIT_QUERY = 2;
-
-    /**
-     * Connection sub-event masks
-     */
-    public final static short AUDIT_CONNECTION_CONNECT = 1;
-    public final static short AUDIT_CONNECTION_DISCONNECT = 1 << 1;
-
-    /**
-     * Query sub-event masks
-     */
-    public final static short AUDIT_QUERY_START = 1;
-    public final static short AUDIT_QUERY_END = 1 << 1;
-
-    protected String query;
-
-    protected short type;
-
-    protected short masks;
-
-    protected ConnectContext context;
-
-    protected AuditEvent(ConnectContext context) {
-        this.context = context;
+    public enum EventType {
+        CONNECTION,
+        DISCONNECTION,
+        BEFORE_QUERY,
+        AFTER_QUERY
     }
 
-    protected AuditEvent(ConnectContext context, String query) {
-        this.context = context;
-        this.query = query;
+    @Retention(RetentionPolicy.RUNTIME)
+    public static @interface AuditField {
+        String value() default "";
     }
 
-    public void setEventTypeAndMasks(short type, short masks) {
-        this.type = type;
-        this.masks = masks;
+    private EventType type;
+
+    @AuditField(value = "Timestamp")
+    private long timestamp = -1;
+    @AuditField(value = "Client")
+    private String clientIp = "";
+    @AuditField(value = "User")
+    private String user = "";
+    @AuditField(value = "Db")
+    private String db = "";
+    @AuditField(value = "State")
+    private String state = "";
+    @AuditField(value = "Time")
+    private long queryTime = -1;
+    @AuditField(value = "ScanBytes")
+    private long scanBytes = -1;
+    @AuditField(value = "ScanRows")
+    private long scanRows = -1;
+    @AuditField(value = "ReturnRows")
+    private long returnRows = -1;
+    @AuditField(value = "StmtId")
+    private long stmtId = -1;
+    @AuditField(value = "QueryId")
+    private String queryId = "";
+    @AuditField(value = "IsQuery")
+    private boolean isQuery = false;
+    @AuditField(value = "Stmt")
+    private String stmt = "";
+
+    private AuditEvent() {
+
     }
 
-    public short getEventType() {
+    public static class AuditEventBuilder {
+
+        private AuditEvent auditEvent = new AuditEvent();
+
+        public AuditEventBuilder() {
+        }
+
+        public void reset() {
+            auditEvent = new AuditEvent();
+        }
+
+        public AuditEventBuilder setEventType(EventType eventType) {
+            auditEvent.type = eventType;
+            return this;
+        }
+
+        public AuditEventBuilder setTimestamp(long timestamp) {
+            auditEvent.timestamp = timestamp;
+            return this;
+        }
+
+        public AuditEventBuilder setClientIp(String clientIp) {
+            auditEvent.clientIp = clientIp;
+            return this;
+        }
+
+        public AuditEventBuilder setUser(String user) {
+            auditEvent.user = user;
+            return this;
+        }
+
+        public AuditEventBuilder setDb(String db) {
+            auditEvent.db = db;
+            return this;
+        }
+
+        public AuditEventBuilder setState(String state) {
+            auditEvent.state = state;
+            return this;
+        }
+
+        public AuditEventBuilder setQueryTime(long queryTime) {
+            auditEvent.queryTime = queryTime;
+            return this;
+        }
+
+        public AuditEventBuilder setScanBytes(long scanBytes) {
+            auditEvent.scanBytes = scanBytes;
+            return this;
+        }
+
+        public AuditEventBuilder setScanRows(long scanRows) {
+            auditEvent.scanRows = scanRows;
+            return this;
+        }
+
+        public AuditEventBuilder setReturnRows(long returnRows) {
+            auditEvent.returnRows = returnRows;
+            return this;
+        }
+
+        public AuditEventBuilder setStmtId(long stmtId) {
+            auditEvent.stmtId = stmtId;
+            return this;
+        }
+
+        public AuditEventBuilder setQueryId(String queryId) {
+            auditEvent.queryId = queryId;
+            return this;
+        }
+
+        public AuditEventBuilder setIsQuery(boolean isQuery) {
+            auditEvent.isQuery = isQuery;
+            return this;
+        }
+
+        public AuditEventBuilder setStmt(String stmt) {
+            auditEvent.stmt = stmt;
+            return this;
+        }
+
+        public AuditEvent build() {
+            return this.auditEvent;
+        }
+    }
+
+    public EventType getType() {
         return type;
     }
 
-    public short getEventMasks() {
-        return masks;
+    public long getTimestamp() {
+        return timestamp;
     }
 
-    public int getConnectId() {
-        return context.getConnectionId();
-    }
-
-    public String getIp() {
-        return context.getRemoteIP();
+    public String getClientIp() {
+        return clientIp;
     }
 
     public String getUser() {
-        return context.getQualifiedUser();
+        return user;
+    }
+
+    public String getDb() {
+        return db;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public long getQueryTime() {
+        return queryTime;
+    }
+
+    public long getScanBytes() {
+        return scanBytes;
+    }
+
+    public long getScanRows() {
+        return scanRows;
+    }
+
+    public long getReturnRows() {
+        return returnRows;
     }
 
     public long getStmtId() {
-        return context.getStmtId();
+        return stmtId;
     }
 
-    public String getQuery() {
-        return query;
+    public String getQueryId() {
+        return queryId;
     }
 
-    public static AuditEvent createConnectEvent(ConnectContext ctx) {
-        return new AuditEvent(ctx);
+    public boolean isQuery() {
+        return isQuery;
     }
 
-    public static AuditEvent createQueryEvent(ConnectContext ctx, String query) {
-        return new AuditEvent(ctx, query);
+    public String getStmt() {
+        return stmt;
     }
-
 }

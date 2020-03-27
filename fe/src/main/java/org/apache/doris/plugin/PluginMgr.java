@@ -23,6 +23,7 @@ import org.apache.doris.common.UserException;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.plugin.PluginInfo.PluginType;
 import org.apache.doris.plugin.PluginLoader.PluginStatus;
+import org.apache.doris.qe.AuditLogBuilder;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -47,7 +48,6 @@ public class PluginMgr implements Writable {
 
     public PluginMgr() {
         plugins = new Map[PluginType.MAX_PLUGIN_SIZE];
-
         for (int i = 0; i < PluginType.MAX_PLUGIN_SIZE; i++) {
             plugins[i] = Maps.newConcurrentMap();
         }
@@ -67,6 +67,16 @@ public class PluginMgr implements Writable {
                 System.exit(-1);
             }
         }
+
+        registerBuiltinPlugins();
+    }
+
+    private void registerBuiltinPlugins() {
+        // AuditLog
+        AuditLogBuilder auditLogBuilder = new AuditLogBuilder();
+        registerPlugin(auditLogBuilder.getPluginInfo(), auditLogBuilder);
+
+        // other builtin plugins
     }
 
     public PluginInfo installPlugin(InstallPluginStmt stmt) throws IOException, UserException {
@@ -120,14 +130,12 @@ public class PluginMgr implements Writable {
      */
     public boolean registerPlugin(PluginInfo pluginInfo, Plugin plugin) {
         if (Objects.isNull(pluginInfo) || Objects.isNull(plugin) || Objects.isNull(pluginInfo.getType())
-                || Strings
-                .isNullOrEmpty(pluginInfo.getName())) {
+                || Strings.isNullOrEmpty(pluginInfo.getName())) {
             return false;
         }
 
         PluginLoader loader = new BuiltinPluginLoader(Config.plugin_dir, pluginInfo, plugin);
-        PluginLoader checkLoader =
-                plugins[pluginInfo.getTypeId()].putIfAbsent(pluginInfo.getName(), loader);
+        PluginLoader checkLoader = plugins[pluginInfo.getTypeId()].putIfAbsent(pluginInfo.getName(), loader);
 
         return checkLoader == null;
     }
@@ -170,7 +178,6 @@ public class PluginMgr implements Writable {
 
     public final List<Plugin> getActivePluginList(PluginType type) {
         Map<String, PluginLoader> m = plugins[type.ordinal()];
-
         List<Plugin> l = Lists.newArrayListWithCapacity(m.size());
 
         m.values().forEach(d -> {

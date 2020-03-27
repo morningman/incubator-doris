@@ -180,6 +180,7 @@ import org.apache.doris.persist.TablePropertyInfo;
 import org.apache.doris.persist.TruncateTableInfo;
 import org.apache.doris.plugin.PluginInfo;
 import org.apache.doris.plugin.PluginMgr;
+import org.apache.doris.qe.AuditEventProcessor;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.JournalObservable;
 import org.apache.doris.qe.SessionVariable;
@@ -387,6 +388,8 @@ public class Catalog {
     
     private PluginMgr pluginMgr;
 
+    private AuditEventProcessor auditEventProcessor;
+
     public List<Frontend> getFrontends(FrontendNodeType nodeType) {
         if (nodeType == null) {
             // get all
@@ -521,6 +524,7 @@ public class Catalog {
         this.imageDir = this.metaDir + IMAGE_DIR;
 
         this.pluginMgr = new PluginMgr();
+        this.auditEventProcessor = new AuditEventProcessor(this.pluginMgr);
     }
 
     public static void destroyCheckpoint() {
@@ -586,6 +590,10 @@ public class Catalog {
         return fullNameToDb;
     }
 
+    public AuditEventProcessor getAuditEventProcessor() {
+        return auditEventProcessor;
+    }
+
     // use this to get correct ClusterInfoService instance
     public static SystemInfoService getCurrentSystemInfo() {
         return getCurrentCatalog().getClusterInfo();
@@ -620,6 +628,10 @@ public class Catalog {
 
     public static PluginMgr getCurrentPluginMgr() {
         return getCurrentCatalog().getPluginMgr();
+    }
+
+    public static AuditEventProcessor getCurrentAuditEventProcessor() {
+        return getCurrentCatalog().getAuditEventProcessor();
     }
 
     // Use tryLock to avoid potential dead lock

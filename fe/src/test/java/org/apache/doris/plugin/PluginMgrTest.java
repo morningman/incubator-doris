@@ -20,16 +20,8 @@ package org.apache.doris.plugin;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.doris.analysis.InstallPluginStmt;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.FakeCatalog;
@@ -38,23 +30,19 @@ import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.io.DataOutputBuffer;
 import org.apache.doris.common.jmockit.Deencapsulation;
+import org.apache.doris.qe.AuditLogBuilder;
+
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+
 public class PluginMgrTest {
-
-    class TestPlugin extends Plugin implements AuditPlugin {
-
-        @Override
-        public boolean eventFilter(short type, short masks) {
-            return type == AuditEvent.AUDIT_CONNECTION;
-        }
-
-        @Override
-        public void exec(AuditEvent event) {
-        }
-    }
-
 
     private Catalog catalog;
 
@@ -79,8 +67,8 @@ public class PluginMgrTest {
             Config.plugin_dir = PluginTestUtil.getTestPathString("target");
 
             mgr = new PluginMgr();
-            PluginInfo info = new PluginInfo("TestPlugin", PluginInfo.PluginType.AUDIT, "use for test");
-            assertTrue(mgr.registerPlugin(info, new TestPlugin()));
+            AuditLogBuilder logBuilder = new AuditLogBuilder();
+            assertTrue(mgr.registerPlugin(logBuilder.getPluginInfo(), logBuilder));
 
         } catch (IOException e) {
             e.printStackTrace();
