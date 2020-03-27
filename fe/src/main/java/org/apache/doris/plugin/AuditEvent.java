@@ -20,6 +20,16 @@ package org.apache.doris.plugin;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+/*
+ * AuditEvent contains all information about audit log info.
+ * It should be created by AuditEventBuilder. For example:
+ * 
+ *      AuditEvent event = new AuditEventBuilder()
+ *          .setEventType(AFTER_QUERY)
+ *          .setClientIp(xxx)
+ *          ...
+ *          .build();
+ */
 public class AuditEvent {
     public enum EventType {
         CONNECTION,
@@ -33,8 +43,10 @@ public class AuditEvent {
         String value() default "";
     }
 
-    private EventType type;
+    public EventType type;
 
+    // all fields which is about to be audit should be annotated by "@AuditField"
+    // make them all "public" so that easy to visit.
     @AuditField(value = "Timestamp")
     public long timestamp = -1;
     @AuditField(value = "Client")
@@ -61,10 +73,6 @@ public class AuditEvent {
     public boolean isQuery = false;
     @AuditField(value = "Stmt")
     public String stmt = "";
-
-    private AuditEvent() {
-
-    }
 
     public static class AuditEventBuilder {
 
@@ -150,61 +158,5 @@ public class AuditEvent {
         public AuditEvent build() {
             return this.auditEvent;
         }
-    }
-
-    public EventType getType() {
-        return type;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public String getClientIp() {
-        return clientIp;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public String getDb() {
-        return db;
-    }
-
-    public String getState() {
-        return state;
-    }
-
-    public long getQueryTime() {
-        return queryTime;
-    }
-
-    public long getScanBytes() {
-        return scanBytes;
-    }
-
-    public long getScanRows() {
-        return scanRows;
-    }
-
-    public long getReturnRows() {
-        return returnRows;
-    }
-
-    public long getStmtId() {
-        return stmtId;
-    }
-
-    public String getQueryId() {
-        return queryId;
-    }
-
-    public boolean isQuery() {
-        return isQuery;
-    }
-
-    public String getStmt() {
-        return stmt;
     }
 }

@@ -25,18 +25,15 @@ export DORIS_HOME=${ROOT}
 
 . ${DORIS_HOME}/env.sh
 
-
 # Check args
 usage() {
   echo "
 Usage: $0 <options>
   Optional options:
-     --fe               build Frontend
      --p                build special plugin
-     --clean            clean and build Frontend
   Eg.
-    $0 --fe             build Frontend and all plugin
     $0 --p xxx          build xxx plugin
+    $0                  build all plugins
   "
   exit 1
 }
@@ -45,9 +42,7 @@ OPTS=$(getopt \
   -n $0 \
   -o '' \
   -o 'h' \
-  -l 'fe' \
   -l 'p' \
-  -l 'clean' \
   -l 'help' \
   -- "$@")
 
@@ -57,23 +52,15 @@ fi
 
 eval set -- "$OPTS"
 
-BUILD_CLEAN=
-BUILD_FE=
 ALL_PLUGIN=
 if [ $# == 1 ] ; then
     # defuat
-    BUILD_CLEAN=0
-    BUILD_FE=0
     ALL_PLUGIN=1
 else
-    BUILD_FE=0
-    ALL_PLUGIN=1
     BUILD_CLEAN=0
     while true; do
         case "$1" in
-            --fe) BUILD_FE=1 ; shift ;;
             --p)  ALL_PLUGIN=0 ; shift ;;
-            --clean)  BUILD_CLEAN=1 ; shift ;;
             -h) HELP=1; shift ;;
             --help) HELP=1; shift ;;
             --) shift ;  break ;;
@@ -87,35 +74,20 @@ if [[ ${HELP} -eq 1 ]]; then
     exit
 fi
 
-if [ ${CLEAN} -eq 1 -a ${BUILD_FE} -eq 0 ]; then
-    echo "--clean can not be specified without --fe"
-    exit 1
-fi
-
 echo "Get params:
-    BUILD_FE               -- $BUILD_FE
-    BUILD_CLEAN            -- $BUILD_CLEAN
     BUILD_ALL_PLUGIN       -- $ALL_PLUGIN
 "
 
 cd ${DORIS_HOME}
-
-# Clean and build Frontend
-if [ ${BUILD_FE} -eq 1 ] ; then
-    if [ ${CLEAN} -eq 1 ] ; then
-        sh build.sh --fe --clean
-    else
-        sh build.sh --fe
-    fi
-fi
-
+PLUGIN_MODULE=
 if [ ${ALL_PLUGIN} -eq 1 ] ; then
     cd ${DORIS_HOME}/fe_plugins
     echo "build all plugins"
-    ${MVN_CMD} package -DskipTests 
+    ${MVN_CMD} package -DskipTests
 else
-    cd ${DORIS_HOME}/fe_plugins/$1
-    echo "build plugin $1"
+    PLUGIN_MODULE=$1
+    cd ${DORIS_HOME}/fe_plugins/$PLUGIN_MODULE
+    echo "build plugin $PLUGIN_MODULE"
     ${MVN_CMD} package -DskipTests
 fi
 
@@ -124,10 +96,15 @@ cd ${DORIS_HOME}
 DORIS_OUTPUT=${DORIS_HOME}/fe_plugins/output/
 mkdir -p ${DORIS_OUTPUT}
 
-cp -p ${DORIS_HOME}/fe_plugins/*/target/*.zip ${DORIS_OUTPUT}/
+if [ ${ALL_PLUGIN} -eq 1 ] ; then
+    cp -p ${DORIS_HOME}/fe_plugins/*/target/*.zip ${DORIS_OUTPUT}/
+else
+    cp -p ${DORIS_HOME}/fe_plugins/$PLUGIN_MODULE/target/*.zip ${DORIS_OUTPUT}/
+fi
 
 echo "***************************************"
-echo "Successfully build Doris Plugin"
+echo "Successfully build Doris FE Plugin"
 echo "***************************************"
 
 exit 0
+

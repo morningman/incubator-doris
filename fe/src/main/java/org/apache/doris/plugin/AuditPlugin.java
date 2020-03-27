@@ -27,7 +27,9 @@ public interface AuditPlugin {
     public boolean eventFilter(AuditEvent.EventType type);
 
     /**
-     * process the event
+     * process the event.
+     * This method should be implemented as a non-blocking or lightweight method.
+     * Because it will be called after each query. So it must be efficient.
      */
     public void exec(AuditEvent event);
 }

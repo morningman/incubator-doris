@@ -28,6 +28,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
+/*
+ * Class for processing all audit events.
+ * It will receive audit events and handle them to all AUDIT type plugins. 
+ */
 public class AuditEventProcessor {
     private static final Logger LOG = LogManager.getLogger(AuditEventProcessor.class);
 
@@ -42,12 +46,14 @@ public class AuditEventProcessor {
     }
 
     public void handleAuditEvent(AuditEvent auditEvent) {
-        // update audit plugin list
+        // update audit plugin list every UPDATE_PLUGIN_INTERVAL_MS.
+        // because some of plugins may be installed or uninstalled at runtime.
         if (auditPlugins == null || System.currentTimeMillis() - lastUpdateTime > UPDATE_PLUGIN_INTERVAL_MS) {
             auditPlugins = pluginMgr.getActivePluginList(PluginType.AUDIT);
         }
+
         for (Plugin plugin : auditPlugins) {
-            if (((AuditPlugin) plugin).eventFilter(auditEvent.getType())) {
+            if (((AuditPlugin) plugin).eventFilter(auditEvent.type)) {
                 ((AuditPlugin) plugin).exec(auditEvent);
             }
         }

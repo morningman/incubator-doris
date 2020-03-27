@@ -33,8 +33,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Field;
 
-// Helper class used to build audit log.
-// Now, implemented with StringBuilder
+// A builtin Audit plugin, registered when FE start.
+// it will receive "AFTER_QUERY" AuditEventy and print it as a log in fe.audit.log
 public class AuditLogBuilder extends Plugin implements AuditPlugin {
     private static final Logger LOG = LogManager.getLogger(AuditLogBuilder.class);
 
@@ -60,6 +60,8 @@ public class AuditLogBuilder extends Plugin implements AuditPlugin {
         try {
             StringBuilder sb = new StringBuilder();
             long queryTime = 0;
+            // get each field with annotation "AuditField" in AuditEvent
+            // and assemble them into a string.
             Field[] fields = event.getClass().getFields();
             for (Field f : fields) {
                 AuditField af = f.getAnnotation(AuditField.class);
