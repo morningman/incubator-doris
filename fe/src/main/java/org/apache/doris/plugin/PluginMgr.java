@@ -74,7 +74,9 @@ public class PluginMgr implements Writable {
     private void registerBuiltinPlugins() {
         // AuditLog
         AuditLogBuilder auditLogBuilder = new AuditLogBuilder();
-        registerPlugin(auditLogBuilder.getPluginInfo(), auditLogBuilder);
+        if (!registerPlugin(auditLogBuilder.getPluginInfo(), auditLogBuilder)) {
+            LOG.warn("failed to register audit log builder");
+        }
 
         // other builtin plugins
     }

@@ -36,31 +36,31 @@ public class AuditEvent {
     private EventType type;
 
     @AuditField(value = "Timestamp")
-    private long timestamp = -1;
+    public long timestamp = -1;
     @AuditField(value = "Client")
-    private String clientIp = "";
+    public String clientIp = "";
     @AuditField(value = "User")
-    private String user = "";
+    public String user = "";
     @AuditField(value = "Db")
-    private String db = "";
+    public String db = "";
     @AuditField(value = "State")
-    private String state = "";
+    public String state = "";
     @AuditField(value = "Time")
-    private long queryTime = -1;
+    public long queryTime = -1;
     @AuditField(value = "ScanBytes")
-    private long scanBytes = -1;
+    public long scanBytes = -1;
     @AuditField(value = "ScanRows")
-    private long scanRows = -1;
+    public long scanRows = -1;
     @AuditField(value = "ReturnRows")
-    private long returnRows = -1;
+    public long returnRows = -1;
     @AuditField(value = "StmtId")
-    private long stmtId = -1;
+    public long stmtId = -1;
     @AuditField(value = "QueryId")
-    private String queryId = "";
+    public String queryId = "";
     @AuditField(value = "IsQuery")
-    private boolean isQuery = false;
+    public boolean isQuery = false;
     @AuditField(value = "Stmt")
-    private String stmt = "";
+    public String stmt = "";
 
     private AuditEvent() {
 

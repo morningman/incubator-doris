@@ -90,9 +90,8 @@ public class PluginMgrTest {
 
             assertNotNull(p);
             assertTrue(p instanceof AuditPlugin);
-            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.AUDIT_QUERY, AuditEvent.AUDIT_QUERY_START));
-            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.AUDIT_QUERY, AuditEvent.AUDIT_QUERY_END));
-            assertFalse(((AuditPlugin) p).eventFilter(AuditEvent.AUDIT_CONNECTION, AuditEvent.AUDIT_QUERY_END));
+            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.EventType.AFTER_QUERY));
+            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.EventType.BEFORE_QUERY));
 
             assertTrue(Files.exists(PluginTestUtil.getTestPath("target/audit_plugin_demo")));
             assertTrue(Files.exists(PluginTestUtil.getTestPath("target/audit_plugin_demo/auditdemo.jar")));
@@ -138,9 +137,8 @@ public class PluginMgrTest {
 
             assertNotNull(p);
             assertTrue(p instanceof AuditPlugin);
-            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.AUDIT_QUERY, AuditEvent.AUDIT_QUERY_START));
-            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.AUDIT_QUERY, AuditEvent.AUDIT_QUERY_END));
-            assertFalse(((AuditPlugin) p).eventFilter(AuditEvent.AUDIT_CONNECTION, AuditEvent.AUDIT_QUERY_END));
+            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.EventType.AFTER_QUERY));
+            assertTrue(((AuditPlugin) p).eventFilter(AuditEvent.EventType.AFTER_QUERY));
 
             assertTrue(Files.exists(PluginTestUtil.getTestPath("target/audit_plugin_demo")));
             assertTrue(Files.exists(PluginTestUtil.getTestPath("target/audit_plugin_demo/auditdemo.jar")));

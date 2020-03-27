@@ -93,7 +93,7 @@ public class ConnectContext {
     protected Catalog catalog;
     protected boolean isSend;
 
-    protected AuditEventBuilder auditEventBuilder;
+    protected AuditEventBuilder auditEventBuilder = new AuditEventBuilder();;
 
     protected String remoteIP;
 
@@ -120,7 +120,6 @@ public class ConnectContext {
         isKilled = false;
         serializer = MysqlSerializer.newInstance();
         sessionVariable = VariableMgr.newSessionVariable();
-        auditEventBuilder = new AuditEventBuilder();
         command = MysqlCommand.COM_SLEEP;
     }
 

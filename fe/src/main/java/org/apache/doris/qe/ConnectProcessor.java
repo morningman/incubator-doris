@@ -41,6 +41,7 @@ import org.apache.doris.mysql.MysqlPacket;
 import org.apache.doris.mysql.MysqlProto;
 import org.apache.doris.mysql.MysqlSerializer;
 import org.apache.doris.mysql.MysqlServerStatusFlag;
+import org.apache.doris.plugin.AuditEvent.EventType;
 import org.apache.doris.proto.PQueryStatistics;
 import org.apache.doris.thrift.TMasterOpRequest;
 import org.apache.doris.thrift.TMasterOpResult;
@@ -105,7 +106,8 @@ public class ConnectProcessor {
         // slow query
         long elapseMs = System.currentTimeMillis() - ctx.getStartTime();
         
-        ctx.getAuditEventBuilder().setState(ctx.getState().toString()).setQueryTime(elapseMs)
+        ctx.getAuditEventBuilder().setEventType(EventType.AFTER_QUERY)
+            .setState(ctx.getState().toString()).setQueryTime(elapseMs)
             .setScanBytes(statistics == null ? 0 : statistics.scan_bytes)
             .setScanRows(statistics == null ? 0 : statistics.scan_rows)
             .setReturnRows(ctx.getReturnRows())

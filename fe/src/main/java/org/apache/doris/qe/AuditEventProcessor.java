@@ -23,9 +23,13 @@ import org.apache.doris.plugin.Plugin;
 import org.apache.doris.plugin.PluginInfo.PluginType;
 import org.apache.doris.plugin.PluginMgr;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.List;
 
 public class AuditEventProcessor {
+    private static final Logger LOG = LogManager.getLogger(AuditEventProcessor.class);
 
     private PluginMgr pluginMgr;
 
@@ -42,7 +46,6 @@ public class AuditEventProcessor {
         if (auditPlugins == null || System.currentTimeMillis() - lastUpdateTime > UPDATE_PLUGIN_INTERVAL_MS) {
             auditPlugins = pluginMgr.getActivePluginList(PluginType.AUDIT);
         }
-
         for (Plugin plugin : auditPlugins) {
             if (((AuditPlugin) plugin).eventFilter(auditEvent.getType())) {
                 ((AuditPlugin) plugin).exec(auditEvent);
