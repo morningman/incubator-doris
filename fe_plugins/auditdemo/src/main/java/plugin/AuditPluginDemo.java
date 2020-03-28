@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.doris.plugin.AuditEvent;
 import org.apache.doris.plugin.AuditPlugin;
+import org.apache.doris.plugin.PluginException;
 import org.apache.doris.plugin.Plugin;
 import org.apache.doris.plugin.PluginContext;
 import org.apache.doris.plugin.PluginInfo;
@@ -31,7 +32,7 @@ public class AuditPluginDemo extends Plugin implements AuditPlugin {
     private final static Logger LOG = LogManager.getLogger(AuditPluginDemo.class);
 
     @Override
-    public void init(PluginInfo info, PluginContext ctx) {
+    public void init(PluginInfo info, PluginContext ctx) throw PluginException {
         super.init(info, ctx);
         LOG.info("this is audit plugin demo init");
     }

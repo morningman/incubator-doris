@@ -17,6 +17,12 @@
 
 package org.apache.doris.plugin;
 
+import org.apache.doris.common.UserException;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URL;
@@ -29,11 +35,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.doris.common.UserException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class DynamicPluginLoader extends PluginLoader {
     private final static Logger LOG = LogManager.getLogger(DynamicPluginLoader.class);
@@ -93,6 +94,8 @@ public class DynamicPluginLoader extends PluginLoader {
 
         pluginInstallValid();
 
+        pluginContext.setPluginJarPath(realPath.toString());
+
         plugin.init(pluginInfo, pluginContext);
     }
 
@@ -125,18 +128,18 @@ public class DynamicPluginLoader extends PluginLoader {
 
     /**
      * reload plugin if plugin has already been installed, else will re-install
+     * 
+     * @throws PluginException
      */
     public void reload() throws IOException, UserException {
         if (hasInstalled()) {
             plugin = dynamicLoadPlugin(installPath);
             pluginInstallValid();
             plugin.init(pluginInfo, pluginContext);
-
         } else {
             // re-install
             this.pluginInfo = null;
             this.installPath = null;
-
             install();
         }
     }
@@ -201,7 +204,6 @@ public class DynamicPluginLoader extends PluginLoader {
      * move plugin's temp install directory to Doris's PLUGIN_DIR
      */
     Path movePlugin() throws UserException, IOException {
-
         if (installPath == null || !Files.exists(installPath)) {
             throw new UserException("Install plugin " + pluginInfo.getName() + " failed, because install path isn't "
                     + "exists.");

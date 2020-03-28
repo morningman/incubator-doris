@@ -716,6 +716,7 @@ public class Catalog {
 
         // init plugin manager
         pluginMgr.init();
+        auditEventProcessor.start();
 
         // 2. get cluster id and role (Observer or Follower)
         getClusterIdAndRole();

@@ -35,13 +35,16 @@ public abstract class Plugin implements Closeable {
     /**
      * invoke when the plugin install
      */
-    public void init(PluginInfo info, PluginContext ctx) { }
+    public void init(PluginInfo info, PluginContext ctx) throws PluginException {
+
+    }
 
     /**
      * invoke when the plugin uninstall
      */
     @Override
-    public void close() throws IOException { }
+    public void close() throws IOException {
+    }
 
     public int flags() {
         return PLUGIN_DEFAULT_FLAGS;

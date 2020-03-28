@@ -17,15 +17,14 @@
 
 package org.apache.doris.plugin;
 
-public class PluginContext {
+import org.apache.doris.common.UserException;
 
-    private String pluginJarPath;
-
-    public void setPluginJarPath(String pluginJarPath) {
-        this.pluginJarPath = pluginJarPath;
+public class PluginException extends UserException {
+    public PluginException(String msg) {
+        super(msg);
     }
 
-    public String getPluginJarPath() {
-        return pluginJarPath;
+    public PluginException(String msg, Throwable e) {
+        super(msg, e);
     }
 }

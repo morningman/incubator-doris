@@ -23,10 +23,13 @@ import org.apache.doris.plugin.Plugin;
 import org.apache.doris.plugin.PluginInfo.PluginType;
 import org.apache.doris.plugin.PluginMgr;
 
+import com.google.common.collect.Queues;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 /*
  * Class for processing all audit events.
@@ -34,28 +37,58 @@ import java.util.List;
  */
 public class AuditEventProcessor {
     private static final Logger LOG = LogManager.getLogger(AuditEventProcessor.class);
+    private static final long UPDATE_PLUGIN_INTERVAL_MS = 60 * 1000; // 1min
 
     private PluginMgr pluginMgr;
 
     private List<Plugin> auditPlugins;
     private long lastUpdateTime = 0;
-    private static final long UPDATE_PLUGIN_INTERVAL_MS = 60 * 1000; // 1min
+
+    private BlockingQueue<AuditEvent> eventQueue = Queues.newLinkedBlockingDeque(10000);
+    private Thread workerThread;
 
     public AuditEventProcessor(PluginMgr pluginMgr) {
         this.pluginMgr = pluginMgr;
     }
 
-    public void handleAuditEvent(AuditEvent auditEvent) {
-        // update audit plugin list every UPDATE_PLUGIN_INTERVAL_MS.
-        // because some of plugins may be installed or uninstalled at runtime.
-        if (auditPlugins == null || System.currentTimeMillis() - lastUpdateTime > UPDATE_PLUGIN_INTERVAL_MS) {
-            auditPlugins = pluginMgr.getActivePluginList(PluginType.AUDIT);
-        }
+    public void start() {
+        workerThread = new Thread(new Worker());
+        workerThread.start();
+    }
 
-        for (Plugin plugin : auditPlugins) {
-            if (((AuditPlugin) plugin).eventFilter(auditEvent.type)) {
-                ((AuditPlugin) plugin).exec(auditEvent);
+    public void handleAuditEvent(AuditEvent auditEvent) {
+        try {
+            eventQueue.put(auditEvent);
+        } catch (InterruptedException e) {
+            LOG.debug("encounter exception when handle audit event, ignore", e);
+        }
+    }
+
+    public class Worker implements Runnable {
+        @Override
+        public void run() {
+            // update audit plugin list every UPDATE_PLUGIN_INTERVAL_MS.
+            // because some of plugins may be installed or uninstalled at runtime.
+            if (auditPlugins == null || System.currentTimeMillis() - lastUpdateTime > UPDATE_PLUGIN_INTERVAL_MS) {
+                auditPlugins = pluginMgr.getActivePluginList(PluginType.AUDIT);
+            }
+
+            AuditEvent auditEvent = null;
+            while (true) {
+                try {
+                    auditEvent = eventQueue.take();
+                } catch (InterruptedException e) {
+                    LOG.debug("encounter exception when getting audit event from queue, ignore", e);
+                    continue;
+                }
+
+                for (Plugin plugin : auditPlugins) {
+                    if (((AuditPlugin) plugin).eventFilter(auditEvent.type)) {
+                        ((AuditPlugin) plugin).exec(auditEvent);
+                    }
+                }
             }
         }
+
     }
 }
