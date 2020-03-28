@@ -159,8 +159,11 @@ public class ConnectProcessor {
             return;
         }
         ctx.getAuditEventBuilder().reset();
-        ctx.getAuditEventBuilder().setClientIp(ctx.getMysqlChannel().getRemoteHostPortString()).setUser(
-                ctx.getQualifiedUser()).setDb(ctx.getDatabase());
+        ctx.getAuditEventBuilder()
+            .setTimestamp(System.currentTimeMillis())
+            .setClientIp(ctx.getMysqlChannel().getRemoteHostPortString())
+            .setUser(ctx.getQualifiedUser())
+            .setDb(ctx.getDatabase());
 
         // execute this query.
         StatementBase parsedStmt = null;

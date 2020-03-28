@@ -30,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /*
  * Class for processing all audit events.
@@ -47,13 +48,27 @@ public class AuditEventProcessor {
     private BlockingQueue<AuditEvent> eventQueue = Queues.newLinkedBlockingDeque(10000);
     private Thread workerThread;
 
+    private volatile boolean isStopped = false;
+
     public AuditEventProcessor(PluginMgr pluginMgr) {
         this.pluginMgr = pluginMgr;
     }
 
     public void start() {
-        workerThread = new Thread(new Worker());
+        workerThread = new Thread(new Worker(), "AuditEventProcessor");
         workerThread.start();
+    }
+
+    public void stop() {
+        isStopped = true;
+        if (workerThread != null) {
+            try {
+                workerThread.join();
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
     }
 
     public void handleAuditEvent(AuditEvent auditEvent) {
@@ -67,25 +82,34 @@ public class AuditEventProcessor {
     public class Worker implements Runnable {
         @Override
         public void run() {
-            // update audit plugin list every UPDATE_PLUGIN_INTERVAL_MS.
-            // because some of plugins may be installed or uninstalled at runtime.
-            if (auditPlugins == null || System.currentTimeMillis() - lastUpdateTime > UPDATE_PLUGIN_INTERVAL_MS) {
-                auditPlugins = pluginMgr.getActivePluginList(PluginType.AUDIT);
-            }
-
             AuditEvent auditEvent = null;
-            while (true) {
+            while (!isStopped) {
+                // update audit plugin list every UPDATE_PLUGIN_INTERVAL_MS.
+                // because some of plugins may be installed or uninstalled at runtime.
+                if (auditPlugins == null || System.currentTimeMillis() - lastUpdateTime > UPDATE_PLUGIN_INTERVAL_MS) {
+                    auditPlugins = pluginMgr.getActivePluginList(PluginType.AUDIT);
+                    lastUpdateTime = System.currentTimeMillis();
+                    LOG.debug("update audit plugins. num: {}", auditPlugins.size());
+                }
+
                 try {
-                    auditEvent = eventQueue.take();
+                    auditEvent = eventQueue.poll(5, TimeUnit.SECONDS);
+                    if (auditEvent == null) {
+                        continue;
+                    }
                 } catch (InterruptedException e) {
                     LOG.debug("encounter exception when getting audit event from queue, ignore", e);
                     continue;
                 }
 
-                for (Plugin plugin : auditPlugins) {
-                    if (((AuditPlugin) plugin).eventFilter(auditEvent.type)) {
-                        ((AuditPlugin) plugin).exec(auditEvent);
+                try {
+                    for (Plugin plugin : auditPlugins) {
+                        if (((AuditPlugin) plugin).eventFilter(auditEvent.type)) {
+                            ((AuditPlugin) plugin).exec(auditEvent);
+                        }
                     }
+                } catch (Exception e) {
+                    LOG.debug("encounter exception when processing audit event.", e);
                 }
             }
         }

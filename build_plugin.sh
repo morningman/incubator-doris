@@ -43,6 +43,7 @@ OPTS=$(getopt \
   -o '' \
   -o 'h' \
   -l 'p' \
+  -l 'clean' \
   -l 'help' \
   -- "$@")
 
@@ -52,15 +53,17 @@ fi
 
 eval set -- "$OPTS"
 
-ALL_PLUGIN=
+ALL_PLUGIN=1
+CLEAN=0
 if [ $# == 1 ] ; then
     # defuat
     ALL_PLUGIN=1
+    CLEAN=0
 else
-    BUILD_CLEAN=0
     while true; do
         case "$1" in
             --p)  ALL_PLUGIN=0 ; shift ;;
+            --clean)  CLEAN=1 ; shift ;;
             -h) HELP=1; shift ;;
             --help) HELP=1; shift ;;
             --) shift ;  break ;;
@@ -76,17 +79,24 @@ fi
 
 echo "Get params:
     BUILD_ALL_PLUGIN       -- $ALL_PLUGIN
+    CLEAN                  -- $CLEAN
 "
 
 cd ${DORIS_HOME}
 PLUGIN_MODULE=
 if [ ${ALL_PLUGIN} -eq 1 ] ; then
     cd ${DORIS_HOME}/fe_plugins
+    if [ ${CLEAN} -eq 1 ]; then
+        ${MVN_CMD} clean
+    fi
     echo "build all plugins"
     ${MVN_CMD} package -DskipTests
 else
     PLUGIN_MODULE=$1
     cd ${DORIS_HOME}/fe_plugins/$PLUGIN_MODULE
+    if [ ${CLEAN} -eq 1 ]; then
+        ${MVN_CMD} clean
+    fi
     echo "build plugin $PLUGIN_MODULE"
     ${MVN_CMD} package -DskipTests
 fi

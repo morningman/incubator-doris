@@ -18,6 +18,7 @@
 package org.apache.doris.plugin;
 
 import org.apache.doris.analysis.InstallPluginStmt;
+import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.io.Writable;
@@ -88,14 +89,21 @@ public class PluginMgr implements Writable {
         try {
             PluginInfo info = pluginLoader.getPluginInfo();
 
+            if (plugins[info.getTypeId()].containsKey(info.getName())) {
+                throw new UserException("plugin " + info.getName() + " has already been installed.");
+            }
+            
+            // install plugin
+            pluginLoader.install();
+            pluginLoader.setStatus(PluginStatus.INSTALLED);
+            
             if (plugins[info.getTypeId()].putIfAbsent(info.getName(), pluginLoader) != null) {
                 pluginLoader.uninstall();
                 throw new UserException("plugin " + info.getName() + " has already been installed.");
             }
 
-            // install plugin
-            pluginLoader.install();
-            pluginLoader.setStatus(PluginStatus.INSTALLED);
+            Catalog.getCurrentCatalog().getEditLog().logInstallPlugin(info);
+            LOG.info("install plugin = " + info.getName());
             return info;
         } catch (IOException | UserException e) {
             pluginLoader.setStatus(PluginStatus.ERROR);

@@ -1,65 +1,79 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package plugin;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Calendar;
 
 public class DorisStreamLoader {
     private final static Logger LOG = LogManager.getLogger(DorisStreamLoader.class);
-
+    private static String loadUrlPattern = "http://%s/api/%s/%s/_stream_load?";
     private String hostPort;
     private String db;
     private String tbl;
     private String user;
     private String passwd;
-
-    private static String loadUrlPattern = "http://%s/api/%s/%s/_stream_load?";
     private String loadUrlStr;
     private String authEncoding;
 
-    public static class LoadResponse {
-        public int status;
-        public String respMsg;
-        public String respContent;
-
-        public LoadResponse(int status, String respMsg, String respContent) {
-            this.status = status;
-            this.respMsg = respMsg;
-            this.respContent = respContent;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("status: ").append(status);
-            sb.append(", resp msg: ").append(respMsg);
-            sb.append(", resp content: ").append(respContent);
-            return sb.toString();
-        }
-    }
-
-    public DorisStreamLoader(String hostPort, String db, String tbl, String user, String passwd) {
-        this.hostPort = hostPort;
-        this.db = db;
-        this.tbl = tbl;
-        this.user = user;
-        this.passwd = passwd;
+    public DorisStreamLoader(AuditLoaderPlugin.AuditLoaderConf conf) {
+        this.hostPort = conf.frontendHostPort;
+        this.db = conf.database;
+        this.tbl = conf.table;
+        this.user = conf.user;
+        this.passwd = conf.password;
 
         this.loadUrlStr = String.format(loadUrlPattern, hostPort, db, tbl);
         this.authEncoding = Base64.getEncoder().encodeToString(String.format("%s:%s", user, passwd).getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static void main(String[] args) {
+        try {
+            AuditLoaderPlugin.AuditLoaderConf conf = new AuditLoaderPlugin.AuditLoaderConf();
+            conf.frontendHostPort = "fe_host";
+            conf.database = "db1";
+            conf.table = "tbl1";
+            conf.user = "root";
+            conf.password = "";
+
+            DorisStreamLoader loader = new DorisStreamLoader(conf);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("1\t2\n3\t4\n");
+
+            System.out.println("before load");
+            LoadResponse loadResponse = loader.loadBatch(sb);
+
+            System.out.println(loadResponse);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public LoadResponse loadBatch(StringBuilder sb) {
@@ -114,26 +128,24 @@ public class DorisStreamLoader {
         }
     }
 
-    public static void main(String[] args) {
-        try {
-            String hostPort = "nmg01-inf-dorishb00.nmg01.baidu.com:8232";
-            String db = "db1";
-            String tbl = "tbl1";
-            String user = "root";
-            String passwd = "";
+    public static class LoadResponse {
+        public int status;
+        public String respMsg;
+        public String respContent;
 
-            DorisStreamLoader loader = new DorisStreamLoader(hostPort, db, tbl, user, passwd);
+        public LoadResponse(int status, String respMsg, String respContent) {
+            this.status = status;
+            this.respMsg = respMsg;
+            this.respContent = respContent;
+        }
 
+        @Override
+        public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("1\t2\n3\t4\n");
-
-            System.out.println("before load");
-            LoadResponse loadResponse = loader.loadBatch(sb);
-
-            System.out.println(loadResponse);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            sb.append("status: ").append(status);
+            sb.append(", resp msg: ").append(respMsg);
+            sb.append(", resp content: ").append(respContent);
+            return sb.toString();
         }
     }
 }

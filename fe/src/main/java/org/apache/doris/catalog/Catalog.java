@@ -6419,9 +6419,7 @@ public class Catalog {
     }
 
     public void installPlugin(InstallPluginStmt stmt) throws UserException, IOException {
-        PluginInfo pluginInfo = pluginMgr.installPlugin(stmt);
-        editLog.logInstallPlugin(pluginInfo);
-        LOG.info("install plugin = " + pluginInfo.getName());
+        pluginMgr.installPlugin(stmt);
     }
 
     public long savePlugins(DataOutputStream dos, long checksum) throws IOException {
