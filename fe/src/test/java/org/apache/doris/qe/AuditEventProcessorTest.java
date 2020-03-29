@@ -15,10 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.plugin;
+package org.apache.doris.qe;
 
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.util.DigitalVersion;
+import org.apache.doris.plugin.AuditEvent;
+import org.apache.doris.plugin.PluginInfo;
+import org.apache.doris.plugin.AuditEvent.AuditEventBuilder;
 import org.apache.doris.plugin.AuditEvent.EventType;
 import org.apache.doris.qe.AuditEventProcessor;
 import org.apache.doris.qe.AuditLogBuilder;
