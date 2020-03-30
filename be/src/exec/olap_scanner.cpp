@@ -44,7 +44,7 @@ OlapScanner::OlapScanner(
         OlapScanNode* parent,
         bool aggregation,
         bool need_agg_finalize,
-        const TPaloScanRange& scan_range,
+        std::vector<RowsetReaderSharedPtr>* rs_readers,
         const std::vector<OlapScanRange*>& key_ranges)
             : _runtime_state(runtime_state),
             _parent(parent),
@@ -58,6 +58,8 @@ OlapScanner::OlapScanner(
             _direct_conjunct_size(parent->_direct_conjunct_size) {
     _reader.reset(new Reader());
     DCHECK(_reader.get() != NULL);
+
+    _params.rs_readers.swap(*rs_readers);
     _ctor_status = _prepare(scan_range, key_ranges, parent->_olap_filter, parent->_is_null_vector);
     if (!_ctor_status.ok()) {
         LOG(WARNING) << "OlapScanner preapre failed, status:" << _ctor_status.get_error_msg();
@@ -74,10 +76,8 @@ Status OlapScanner::_prepare(
         const std::vector<TCondition>& filters, const std::vector<TCondition>& is_nulls) {
     // Get olap table
     TTabletId tablet_id = scan_range.tablet_id;
-    SchemaHash schema_hash =
-        strtoul(scan_range.schema_hash.c_str(), nullptr, 10);
-    _version =
-        strtoul(scan_range.version.c_str(), nullptr, 10);
+    SchemaHash schema_hash = strtoul(scan_range.schema_hash.c_str(), nullptr, 10);
+    _version = strtoul(scan_range.version.c_str(), nullptr, 10);
     {
         std::string err;
         _tablet = StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id, schema_hash, true, &err);
@@ -88,29 +88,6 @@ Status OlapScanner::_prepare(
                << ", reason=" << err;
             LOG(WARNING) << ss.str();
             return Status::InternalError(ss.str());
-        }
-        {
-            ReadLock rdlock(_tablet->get_header_lock_ptr());
-            const RowsetSharedPtr rowset = _tablet->rowset_with_max_version();
-            if (rowset == nullptr) {
-                std::stringstream ss;
-                ss << "fail to get latest version of tablet: " << tablet_id;
-                LOG(WARNING) << ss.str();
-                return Status::InternalError(ss.str());
-            }
-
-            // acquire tablet rowset readers at the beginning of the scan node
-            // to prevent this case: when there are lots of olap scanners to run for example 10000
-            // the rowsets maybe compacted when the last olap scanner starts
-            Version rd_version(0, _version);
-            OLAPStatus acquire_reader_st = _tablet->capture_rs_readers(rd_version, &_params.rs_readers);
-            if (acquire_reader_st != OLAP_SUCCESS) {
-                LOG(WARNING) << "fail to init reader.res=" << acquire_reader_st;
-                std::stringstream ss;
-                ss << "failed to initialize storage reader. tablet=" << _tablet->full_name()
-                << ", res=" << acquire_reader_st << ", backend=" << BackendOptions::get_localhost();
-                return Status::InternalError(ss.str().c_str());
-            }
         }
     }
 

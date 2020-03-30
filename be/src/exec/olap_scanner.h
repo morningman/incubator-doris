@@ -54,7 +54,7 @@ public:
         OlapScanNode* parent,
         bool aggregation,
         bool need_agg_finalize,
-        const TPaloScanRange& scan_range,
+        std::vector<RowsetReaderSharedPtr>* rs_readers,
         const std::vector<OlapScanRange*>& key_ranges);
 
     ~OlapScanner();

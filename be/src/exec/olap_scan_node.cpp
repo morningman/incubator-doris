@@ -340,6 +340,12 @@ Status OlapScanNode::close(RuntimeState* state) {
 
     _scan_row_batches.clear();
 
+    // release all rowset readers
+    for (auto const& it : _tablet_rs_read_map) {
+        it.second.clear();
+    }
+    _tablet_rs_read_map.clear();
+
     // OlapScanNode terminate by exception
     // so that initiative close the Scanner
     for (auto scanner : _olap_scanners) {
@@ -369,8 +375,43 @@ Status OlapScanNode::set_scan_ranges(const std::vector<TScanRangeParams>& scan_r
         DCHECK(scan_range.scan_range.__isset.palo_scan_range);
         _scan_ranges.emplace_back(new TPaloScanRange(scan_range.scan_range.palo_scan_range));
         COUNTER_UPDATE(_tablet_counter, 1);
+
+        // capture the rowset reader here, to avoid "version already merged" error when start reading.
+        RETURN_IF_ERROR(_capture_rowset_reader(*(_scan_ranges.back())));
     }
 
+    return Status::OK();
+}
+
+Status OlapScanNode::_capture_rowset_reader(const TPaloScanRange& scan_range) {
+    const t_scan_range* sr = _scan_ranges.back();
+    TTabletId tablet_id = sr->tablet_id;
+    int64_t version = strtoul(scan_range.version.c_str(), nullptr, 10);
+    SchemaHash schema_hash = strtoul(scan_range.schema_hash.c_str(), nullptr, 10);
+
+    std::string err;
+    TabletSharedPtr tablet = StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id, schema_hash, true, &err);
+    if (tablet.get() == nullptr) {
+        std::stringstream ss;
+        ss << "failed to get tablet. tablet_id=" << tablet_id
+            << ", with schema_hash=" << schema_hash
+            << ", reason=" << err;
+        LOG(WARNING) << ss.str();
+        return Status::InternalError(ss.str());
+    }
+
+    std::vector<RowsetReaderSharedPtr> rs_readers;
+    Version rd_version(0, version);
+    OLAPStatus acquire_reader_st = _tablet->capture_rs_readers(rd_version, &rs_readers);
+    if (acquire_reader_st != OLAP_SUCCESS) {
+        std::stringstream ss;
+        ss << "failed to initialize storage reader. tablet=" << _tablet->full_name()
+            << ", res=" << acquire_reader_st << ", backend=" << BackendOptions::get_localhost();
+        LOG(WARNING) << ss.str();
+        return Status::InternalError(ss.str().c_str());
+    }
+
+    _tablet_rs_read_map.push(tablet_id, rs_readers);
     return Status::OK();
 }
 
@@ -687,6 +728,7 @@ Status OlapScanNode::start_scan_thread(RuntimeState* state) {
 
         int ranges_per_scanner = std::max(1, (int)ranges->size() / scanners_per_tablet);
         int num_ranges = ranges->size();
+        std::vector<RowsetReaderSharedPtr>& rs_readers = _tablet_rs_read_map[scan_range->tablet_id];
         for (int i = 0; i < num_ranges;) {
             std::vector<OlapScanRange*> scanner_ranges;
             scanner_ranges.push_back((*ranges)[i].get());
@@ -699,11 +741,15 @@ Status OlapScanNode::start_scan_thread(RuntimeState* state) {
                 scanner_ranges.push_back((*ranges)[i].get());
             }
             OlapScanner* scanner = new OlapScanner(
-                state, this, _olap_scan_node.is_preaggregation, _need_agg_finalize, *scan_range, scanner_ranges);
+                state, this, _olap_scan_node.is_preaggregatin, _need_agg_finalize, &rs_readers, scanner_ranges);
             _scanner_pool->add(scanner);
             _olap_scanners.push_back(scanner);
         }
     }
+
+    // after init OlapScanner, all rowset readers in _tablet_rs_read_map are transfer to those scanners.
+    // so this map can be cleared
+    _tablet_rs_read_map.clear();
 
     // init progress
     std::stringstream ss;

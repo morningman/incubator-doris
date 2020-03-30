@@ -161,6 +161,8 @@ private:
 
     void construct_is_null_pred_in_where_pred(Expr* expr, SlotDescriptor* slot, std::string is_null_str);
 
+    Status _capture_rowset_reader(const TPaloScanRange& scan_range);
+
     friend class OlapScanner;
 
     std::vector<TCondition> _is_null_vector;
@@ -218,6 +220,9 @@ private:
     std::list<RowBatchInterface*> _scan_row_batches;
 
     std::list<OlapScanner*> _olap_scanners;
+
+    // tablet id -> rowset readers. this should be set when preparing the scan range.
+    std::unordered_map<TTabletId, std::vector<RowsetReaderSharedPtr>> _tablet_rs_read_map;
 
     int _max_materialized_row_batches;
     bool _start;
