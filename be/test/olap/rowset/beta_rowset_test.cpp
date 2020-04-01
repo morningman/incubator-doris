@@ -34,8 +34,9 @@
 #include "runtime/exec_env.h"
 #include "runtime/mem_tracker.h"
 #include "runtime/mem_pool.h"
-#include "util/slice.h"
+#include "util/doris_metrics.h"
 #include "util/file_utils.h"
+#include "util/slice.h"
 
 using std::string;
 
@@ -49,6 +50,7 @@ protected:
     OlapReaderStatistics _stats;
 
     void SetUp() override {
+        DorisMetrics::instance()->initialize("test", {}, false, {}, {});
         char buffer[MAX_PATH_LEN];
         getcwd(buffer, MAX_PATH_LEN);
         config::storage_root_path = std::string(buffer) + "/data_test";

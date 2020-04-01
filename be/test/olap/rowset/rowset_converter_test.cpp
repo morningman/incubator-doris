@@ -37,6 +37,7 @@
 #include "olap/storage_engine.h"
 #include "olap/olap_cond.h"
 #include "runtime/exec_env.h"
+#include "util/doris_metrics.h"
 
 #ifndef BE_TEST
 #define BE_TEST
@@ -150,6 +151,7 @@ void create_tablet_meta(TabletSchema* tablet_schema, TabletMeta* tablet_meta) {
 class RowsetConverterTest : public testing::Test {
 public:
     virtual void SetUp() {
+        DorisMetrics::instance()->initialize("test", {}, false, {}, {});
         config::path_gc_check = false;
         char buffer[MAX_PATH_LEN];
         getcwd(buffer, MAX_PATH_LEN);

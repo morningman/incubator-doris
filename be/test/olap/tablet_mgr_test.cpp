@@ -31,6 +31,7 @@
 #include "boost/filesystem.hpp"
 #include "json2pb/json_to_pb.h"
 #include "util/file_utils.h"
+#include "util/doris_metrics.h"
 
 #ifndef BE_TEST
 #define BE_TEST
@@ -48,6 +49,7 @@ static StorageEngine* k_engine = nullptr;
 class TabletMgrTest : public testing::Test {
 public:
     virtual void SetUp() {
+        DorisMetrics::instance()->initialize("test", {}, false, {}, {});
         auto cache = new_lru_cache(config::file_descriptor_cache_capacity);
         FileHandler::set_fd_cache(cache);
         string test_engine_data_path = "./be/test/olap/test_data/converter_test_data/data";

@@ -26,6 +26,7 @@
 #include "olap/storage_engine.h"
 #include "boost/filesystem.hpp"
 #include "json2pb/json_to_pb.h"
+#include "util/doris_metrics.h"
 
 #ifndef BE_TEST
 #define BE_TEST
@@ -45,7 +46,7 @@ const std::string rowset_meta_path = "./be/test/olap/test_data/rowset_meta.json"
 class RowsetMetaManagerTest : public testing::Test {
 public:
     virtual void SetUp() {
-
+        DorisMetrics::instance()->initialize("test", {}, false, {}, {});
         std::vector<StorePath> paths;
         paths.emplace_back("_engine_data_path", -1);
         EngineOptions options;

@@ -34,6 +34,7 @@
 #include "olap/rowset/rowset_meta_manager.h"
 #include "olap/storage_engine.h"
 #include "olap/txn_manager.h"
+#include "util/doris_metrics.h"
 #include "util/file_utils.h"
 
 #ifndef BE_TEST
@@ -52,6 +53,7 @@ static StorageEngine* k_engine = nullptr;
 class OlapSnapshotConverterTest : public testing::Test {
 public:
     virtual void SetUp() {
+        DorisMetrics::instance()->initialize("test", {}, false, {}, {});
         std::vector<StorePath> paths;
         paths.emplace_back("_engine_data_path", -1);
         EngineOptions options;
