@@ -812,7 +812,9 @@ OLAPStatus Tablet::_max_continuous_version_from_begining(Version* version, Versi
 
 OLAPStatus Tablet::calculate_cumulative_point() {
     WriteLock wrlock(&_meta_lock);
-    if (_cumulative_point != -1)  {
+    if (_cumulative_point != -1) {
+        // only calculate the point once.
+        // after that, cumulative point will be updated along with compaction process.
         return OLAP_SUCCESS;
     }
     
@@ -832,7 +834,16 @@ OLAPStatus Tablet::calculate_cumulative_point() {
         if (rs->version().first > prev_version + 1) {
             break;
         }
-        if (rs->is_segments_overlapping()) {
+        // break the loop if segments in this rowset is overlapping, or overlap flag is NOT NONOVERLAPPING
+        // even if is_segments_overlapping() return false, the overlap flag may be OVERLAPPING.
+        // eg: tablet with versions(rowsets):
+        //      [0-1] NONOVERLAPPING
+        //      [2-2] OVERLAPPING
+        // [2-2]'s overlap flag is OVERLAPPING because it is newly written by the delta writer.
+        // but is has only one segment, so is_segments_overlapping() will return false.
+        // but we should not continue increasing the cumulative point, because we need
+        // the compaction process to change the overlap flag from OVERLAPPING to NONOVERLAPPING.
+        if (rs->is_segments_overlapping() || rs->segments_overlap() != NONOVERLAPPING) {
             _cumulative_point = rs->version().first;
             break;
         }
