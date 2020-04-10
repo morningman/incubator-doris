@@ -122,6 +122,9 @@ under the License.
 
     10. 导入json数据格式
         curl --location-trusted -u root  -H "label:123" -H "format: json" -H "jsonpath: {\"jsonpath\":[{\"column\":\"category\",\"value\":\"$.store.book.category\"},{\"column\":\"author\",\"value\":\"$.store.book.author\"}]}" -T testData http://host:port/api/testDb/testTbl/_stream_load
+
+        curl --location-trusted -u root  -H "label:123" -H "format: json" -H "jsonpathfile: doris.json" -T testData http://host:port/api/testDb/testTbl/_stream_load
+
 ## keyword
     STREAM,LOAD
 

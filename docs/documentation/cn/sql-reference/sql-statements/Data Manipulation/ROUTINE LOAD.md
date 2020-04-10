@@ -380,7 +380,7 @@ under the License.
             "max_batch_size" = "209715200",
             "strict_mode" = "false",
             "format" = "json",
-            "jsonpath_file" = "43017:3f3ab257be8a422e0044abe5ed51d410"
+            "jsonpath_file" = "FILE:myjsonpath.json"
         )
         FROM KAFKA
         (

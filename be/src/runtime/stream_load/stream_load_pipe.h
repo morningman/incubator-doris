@@ -84,7 +84,7 @@ public:
         return _append(buf);
     }
 
-    Status read(uint8_t** data, size_t *length) override {
+    Status read_all(uint8_t** data, size_t *length) override {
         std::unique_lock<std::mutex> l(_lock);
         while (!_cancelled && !_finished && _buf_queue.empty()) {
             _get_cond.wait(l);

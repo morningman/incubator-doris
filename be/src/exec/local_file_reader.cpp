@@ -53,7 +53,7 @@ bool LocalFileReader::closed() {
 }
 
 // Read all bytes
-Status LocalFileReader::read(uint8_t** buf, size_t *length) {
+Status LocalFileReader::read_all(uint8_t** buf, size_t *length) {
     bool eof;
     int64_t file_size = size() - _current_offset;
     if (file_size <= 0) {

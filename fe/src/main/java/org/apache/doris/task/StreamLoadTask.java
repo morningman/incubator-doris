@@ -18,6 +18,7 @@
 package org.apache.doris.task;
 
 import org.apache.doris.analysis.ColumnSeparator;
+import org.apache.doris.analysis.CreateFileStmt;
 import org.apache.doris.analysis.Expr;
 import org.apache.doris.analysis.ImportColumnDesc;
 import org.apache.doris.analysis.ImportColumnsStmt;
@@ -25,9 +26,12 @@ import org.apache.doris.analysis.ImportWhereStmt;
 import org.apache.doris.analysis.PartitionNames;
 import org.apache.doris.analysis.SqlParser;
 import org.apache.doris.analysis.SqlScanner;
+import org.apache.doris.catalog.Catalog;
+import org.apache.doris.catalog.Database;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.UserException;
+import org.apache.doris.common.util.SmallFileMgr;
 import org.apache.doris.common.util.SqlParserUtils;
 import org.apache.doris.common.util.TimeUtils;
 import org.apache.doris.load.routineload.RoutineLoadJob;
@@ -144,14 +148,14 @@ public class StreamLoadTask {
         this.jsonPath = jsonPath;
     }
 
-    public static StreamLoadTask fromTStreamLoadPutRequest(TStreamLoadPutRequest request) throws UserException {
+    public static StreamLoadTask fromTStreamLoadPutRequest(TStreamLoadPutRequest request, Database db) throws UserException {
         StreamLoadTask streamLoadTask = new StreamLoadTask(request.getLoadId(), request.getTxnId(),
                                                            request.getFileType(), request.getFormatType());
-        streamLoadTask.setOptionalFromTSLPutRequest(request);
+        streamLoadTask.setOptionalFromTSLPutRequest(request, db);
         return streamLoadTask;
     }
 
-    private void setOptionalFromTSLPutRequest(TStreamLoadPutRequest request) throws UserException {
+    private void setOptionalFromTSLPutRequest(TStreamLoadPutRequest request, Database db) throws UserException {
         if (request.isSetColumns()) {
             setColumnToColumnExpr(request.getColumns());
         }
@@ -195,7 +199,19 @@ public class StreamLoadTask {
             if (request.getJsonpath() != null) {
                 jsonPath = request.getJsonpath();
             } else if (request.getJsonpath_file() != null) {
-                jsonPathFile = request.getJsonpath_file();
+                // convert name to FILE:id:md5
+                SmallFileMgr smallFileMgr = Catalog.getCurrentCatalog().getSmallFileMgr();
+                SmallFileMgr.SmallFile smallFile;
+                String[] info = request.getJsonpath_file().split(":");
+                if (info.length > 2) {
+                    throw new UserException("Invalid jsonpath file. `" +request.getJsonpath_file()+"`");
+                }
+                if (info.length == 2) {
+                    smallFile = smallFileMgr.getSmallFile(db.getId(), info[0], info[1], true);
+                } else {
+                    smallFile = smallFileMgr.getSmallFile(db.getId(), CreateFileStmt.PROP_CATALOG_DEFAULT, info[1], true);
+                }
+                jsonPathFile = "FILE:" + smallFile.id + ":" + smallFile.md5;
             }
         }
     }

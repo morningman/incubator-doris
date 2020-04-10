@@ -109,7 +109,6 @@ DoubleVal JsonFunctions::get_json_double(
 
 
 rapidjson::Value* JsonFunctions::match_value(std::vector<JsonPath>& parsed_paths, rapidjson::Document* document) {
-    //bool is_arr_set_by_last = false;
     rapidjson::Value* root = document;
     rapidjson::Value* array_obj = NULL;
     for (int i = 1; i < parsed_paths.size(); i++) {
@@ -263,7 +262,7 @@ rapidjson::Value* JsonFunctions::get_json_object(
 }
 
 
-rapidjson::Value* JsonFunctions::get_json_object_simple (
+rapidjson::Value* JsonFunctions::get_json_object_from_parsed_json (
         const std::string& path_string,
         rapidjson::Document* document) {
 

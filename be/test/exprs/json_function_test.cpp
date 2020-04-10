@@ -194,13 +194,13 @@ TEST_F(JsonFunctionTest, json_path1)
         ASSERT_TRUE(false);
     }
     rapidjson::Value* res3;
-    res3 = JsonFunctions::get_json_object_simple("$.[*].keyname.ip", &jsonDoc);
+    res3 = JsonFunctions::get_json_object_from_parsed_json("$.[*].keyname.ip", &jsonDoc);
     ASSERT_TRUE(res3->IsArray());
     for (int i = 0; i < res3->Size(); i++) {
         std::cout<< (*res3)[i].GetString() << std::endl;
     }
 
-    res3 = JsonFunctions::get_json_object_simple("$.[*].k1", &jsonDoc);
+    res3 = JsonFunctions::get_json_object_from_parsed_json("$.[*].k1", &jsonDoc);
     ASSERT_TRUE(res3->IsArray());
     for (int i = 0; i < res3->Size(); i++) {
         std::cout<< (*res3)[i].GetString() << std::endl;

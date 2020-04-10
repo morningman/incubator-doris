@@ -73,7 +73,7 @@ public:
     /**
      * The `document` parameter must be has parsed.
      */
-    static rapidjson::Value* get_json_object_simple(
+    static rapidjson::Value* get_json_object_from_parsed_json(
             const std::string& path_string,
             rapidjson::Document* document);
 

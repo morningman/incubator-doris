@@ -67,7 +67,6 @@ public:
 private:
     Status open_next_reader();
 private:
-    //const TBrokerScanRangeParams& _params;
     const std::vector<TBrokerRangeDesc>& _ranges;
     const std::vector<TNetworkAddress>& _broker_addresses;
 
@@ -89,50 +88,57 @@ class JsonDataInternal {
 public:
     JsonDataInternal(rapidjson::Value* v);
     ~JsonDataInternal();
-    rapidjson::Value::ConstValueIterator getNext();
+    rapidjson::Value::ConstValueIterator get_next();
 
 private:
-    bool isEnd();
+    bool is_end();
 
 private:
-    rapidjson::Value* _jsonValues;
+    rapidjson::Value* _json_values;
     rapidjson::Value::ConstValueIterator  _iterator;
 };
 
 class JsonReader {
 public:
-    JsonReader(SmallFileMgr *fileMgr, RuntimeProfile* profile, FileReader* file_reader,
+    JsonReader(RuntimeState* state, ScannerCounter* counter, SmallFileMgr *fileMgr, RuntimeProfile* profile, FileReader* file_reader,
             std::string& jsonpath, std::string& jsonpath_file);
     ~JsonReader();
-    Status read(Tuple* tuple, std::vector<SlotDescriptor*> slot_descs, MemPool* tuple_pool, bool* eof);
+    Status read(Tuple* tuple, const std::vector<SlotDescriptor*>& slot_descs, MemPool* tuple_pool, bool* eof);
 
 private:
+    void init_jsonpath(SmallFileMgr *fileMgr, std::string& jsonpath, std::string& jsonpath_file);
     void fill_slot(Tuple* tuple, SlotDescriptor* slot_desc, MemPool* mem_pool, const uint8_t* value, int32_t len);
-    size_t getDataByJsonPath();
-    int parseJsonPathFromFile(SmallFileMgr *smallFileMgr, std::string& fileinfo);
-    Status parseJsonDoc(bool *eof);
-    Status handleSimpleJson(Tuple* tuple, std::vector<SlotDescriptor*> slot_descs, MemPool* tuple_pool, bool* eof);
-    Status handleComplexJson(Tuple* tuple, std::vector<SlotDescriptor*> slot_descs, MemPool* tuple_pool, bool* eof);
-    Status writeDataToTuple(rapidjson::Value::ConstValueIterator value, SlotDescriptor* desc, Tuple* tuple, MemPool* tuple_pool);
+    size_t get_data_by_jsonpath();
+    int parse_jsonpath_from_file(SmallFileMgr *smallFileMgr, std::string& fileinfo);
+    Status parse_json_doc(bool *eof);
+    Status set_tuple_value(rapidjson::Value& objectValue, Tuple* tuple, const std::vector<SlotDescriptor*>& slot_descs, MemPool* tuple_pool, bool *valid);
+    Status set_tuple_value_from_map(Tuple* tuple, const std::vector<SlotDescriptor*>& slot_descs, MemPool* tuple_pool, bool *valid);
+    Status handle_simple_json(Tuple* tuple, const std::vector<SlotDescriptor*>& slot_descs, MemPool* tuple_pool, bool* eof);
+    Status handle_complex_json(Tuple* tuple, const std::vector<SlotDescriptor*>& slot_descs, MemPool* tuple_pool, bool* eof);
+    Status write_data_to_tuple(rapidjson::Value::ConstValueIterator value, SlotDescriptor* desc, Tuple* tuple, MemPool* tuple_pool);
     void close();
 
 private:
+    static constexpr char const *JSON_PATH = "jsonpath";
+    static constexpr char const *DORIS_RECORDS = "RECORDS";
     int _next_line;
     int _total_lines;
+    RuntimeState* _state;
+    ScannerCounter* _counter;
     RuntimeProfile* _profile;
     FileReader*_file_reader;
-
+    bool _closed;
     /**
-     * _parseJsonPathFlag == 1, jsonpath is valid
-     * _parseJsonPathFlag == 0, jsonpath is empty, default
-     * _parseJsonPathFlag == -1, jsonpath parse is error, it will return ERROR
+     * _parse_jsonpath_flag == 1, jsonpath is valid
+     * _parse_jsonpath_flag == 0, jsonpath is empty, default
+     * _parse_jsonpath_flag == -1, jsonpath parse is error, it will return ERROR
      */
-    int _parseJsonPathFlag;
+    int _parse_jsonpath_flag;
     RuntimeProfile::Counter* _bytes_read_counter;
     RuntimeProfile::Counter* _read_timer;
-    rapidjson::Document _jsonPathDoc;
-    rapidjson::Document _jsonDoc;
-    std::map<std::string, JsonDataInternal> jmap;
+    rapidjson::Document _jsonpath_doc;
+    rapidjson::Document _json_doc;
+    std::unordered_map<std::string, JsonDataInternal> _jmap;
 };
 
 

@@ -360,13 +360,17 @@ public class CreateRoutineLoadStmt extends DdlStmt {
 
         format = jobProperties.get(FORMAT);
         if (format != null) {
-            if (!format.equalsIgnoreCase("json")) {
+            if (format.equalsIgnoreCase("csv")) {
                 format = "";// if it's not json, then it's mean csv and set empty
-            } else {
+            } else if (format.equalsIgnoreCase("json")) {
                 format = "json";
                 jsonPath = jobProperties.get(JSON_PATH);
                 jsonPathFile = jobProperties.get(JSON_PATH_FILE);
+            } else {
+                throw new UserException("Format type is invalid. format=`" + format + "`");
             }
+        } else {
+            format = "csv"; // default csv
         }
     }
 

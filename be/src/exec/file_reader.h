@@ -43,7 +43,7 @@ public:
      * the buf must be deleted by user, otherwise leak memory
      * !! Important !!
      */
-    virtual Status read(uint8_t** buf, size_t *length) = 0;
+    virtual Status read_all(uint8_t** buf, size_t *length) = 0;
     virtual int64_t size () = 0;
     virtual Status seek(int64_t position) = 0;
     virtual Status tell(int64_t* position) = 0;

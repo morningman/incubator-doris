@@ -122,7 +122,7 @@ Status BrokerReader::open() {
 }
 
 //not support
-Status BrokerReader::read(uint8_t** buf, size_t *length) {
+Status BrokerReader::read_all(uint8_t** buf, size_t *length) {
     return Status::NotSupported("Not support");
 }
 

@@ -384,7 +384,7 @@ void JsonSannerTest::init() {
     _tnode.broker_scan_node.tuple_id = 0;
     _tnode.__isset.broker_scan_node = true;
 }
-
+#if 0
 TEST_F(JsonSannerTest, normal) {
     BrokerScanNode scan_node(&_obj_pool, _tnode, *_desc_tbl);
     auto status = scan_node.prepare(&_runtime_state);
@@ -509,7 +509,7 @@ TEST_F(JsonSannerTest, normal_simple_json) {
     }
 }
 
-
+#endif
 
 TEST_F(JsonSannerTest, normal_simple_arrayjson) {
     BrokerScanNode scan_node(&_obj_pool, _tnode, *_desc_tbl);
