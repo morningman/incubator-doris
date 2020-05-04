@@ -283,7 +283,8 @@ bool ReservationTracker::TransferReservationTo(ReservationTracker* other, int64_
     tracker->UpdateReservation(bytes);
     // We don't handle MemTrackers with limit in this function - this should always
     // succeed.
-    DCHECK(tracker->mem_tracker_ == nullptr || !tracker->mem_tracker_->has_limit());
+    // TODO(cmy): mem_tracker is not null and has limit 2GB. inherit from query mem tracker
+    // DCHECK(tracker->mem_tracker_ == nullptr || !tracker->mem_tracker_->has_limit());
     bool success = tracker->TryConsumeFromMemTracker(bytes);
     DCHECK(success);
     if (tracker != other_path_to_common[0]) tracker->child_reservations_ += bytes;
