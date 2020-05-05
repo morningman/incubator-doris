@@ -407,23 +407,6 @@ Status Expr::create_expr(ObjectPool* pool, const TExprNode& texpr_node, Expr** e
         *expr = pool->add(new InfoFunc(texpr_node));
         return Status::OK();
     }
-#if 0
-    case TExprNodeType::FUNCTION_CALL: {
-        if (!texpr_node.__isset.fn_call_expr) {
-            return Status::InternalError("Udf call not set in thrift node");
-        }
-
-        if (texpr_node.fn_call_expr.fn.binary_type == TFunctionBinaryType::HIVE) {
-            DCHECK(false);  //temp add, can't get here
-            //*expr = pool->Add(new HiveUdfCall(texpr_node));
-        } else {
-            *expr = pool->add(new NativeUdfExpr(texpr_node));
-        }
-
-        return Status::OK();
-    }
-#endif
-
     default:
         std::stringstream os;
         os << "Unknown expr node type: " << texpr_node.node_type;
