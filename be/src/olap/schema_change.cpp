@@ -265,10 +265,10 @@ bool RowBlockChanger::change_row_block(
     for (size_t i = 0, len = mutable_block->tablet_schema().num_columns(); !filter_all && i < len; ++i) {
         int32_t ref_column = _schema_mapping[i].ref_column;
 
-        FieldType reftype = ref_block->tablet_schema().column(ref_column).type();
-        FieldType newtype = mutable_block->tablet_schema().column(i).type();
-
         if (_schema_mapping[i].ref_column >= 0) {
+            FieldType newtype = mutable_block->tablet_schema().column(i).type();
+            FieldType reftype = ref_block->tablet_schema().column(ref_column).type();
+
             // new column will be assigned as referenced column
             // check if the type of new column is equal to the older's.
             if (newtype == reftype) {
@@ -1818,7 +1818,6 @@ OLAPStatus SchemaChangeHandler::_parse_request(TabletSharedPtr base_tablet,
         }
 
         // 新加列走这里
-        //if (new_column_schema.is_allow_null || new_column_schema.has_default_value) {
         {
             column_mapping->ref_column = -1;
 
@@ -1839,20 +1838,19 @@ OLAPStatus SchemaChangeHandler::_parse_request(TabletSharedPtr base_tablet,
             continue;
         }
 
+        // // XXX: 只有DROP COLUMN时，遇到新Schema转旧Schema时会进入这里。
+        // column_mapping->ref_column = -1;
 
-        // XXX: 只有DROP COLUMN时，遇到新Schema转旧Schema时会进入这里。
-        column_mapping->ref_column = -1;
+        // if (OLAP_SUCCESS != (res = _init_column_mapping(
+        //                                column_mapping,
+        //                                new_column,
+        //                                ""))) {
+        //     return res;
+        // }
 
-        if (OLAP_SUCCESS != (res = _init_column_mapping(
-                                       column_mapping,
-                                       new_column,
-                                       ""))) {
-            return res;
-        }
-
-        VLOG(3) << "A new schema delta is converted while dropping column. "
-                << "Dropped column will be assigned as '0' for the older schema. "
-                << "column=" << column_name;
+        // VLOG(3) << "A new schema delta is converted while dropping column. "
+        //         << "Dropped column will be assigned as '0' for the older schema. "
+        //         << "column=" << column_name;
     }
 
     // Check if re-aggregation is needed.
