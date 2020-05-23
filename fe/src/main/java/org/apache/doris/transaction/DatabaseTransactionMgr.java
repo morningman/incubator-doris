@@ -814,10 +814,9 @@ public class DatabaseTransactionMgr {
                 editLog.logInsertTransactionState(transactionState);
             }
         }
-        // for commit transaction, there is nothing to do
-        if (transactionState.getTransactionStatus() == TransactionStatus.PREPARE) {
+        if (!transactionState.getTransactionStatus().isFinalStatus()) {
             idToRunningTransactionState.put(transactionState.getTransactionId(), transactionState);
-        } else if (transactionState.getTransactionStatus().isFinalStatus()) {
+        } else {
             idToRunningTransactionState.remove(transactionState.getTransactionId());
             idToFinalStatusTransactionState.put(transactionState.getTransactionId(), transactionState);
             finalStatusTransactionStateDeque.add(transactionState);
@@ -837,17 +836,14 @@ public class DatabaseTransactionMgr {
 
     private void updateDbRunningTxnNum(TransactionStatus preStatus, TransactionState curTxnState) {
         if (preStatus == null
-                && (curTxnState.getTransactionStatus() == TransactionStatus.PREPARE
-                || curTxnState.getTransactionStatus() == TransactionStatus.COMMITTED)) {
+                && (!curTxnState.getTransactionStatus().isFinalStatus())) {
             if (curTxnState.getSourceType() == TransactionState.LoadJobSourceType.ROUTINE_LOAD_TASK) {
                 runningRoutineLoadTxnNums++;
             } else {
                 runningTxnNums++;
             }
-        } else if ((preStatus == TransactionStatus.PREPARE
-                || preStatus == TransactionStatus.COMMITTED)
-                && (curTxnState.getTransactionStatus() == TransactionStatus.VISIBLE
-                || curTxnState.getTransactionStatus() == TransactionStatus.ABORTED)) {
+        } else if ((!preStatus.isFinalStatus())
+                && (curTxnState.getTransactionStatus().isFinalStatus())) {
             if (curTxnState.getSourceType() == TransactionState.LoadJobSourceType.ROUTINE_LOAD_TASK) {
                 runningRoutineLoadTxnNums--;
             } else {
@@ -1361,8 +1357,6 @@ public class DatabaseTransactionMgr {
             writeUnlock();
         }
     }
-
-
 
     public List<List<String>> getDbTransStateInfo() {
         List<List<String>> infos = Lists.newArrayList();
