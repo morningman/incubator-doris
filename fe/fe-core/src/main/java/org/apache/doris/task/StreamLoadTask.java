@@ -31,7 +31,6 @@ import org.apache.doris.analysis.SlotRef;
 import org.apache.doris.analysis.SqlParser;
 import org.apache.doris.analysis.SqlScanner;
 import org.apache.doris.catalog.Column;
-import org.apache.doris.catalog.Database;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.UserException;
@@ -194,14 +193,14 @@ public class StreamLoadTask implements LoadTaskInfo {
         return !Strings.isNullOrEmpty(sequenceCol);
     }
 
-    public static StreamLoadTask fromTStreamLoadPutRequest(TStreamLoadPutRequest request, Database db) throws UserException {
+    public static StreamLoadTask fromTStreamLoadPutRequest(TStreamLoadPutRequest request) throws UserException {
         StreamLoadTask streamLoadTask = new StreamLoadTask(request.getLoadId(), request.getTxnId(),
                                                            request.getFileType(), request.getFormatType());
-        streamLoadTask.setOptionalFromTSLPutRequest(request, db);
+        streamLoadTask.setOptionalFromTSLPutRequest(request);
         return streamLoadTask;
     }
 
-    private void setOptionalFromTSLPutRequest(TStreamLoadPutRequest request, Database db) throws UserException {
+    private void setOptionalFromTSLPutRequest(TStreamLoadPutRequest request) throws UserException {
         if (request.isSetColumns()) {
             setColumnToColumnExpr(request.getColumns());
         }
@@ -336,6 +335,7 @@ public class StreamLoadTask implements LoadTaskInfo {
         columnSeparator.analyze();
     }
 
+    @Override
     public long getMemLimit() {
         return execMemLimit;
     }
