@@ -112,13 +112,14 @@ public class DescribeStmt extends ShowStmt {
         if (db == null) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_BAD_DB_ERROR, dbTableName.getDb());
         }
-        db.readLock();
-        try {
-            Table table = db.getTable(dbTableName.getTbl());
-            if (table == null) {
-                ErrorReport.reportAnalysisException(ErrorCode.ERR_BAD_TABLE_ERROR, dbTableName.getTbl());
-            }
 
+        Table table = db.getTable(dbTableName.getTbl());
+        if (table == null) {
+            ErrorReport.reportAnalysisException(ErrorCode.ERR_BAD_TABLE_ERROR, dbTableName.getTbl());
+        }
+
+        table.readLock();
+        try {
             if (!isAllTables) {
                 // show base table schema only
                 String procString = "/dbs/" + db.getId() + "/" + table.getId() + "/" + TableProcDir.INDEX_SCHEMA
@@ -219,7 +220,7 @@ public class DescribeStmt extends ShowStmt {
                 }
             }
         } finally {
-            db.readUnlock();
+            table.readUnlock();
         }
     }
 
