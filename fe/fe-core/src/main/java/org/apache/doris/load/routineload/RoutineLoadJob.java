@@ -418,12 +418,7 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
         if (database == null) {
             throw new MetaNotFoundException("Database " + dbId + "has been deleted");
         }
-        database.readLock();
-        try {
-            return database.getFullName();
-        } finally {
-            database.readUnlock();
-        }
+        return database.getFullName();
     }
 
     public long getTableId() {
@@ -435,16 +430,13 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
         if (database == null) {
             throw new MetaNotFoundException("Database " + dbId + "has been deleted");
         }
-        database.readLock();
-        try {
-            Table table = database.getTable(tableId);
-            if (table == null) {
-                throw new MetaNotFoundException("Failed to find table " + tableId + " in db " + dbId);
-            }
-            return table.getName();
-        } finally {
-            database.readUnlock();
+
+        Table table = database.getTable(tableId);
+        if (table == null) {
+            throw new MetaNotFoundException("Failed to find table " + tableId + " in db " + dbId);
         }
+        return table.getName();
+
     }
 
     public JobState getState() {
@@ -798,7 +790,8 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
         if (db == null) {
             throw new MetaNotFoundException("db " + dbId + " does not exist");
         }
-        db.readLock();
+        Table table = db.getTableOrThrowException(tableId, Table.TableType.OLAP);
+        table.readLock();
         try {
             TExecPlanFragmentParams planParams = planner.plan(loadId);
             // add table indexes to transaction state
@@ -810,7 +803,7 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
 
             return planParams;
         } finally {
-            db.readUnlock();
+            table.readUnlock();
         }
     }
 
@@ -1221,12 +1214,7 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
 
         // check table belong to database
         database.readLock();
-        Table table;
-        try {
-            table = database.getTable(tableId);
-        } finally {
-            database.readUnlock();
-        }
+        Table table = database.getTable(tableId);
         if (table == null) {
             LOG.warn(new LogBuilder(LogKey.ROUTINE_LOAD_JOB, id).add("db_id", dbId)
                              .add("table_id", tableId)
@@ -1281,11 +1269,7 @@ public abstract class RoutineLoadJob extends AbstractTxnStateChangeCallback impl
         Table tbl = null;
         if (db != null) {
             db.readLock();
-            try {
-                tbl = db.getTable(tableId);
-            } finally {
-                db.readUnlock();
-            }
+            tbl = db.getTable(tableId);
         }
 
         readLock();
