@@ -2830,6 +2830,7 @@ public class Load {
         long jobId = job.getId();
         long dbId = job.getDbId();
         Database db = Catalog.getCurrentCatalog().getDb(dbId);
+        Table table = db.getTable(job.getTableId());
         String errMsg = msg;
         if (db == null) {
             // if db is null, update job to cancelled
@@ -3249,19 +3250,19 @@ public class Load {
 
     public void replayFinishAsyncDeleteJob(AsyncDeleteJob deleteJob, Catalog catalog) {
         Database db = catalog.getDb(deleteJob.getDbId());
-        db.writeLock();
+        writeLock();
         try {
-            writeLock();
-            try {
-                // Update database information
-                Map<Long, ReplicaPersistInfo> replicaInfos = deleteJob.getReplicaPersistInfos();
-                if (replicaInfos != null) {
-                    for (ReplicaPersistInfo info : replicaInfos.values()) {
-                        OlapTable table = (OlapTable) db.getTable(info.getTableId());
-                        if (table == null) {
-                            LOG.warn("the table[{}] is missing", info.getIndexId());
-                            continue;
-                        }
+            // Update database information
+            Map<Long, ReplicaPersistInfo> replicaInfos = deleteJob.getReplicaPersistInfos();
+            if (replicaInfos != null) {
+                for (ReplicaPersistInfo info : replicaInfos.values()) {
+                    OlapTable table = (OlapTable) db.getTable(info.getTableId());
+                    if (table == null) {
+                        LOG.warn("the table[{}] is missing", info.getIndexId());
+                        continue;
+                    }
+                    table.writeLock();
+                    try {
                         Partition partition = table.getPartition(info.getPartitionId());
                         if (partition == null) {
                             LOG.warn("the partition[{}] is missing", info.getIndexId());
@@ -3284,32 +3285,36 @@ public class Load {
                             continue;
                         }
                         replica.updateVersionInfo(info.getVersion(), info.getVersionHash(),
-                                                  info.getDataSize(), info.getRowCount());
+                                info.getDataSize(), info.getRowCount());
+
+                    } finally {
+                        table.writeUnlock();
                     }
                 }
-            } finally {
-                writeUnlock();
             }
         } finally {
-            db.writeUnlock();
+            writeUnlock();
         }
-
         removeDeleteJobAndSetState(deleteJob);
         LOG.info("unprotected finish asyncDeleteJob: {}", deleteJob.getJobId());
     }
 
     public void replayDelete(DeleteInfo deleteInfo, Catalog catalog) {
         Database db = catalog.getDb(deleteInfo.getDbId());
-        db.writeLock();
+        OlapTable table = (OlapTable) db.getTable(deleteInfo.getTableId());
+        if (table == null) {
+            return;
+        }
+        writeLock();
         try {
-            writeLock();
+            table.writeLock();
             try {
                 unprotectDelete(deleteInfo, db);
             } finally {
-                writeUnlock();
+                table.writeUnlock();
             }
         } finally {
-            db.writeUnlock();
+            writeUnlock();
         }
     }
 
@@ -3581,7 +3586,7 @@ public class Load {
             long startDeleteTime = System.currentTimeMillis();
             long timeout = loadDeleteJob.getDeleteJobTimeout();
             while (true) {
-                db.writeLock();
+                table.writeLock();
                 try {
                     if (loadDeleteJob.getState() == JobState.FINISHED
                             || loadDeleteJob.getState() == JobState.CANCELLED) {
@@ -3598,7 +3603,7 @@ public class Load {
                         }
                     }
                 } finally {
-                    db.writeUnlock();
+                    table.writeUnlock();
                 }
                 Thread.sleep(1000);
             }
