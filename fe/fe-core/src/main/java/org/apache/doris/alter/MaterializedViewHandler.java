@@ -287,7 +287,6 @@ public class MaterializedViewHandler extends AlterHandler {
         // ATTN: This order is not mandatory, because database lock will protect us,
         // but this order is more reasonable
         olapTable.setState(OlapTableState.ROLLUP);
-
         // 2 batch submit rollup job
         List<AlterJobV2> rollupJobV2List = new ArrayList<>(rollupNameJobMap.values());
         batchAddAlterJobV2(rollupJobV2List);
@@ -696,7 +695,7 @@ public class MaterializedViewHandler extends AlterHandler {
 
     public void processBatchDropRollup(List<AlterClause> dropRollupClauses, Database db, OlapTable olapTable)
             throws DdlException, MetaNotFoundException {
-        db.writeLock();
+        olapTable.writeLock();
         try {
             // check drop rollup index operation
             for (AlterClause alterClause : dropRollupClauses) {
@@ -722,13 +721,14 @@ public class MaterializedViewHandler extends AlterHandler {
             editLog.logBatchDropRollup(new BatchDropInfo(dbId, tableId, indexIdSet));
             LOG.info("finished drop rollup index[{}] in table[{}]", String.join("", rollupNameSet), olapTable.getName());
         } finally {
-            db.writeUnlock();
+            olapTable.writeUnlock();
         }
     }
 
     public void processDropMaterializedView(DropMaterializedViewStmt dropMaterializedViewStmt, Database db,
             OlapTable olapTable) throws DdlException, MetaNotFoundException {
-        Preconditions.checkState(db.isWriteLockHeldByCurrentThread());
+        Preconditions.checkState(olapTable.isWriteLockHeldByCurrentThread());
+        olapTable.writeLock();
         try {
             String mvName = dropMaterializedViewStmt.getMvName();
             // Step1: check drop mv index operation
@@ -803,13 +803,13 @@ public class MaterializedViewHandler extends AlterHandler {
 
     public void replayDropRollup(DropInfo dropInfo, Catalog catalog) {
         Database db = catalog.getDb(dropInfo.getDbId());
-        db.writeLock();
-        try {
-            long tableId = dropInfo.getTableId();
-            long rollupIndexId = dropInfo.getIndexId();
+        long tableId = dropInfo.getTableId();
+        long rollupIndexId = dropInfo.getIndexId();
 
-            TabletInvertedIndex invertedIndex = Catalog.getCurrentInvertedIndex();
-            OlapTable olapTable = (OlapTable) db.getTable(tableId);
+        TabletInvertedIndex invertedIndex = Catalog.getCurrentInvertedIndex();
+        OlapTable olapTable = (OlapTable) db.getTable(tableId);
+        olapTable.writeLock();
+        try {
             for (Partition partition : olapTable.getPartitions()) {
                 MaterializedIndex rollupIndex = partition.deleteRollupIndex(rollupIndexId);
 
@@ -824,7 +824,7 @@ public class MaterializedViewHandler extends AlterHandler {
             String rollupIndexName = olapTable.getIndexNameById(rollupIndexId);
             olapTable.deleteIndexInfo(rollupIndexName);
         } finally {
-            db.writeUnlock();
+            olapTable.writeUnlock();
         }
         LOG.info("replay drop rollup {}", dropInfo.getIndexId());
     }
@@ -859,15 +859,18 @@ public class MaterializedViewHandler extends AlterHandler {
                     dbId, tableId);
             return;
         }
-        db.writeLock();
+        OlapTable tbl = (OlapTable) db.getTable(tableId);
+        if (tbl == null) {
+            return;
+        }
+        tbl.writeLock();
         try {
-            OlapTable tbl = (OlapTable) db.getTable(tableId);
-            if (tbl == null || tbl.getState() == olapTableState) {
+            if (tbl.getState() == olapTableState) {
                 return;
             }
             tbl.setState(olapTableState);
         } finally {
-            db.writeUnlock();
+            tbl.writeUnlock();
         }
     }
 
@@ -1050,13 +1053,8 @@ public class MaterializedViewHandler extends AlterHandler {
                 continue;
             }
 
-            db.writeLock();
-            try {
-                OlapTable olapTable = (OlapTable) db.getTable(rollupJob.getTableId());
-                rollupJob.cancel(olapTable, "cancelled");
-            } finally {
-                db.writeUnlock();
-            }
+            OlapTable olapTable = (OlapTable) db.getTable(rollupJob.getTableId());
+            rollupJob.cancel(olapTable, "cancelled");
             jobDone(rollupJob);
         }
 
@@ -1170,16 +1168,16 @@ public class MaterializedViewHandler extends AlterHandler {
 
         AlterJob rollupJob = null;
         List<AlterJobV2> rollupJobV2List = new ArrayList<>();
-        db.writeLock();
+        Table table = db.getTable(tableName);
+        if (table == null) {
+            ErrorReport.reportDdlException(ErrorCode.ERR_BAD_TABLE_ERROR, tableName);
+        }
+        if (!(table instanceof OlapTable)) {
+            ErrorReport.reportDdlException(ErrorCode.ERR_NOT_OLAP_TABLE, tableName);
+        }
+        OlapTable olapTable = (OlapTable) table;
+        olapTable.writeLock();
         try {
-            Table table = db.getTable(tableName);
-            if (table == null) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_BAD_TABLE_ERROR, tableName);
-            }
-            if (!(table instanceof OlapTable)) {
-                ErrorReport.reportDdlException(ErrorCode.ERR_NOT_OLAP_TABLE, tableName);
-            }
-            OlapTable olapTable = (OlapTable) table;
             if (olapTable.getState() != OlapTableState.ROLLUP) {
                 throw new DdlException("Table[" + tableName + "] is not under ROLLUP. "
                         + "Use 'ALTER TABLE DROP ROLLUP' if you want to.");
@@ -1207,7 +1205,7 @@ public class MaterializedViewHandler extends AlterHandler {
                 rollupJob.cancel(olapTable, "user cancelled");
             }
         } finally {
-            db.writeUnlock();
+            olapTable.writeUnlock();
         }
 
         // alter job v2's cancel must be called outside the database lock
