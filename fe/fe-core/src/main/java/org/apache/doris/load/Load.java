@@ -398,7 +398,7 @@ public class Load {
         }
 
         // check if table is in restore process
-        db.readLock();
+        readLock();
         try {
             for (Long tblId : job.getIdToTableLoadInfo().keySet()) {
                 Table tbl = db.getTable(tblId);
@@ -409,7 +409,7 @@ public class Load {
                 }
             }
         } finally {
-            db.readUnlock();
+            readUnlock();
         }
 
         writeLock();
@@ -521,28 +521,30 @@ public class Load {
             // mini etl tasks
             Map<Long, MiniEtlTaskInfo> idToEtlTask = Maps.newHashMap();
             long etlTaskId = 0;
-            db.readLock();
-            try {
-                for (DataDescription dataDescription : dataDescriptions) {
-                    String tableName = dataDescription.getTableName();
-                    OlapTable table = (OlapTable) db.getTable(tableName);
-                    if (table == null) {
-                        throw new DdlException("Table[" + tableName + "] does not exist");
-                    }
 
+            for (DataDescription dataDescription : dataDescriptions) {
+                String tableName = dataDescription.getTableName();
+                OlapTable table = (OlapTable) db.getTable(tableName);
+                if (table == null) {
+                    throw new DdlException("Table[" + tableName + "] does not exist");
+                }
+
+                table.readLock();
+                try {
                     TNetworkAddress beAddress = dataDescription.getBeAddr();
                     Backend backend = Catalog.getCurrentSystemInfo().getBackendWithBePort(beAddress.getHostname(),
-                                                                                          beAddress.getPort());
+                            beAddress.getPort());
                     if (!Catalog.getCurrentSystemInfo().checkBackendAvailable(backend.getId())) {
                         throw new DdlException("Etl backend is null or not available");
                     }
 
                     MiniEtlTaskInfo taskInfo = new MiniEtlTaskInfo(etlTaskId++, backend.getId(), table.getId());
                     idToEtlTask.put(taskInfo.getId(), taskInfo);
+                } finally {
+                    table.readUnlock();
                 }
-            } finally {
-                db.readUnlock();
             }
+
             job.setMiniEtlTasks(idToEtlTask);
             job.setPriority(TPriority.HIGH);
 
@@ -629,17 +631,18 @@ public class Load {
         // source column names and partitions
         String tableName = dataDescription.getTableName();
         Map<String, Pair<String, List<String>>> columnToFunction = null;
-        db.readLock();
-        try {
-            Table table = db.getTable(tableName);
-            if (table == null) {
-                throw new DdlException("Table [" + tableName + "] does not exist");
-            }
-            tableId = table.getId();
-            if (table.getType() != TableType.OLAP) {
-                throw new DdlException("Table [" + tableName + "] is not olap table");
-            }
 
+        Table table = db.getTable(tableName);
+        if (table == null) {
+            throw new DdlException("Table [" + tableName + "] does not exist");
+        }
+        tableId = table.getId();
+        if (table.getType() != TableType.OLAP) {
+            throw new DdlException("Table [" + tableName + "] is not olap table");
+        }
+
+        table.readLock();
+        try {
             if (((OlapTable) table).getPartitionInfo().isMultiColumnPartition() && jobType == EtlJobType.HADOOP) {
                 throw new DdlException("Load by hadoop cluster does not support table with multi partition columns."
                         + " Table: " + table.getName() + ". Try using broker load. See 'help broker load;'");
@@ -830,7 +833,7 @@ public class Load {
                 }
             }
         } finally {
-            db.readUnlock();
+            table.readUnlock();
         }
 
         // column separator
@@ -2199,25 +2202,25 @@ public class Load {
             return infos;
         }
 
-        db.readLock();
+
+        readLock();
         try {
-            readLock();
-            try {
-                Map<Long, TabletLoadInfo> tabletMap = loadJob.getIdToTabletLoadInfo();
-                for (long tabletId : tabletMap.keySet()) {
-                    TabletMeta tabletMeta = invertedIndex.getTabletMeta(tabletId);
-                    if (tabletMeta == null) {
-                        // tablet may be dropped during loading
-                        continue;
-                    }
+            Map<Long, TabletLoadInfo> tabletMap = loadJob.getIdToTabletLoadInfo();
+            for (long tabletId : tabletMap.keySet()) {
+                TabletMeta tabletMeta = invertedIndex.getTabletMeta(tabletId);
+                if (tabletMeta == null) {
+                    // tablet may be dropped during loading
+                    continue;
+                }
 
-                    long tableId = tabletMeta.getTableId();
+                long tableId = tabletMeta.getTableId();
 
-                    OlapTable table = (OlapTable) db.getTable(tableId);
-                    if (table == null) {
-                        continue;
-                    }
-
+                OlapTable table = (OlapTable) db.getTable(tableId);
+                if (table == null) {
+                    continue;
+                }
+                table.readLock();
+                try {
                     long partitionId = tabletMeta.getPartitionId();
                     Partition partition = table.getPartition(partitionId);
                     if (partition == null) {
@@ -2256,13 +2259,12 @@ public class Load {
 
                         infos.add(info);
                     }
-                } // end for tablet
-
-            } finally {
-                readUnlock();
+                } finally {
+                    table.readUnlock();
+                }
             }
         } finally {
-            db.readUnlock();
+            readUnlock();
         }
 
         // sort by version, backendId
@@ -3491,16 +3493,18 @@ public class Load {
         long partitionId = -1;
         LoadJob loadDeleteJob = null;
         boolean addRunningPartition = false;
-        db.readLock();
-        try {
-            Table table = db.getTable(tableName);
-            if (table == null) {
-                throw new DdlException("Table does not exist. name: " + tableName);
-            }
+        Table table = db.getTable(tableName);
 
-            if (table.getType() != TableType.OLAP) {
-                throw new DdlException("Not olap type table. type: " + table.getType().name());
-            }
+        if (table == null) {
+            throw new DdlException("Table does not exist. name: " + tableName);
+        }
+
+        if (table.getType() != TableType.OLAP) {
+            throw new DdlException("Not olap type table. type: " + table.getType().name());
+        }
+
+        table.readLock();
+        try {
             OlapTable olapTable = (OlapTable) table;
 
             if (olapTable.getState() != OlapTableState.NORMAL) {
@@ -3569,7 +3573,7 @@ public class Load {
                     writeUnlock();
                 }
             }
-            db.readUnlock();
+            table.readUnlock();
         }
 
         try {
