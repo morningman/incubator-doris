@@ -656,7 +656,26 @@ public class DatabaseTransactionMgr {
                 writeUnlock();
             }
         }
-        db.writeLock();
+        List<Long> tableIdList = transactionState.getTableIdList();
+        // to be compatiable with old meta version, table List may be empty
+        if (tableIdList.isEmpty()) {
+           readLock();
+           try {
+               for (TableCommitInfo tableCommitInfo : transactionState.getIdToTableCommitInfos().values()) {
+                   long tableId = tableCommitInfo.getTableId();
+                   if (!tableIdList.contains(tableId)) {
+                       tableIdList.add(tableId);
+                   }
+               }
+           } finally {
+               readUnlock();
+           }
+        }
+
+        List<Table> tableList = db.getTablesOnIdOrderOrThrowException(tableIdList);
+        for (Table table : tableList) {
+            table.writeLock();
+        }
         try {
             boolean hasError = false;
             for (TableCommitInfo tableCommitInfo : transactionState.getIdToTableCommitInfos().values()) {
@@ -793,7 +812,9 @@ public class DatabaseTransactionMgr {
             }
             updateCatalogAfterVisible(transactionState, db);
         } finally {
-            db.writeUnlock();
+            for (int i = tableList.size() - 1; i >=0; i--) {
+                tableList.get(i).writeUnlock();
+            }
         }
         LOG.info("finish transaction {} successfully", transactionState);
     }
