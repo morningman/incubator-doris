@@ -898,7 +898,7 @@ public class StmtExecutor {
             }
 
             if (Catalog.getCurrentGlobalTransactionMgr().commitAndPublishTransaction(
-                    insertStmt.getDbObj(), insertStmt.getTransactionId(),
+                    insertStmt.getDbObj(), Lists.newArrayList(insertStmt.getTargetTable()), insertStmt.getTransactionId(),
                     TabletCommitInfo.fromThrift(coord.getCommitInfos()),
                     10000)) {
                 txnStatus = TransactionStatus.VISIBLE;

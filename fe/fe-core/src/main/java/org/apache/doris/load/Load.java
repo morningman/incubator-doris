@@ -2491,7 +2491,8 @@ public class Load {
     public void replayQuorumLoadJob(LoadJob job, Catalog catalog) throws DdlException {
         // TODO: need to call this.writeLock()?
         Database db = catalog.getDb(job.getDbId());
-        db.writeLock();
+        Table table = db.getTable(job.getTableId());
+        table.writeLock();
         try {
             writeLock();
             try {
@@ -2500,7 +2501,7 @@ public class Load {
                 writeUnlock();
             }
         } finally {
-            db.writeUnlock();
+            table.writeUnlock();
         }
     }
 
@@ -2559,7 +2560,8 @@ public class Load {
     public void replayFinishLoadJob(LoadJob job, Catalog catalog) {
         // TODO: need to call this.writeLock()?
         Database db = catalog.getDb(job.getDbId());
-        db.writeLock();
+        Table table = db.getTable(job.getTableId());
+        table.writeLock();
         try {
             writeLock();
             try {
@@ -2568,20 +2570,20 @@ public class Load {
                 writeUnlock();
             }
         } finally {
-            db.writeUnlock();
+            table.writeUnlock();
         }
     }
 
     public void replayClearRollupInfo(ReplicaPersistInfo info, Catalog catalog) {
         Database db = catalog.getDb(info.getDbId());
-        db.writeLock();
+        OlapTable olapTable = (OlapTable) db.getTable(info.getTableId());
+        olapTable.writeLock();
         try {
-            OlapTable olapTable = (OlapTable) db.getTable(info.getTableId());
             Partition partition = olapTable.getPartition(info.getPartitionId());
             MaterializedIndex index = partition.getIndex(info.getIndexId());
             index.clearRollupIndexInfo();
         } finally {
-            db.writeUnlock();
+            olapTable.writeUnlock();
         }
     }
 
@@ -2845,7 +2847,7 @@ public class Load {
                 writeUnlock();
             }
         } else {
-            db.writeLock();
+            table.writeLock();
             try {
                 writeLock();
                 try {
@@ -2936,7 +2938,7 @@ public class Load {
                     writeUnlock();
                 }
             } finally {
-                db.writeUnlock();
+                table.writeUnlock();
             }
         }
 
