@@ -368,7 +368,7 @@ public class GlobalTransactionMgr implements Writable {
                 dbTransactionMgr.unprotectUpsertTransactionState(transactionState, true);
             } catch (AnalysisException e) {
                 LOG.warn("failed to get db transaction manager for txn: {}", transactionState);
-                throw new IOException("Read transaction states failed", e);
+                // throw new IOException("Read transaction states failed", e);
             }
         }
         idGenerator.readFields(in);
