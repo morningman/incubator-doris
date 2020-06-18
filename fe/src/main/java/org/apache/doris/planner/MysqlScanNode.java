@@ -71,6 +71,7 @@ public class MysqlScanNode extends ScanNode {
         // Convert predicates to MySQL columns and filters.
         createMySQLColumns(analyzer);
         createMySQLFilters(analyzer);
+        computeStats(analyzer);
     }
 
     @Override
@@ -149,4 +150,13 @@ public class MysqlScanNode extends ScanNode {
         return 1;
     }
 
+    @Override
+    public void computeStats(Analyzer analyzer) {
+        super.computeStats(analyzer);
+        // even current node scan has no data,at least on backend will be assigned when the fragment actually execute
+        numNodes = numNodes <= 0 ? 1 : numNodes;
+        // when node scan has no data, cardinality should be 0 instead of a invalid value after computeStats()
+        cardinality = cardinality == -1 ? 0 : cardinality;
+    }
 }
+
