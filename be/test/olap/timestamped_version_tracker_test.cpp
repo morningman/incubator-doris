@@ -390,6 +390,79 @@ TEST_F(TestTimestampedVersionTracker, capture_expired_path_version) {
     ASSERT_EQ(4, path_version.size());
 }
 
+TEST_F(TestTimestampedVersionTracker, get_snapshot_version_path_json_doc) {
+
+    std::vector<RowsetMetaSharedPtr> rs_metas;
+    std::vector<RowsetMetaSharedPtr> expried_rs_metas;
+    std::vector<int64_t> path_version;
+
+    init_all_rs_meta(&rs_metas);
+    init_expried_row_rs_meta(&expried_rs_metas);
+
+    TimestampedVersionTracker tracker;
+    tracker.construct_versioned_tracker(rs_metas, expried_rs_metas);
+
+    rapidjson::Document path_arr;
+    path_arr.SetArray();
+
+    tracker.get_snapshot_version_path_json_doc(path_arr);
+
+    rapidjson::StringBuffer strbuf;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(strbuf);
+    path_arr.Accept(writer);
+    std::string json_result = std::string(strbuf.GetString());
+
+    std::string expect_result = R"([
+    {
+        "path id": "1",
+        "last create time": "1970-01-01 10:46:40",
+        "path list": "1 -> [2-3] -> [4-5]"
+    },
+    {
+        "path id": "2",
+        "last create time": "1970-01-01 10:46:40",
+        "path list": "2 -> [6-6] -> [7-8]"
+    },
+    {
+        "path id": "3",
+        "last create time": "1970-01-01 10:46:40",
+        "path list": "3 -> [6-8] -> [9-9]"
+    },
+    {
+        "path id": "4",
+        "last create time": "1970-01-01 10:46:40",
+        "path list": "4 -> [10-10]"
+    }
+])";
+
+    ASSERT_EQ(expect_result, json_result);
+}
+
+TEST_F(TestTimestampedVersionTracker, get_snapshot_version_path_json_doc_empty) {
+
+    std::vector<RowsetMetaSharedPtr> rs_metas;
+    std::vector<RowsetMetaSharedPtr> expried_rs_metas;
+    std::vector<int64_t> path_version;
+
+    init_all_rs_meta(&rs_metas);
+
+    TimestampedVersionTracker tracker;
+    tracker.construct_versioned_tracker(rs_metas, expried_rs_metas);
+
+    rapidjson::Document path_arr;
+    path_arr.SetArray();
+
+    tracker.get_snapshot_version_path_json_doc(path_arr);
+
+    rapidjson::StringBuffer strbuf;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(strbuf);
+    path_arr.Accept(writer);
+    std::string json_result = std::string(strbuf.GetString());
+
+    std::string expect_result = R"([])";
+
+    ASSERT_EQ(expect_result, json_result);
+}
 }
 
 // @brief Test Stub
