@@ -18,9 +18,14 @@
 #ifndef DORIS_BE_SRC_OLAP_VERSION_GRAPH_H
 #define DORIS_BE_SRC_OLAP_VERSION_GRAPH_H
 
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/document.h>
+
 #include "olap/olap_common.h"
 #include "olap/olap_define.h"
 #include "olap/rowset/rowset_meta.h"
+#include "util/time.h"
 
 namespace doris {
 /// VersionGraph class which is implemented to build and maintain total versions of rowsets. 
@@ -174,6 +179,10 @@ public:
     /// Print all expired version path in a tablet.
     std::string _get_current_path_map_str();
 
+    /// Get json document of _expired_snapshot_version_path_map. Fill the path_id and version_path 
+    /// list in the document. The parameter path arr is used as return variable.
+    void get_snapshot_version_path_json_doc(rapidjson::Document& path_arr);
+
 private:
     /// Construct rowsets version tracker with expired snapshot rowsets
     void _construct_versioned_tracker(
@@ -187,7 +196,7 @@ private:
     
     // path_version -> list of path version,
     // This variable is used to maintain the map from path version and it's all version. 
-    std::unordered_map<int64_t, PathVersionListSharedPtr> _expired_snapshot_version_path_map;
+    std::map<int64_t, PathVersionListSharedPtr> _expired_snapshot_version_path_map;
 
     VersionGraph _version_graph;
 };

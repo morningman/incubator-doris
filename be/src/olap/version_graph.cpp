@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <queue>
-
 #include "common/logging.h"
 
 namespace doris {
@@ -120,6 +119,56 @@ void TimestampedVersionTracker::_construct_versioned_tracker(
 
 }
 
+void TimestampedVersionTracker::get_snapshot_version_path_json_doc(rapidjson::Document& path_arr) {
+
+    auto path_arr_iter = _expired_snapshot_version_path_map.begin();
+
+    // do loop version path 
+    while (path_arr_iter != _expired_snapshot_version_path_map.end()) {
+
+        auto path_id = path_arr_iter->first;
+        auto path_version_path = path_arr_iter->second;
+
+        rapidjson::Document item;
+        item.SetObject();
+        // add path_id to item
+        auto path_id_str = std::to_string(path_id);
+        rapidjson::Value path_id_value;
+        path_id_value.SetString(path_id_str.c_str(), path_id_str.length(), path_arr.GetAllocator());
+        item.AddMember("path id", path_id_value, path_arr.GetAllocator());
+
+        // add max create time to item
+        std::string create_time_str = ToStringFromUnix(path_version_path->max_create_time());
+        rapidjson::Value create_time_value;
+        create_time_value.SetString(create_time_str.c_str(), create_time_str.length(), path_arr.GetAllocator());
+        item.AddMember("last create time", create_time_value, path_arr.GetAllocator());
+
+        // add path list to item
+        std::stringstream path_list_stream;
+        path_list_stream << path_id_str;
+        auto path_list_ptr = path_version_path->timestamped_versions();
+        auto path_list_iter = path_list_ptr.begin();
+        while (path_list_iter != path_list_ptr.end()) {
+            path_list_stream << " -> ";
+            path_list_stream << "[";
+            path_list_stream << (*path_list_iter)->version().first;
+            path_list_stream << "-";
+            path_list_stream << (*path_list_iter)->version().second;
+            path_list_stream << "]";
+            path_list_iter++;
+        }
+        std::string path_list = path_list_stream.str();
+        rapidjson::Value path_list_value;
+        path_list_value.SetString(path_list.c_str(), path_list.length(), path_arr.GetAllocator());
+        item.AddMember("path list", path_list_value, path_arr.GetAllocator());
+        
+        // add item to path_arr
+        path_arr.PushBack(item, path_arr.GetAllocator());
+
+        path_arr_iter++;
+    }
+}
+
 void TimestampedVersionTracker::construct_versioned_tracker(
         const std::vector<RowsetMetaSharedPtr>& rs_metas,
         const std::vector<RowsetMetaSharedPtr>& expired_snapshot_rs_metas) {
@@ -176,7 +225,7 @@ OLAPStatus TimestampedVersionTracker::capture_consistent_versions(
 
 void TimestampedVersionTracker::capture_expired_paths(
         int64_t expired_snapshot_sweep_endtime, std::vector<int64_t>* path_version_vec) const {
-    std::unordered_map<int64_t, PathVersionListSharedPtr>::const_iterator iter =
+    std::map<int64_t, PathVersionListSharedPtr>::const_iterator iter =
             _expired_snapshot_version_path_map.begin();
 
     while (iter != _expired_snapshot_version_path_map.end()) {
@@ -228,7 +277,7 @@ std::string TimestampedVersionTracker::_get_current_path_map_str() {
     std::stringstream tracker_info;
     tracker_info << "current expired next_path_id " << _next_path_id << std::endl;
 
-    std::unordered_map<int64_t, PathVersionListSharedPtr>::const_iterator iter =
+    std::map<int64_t, PathVersionListSharedPtr>::const_iterator iter =
             _expired_snapshot_version_path_map.begin();
     while (iter != _expired_snapshot_version_path_map.end()) {
         
@@ -311,7 +360,6 @@ void VersionGraph::construct_version_graph(const std::vector<RowsetMetaSharedPtr
         _version_graph[end_vertex_index].edges.push_front(start_vertex_index);
 
     }
-
 }
 
 void VersionGraph::reconstruct_version_graph(const std::vector<RowsetMetaSharedPtr>& rs_metas,

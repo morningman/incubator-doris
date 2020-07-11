@@ -986,6 +986,8 @@ void Tablet::pick_candicate_rowsets_to_base_compaction(vector<RowsetSharedPtr>* 
 void Tablet::get_compaction_status(std::string* json_result) {
     rapidjson::Document root;
     root.SetObject();
+    rapidjson::Document path_arr;
+    path_arr.SetArray();
 
     std::vector<RowsetSharedPtr> rowsets;
     std::vector<bool> delete_flags;
@@ -1001,6 +1003,8 @@ void Tablet::get_compaction_status(std::string* json_result) {
         for (auto& rs : rowsets) {
             delete_flags.push_back(version_for_delete_predicate(rs->version()));
         }
+
+        _timestamped_version_tracker.get_snapshot_version_path_json_doc(path_arr);
     }
 
     root.AddMember("cumulative point", _cumulative_point.load(), root.GetAllocator());
@@ -1034,6 +1038,9 @@ void Tablet::get_compaction_status(std::string* json_result) {
         versions_arr.PushBack(value, versions_arr.GetAllocator());
     }
     root.AddMember("rowsets", versions_arr, root.GetAllocator());
+
+    // add expired snapsort version rowsets 
+    root.AddMember("expired snapshot version path", path_arr, root.GetAllocator());
 
     // to json string
     rapidjson::StringBuffer strbuf;
