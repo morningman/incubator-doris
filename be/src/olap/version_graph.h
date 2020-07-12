@@ -184,7 +184,7 @@ public:
     void get_snapshot_version_path_json_doc(rapidjson::Document& path_arr);
 
 private:
-    /// Construct rowsets version tracker with expired snapshot rowsets
+    /// Construct rowsets version tracker with expired snapshot rowsets.
     void _construct_versioned_tracker(
             const std::vector<RowsetMetaSharedPtr>& rs_metas,
             const std::vector<RowsetMetaSharedPtr>& expired_snapshot_rs_metas);
