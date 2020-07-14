@@ -91,8 +91,9 @@ public class JvmService {
         
         sb.append("\nUpTime: ").append(jvmStats.getUptime().toString());
         sb.append("\nTimestamp: ").append(jvmStats.getTimestamp());
+        asbdoaisdnpawndawd
 
-        LOG.info(sb.toString());
+        LOG.info(sb.toString());asdsadsadasdsad
         
         // 2. jvm info
         JvmInfo jvmInfo = info();
@@ -102,10 +103,6 @@ public class JvmService {
         sb.append("\nconfigured init heap size: ").append(jvmInfo.getConfiguredInitialHeapSize());
         sb.append("\nconfigured max heap size: ").append(jvmInfo.getConfiguredMaxHeapSize());
         sb.append("\npid: ").append(jvmInfo.getPid());
-        sb.append("\nstart time: ").append(jvmInfo.getStartTime());
-        sb.append("\nversion: ").append(jvmInfo.getVersion());
-        sb.append("\nvm name").append(jvmInfo.getVmName());
-        sb.append("\nvm vendor: ").append(jvmInfo.getVmVendor());
         sb.append("\nvm version").append(jvmInfo.getVmVersion());
         
         sb.append("\ngcs: ").append(Joiner.on(", ").join(jvmInfo.getGcCollectors()));
