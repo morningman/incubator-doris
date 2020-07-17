@@ -82,6 +82,8 @@ using strings::Substitute;
 
 namespace doris {
 
+DEFINE_GAUGE_METRIC_2ARG(unused_rowsets_count, MetricUnit::ROWSETS);
+
 StorageEngine* StorageEngine::_s_instance = nullptr;
 
 static Status _validate_options(const EngineOptions& options) {
@@ -118,13 +120,14 @@ StorageEngine::StorageEngine(const EngineOptions& options)
     if (_s_instance == nullptr) {
         _s_instance = this;
     }
-    REGISTER_GAUGE_DORIS_METRIC(unused_rowsets_count, [this]() {
+    REGISTER_HOOK_METRIC(unused_rowsets_count, [this]() {
         MutexLock lock(&_gc_mutex);
         return _unused_rowsets.size();
     });
 }
 
 StorageEngine::~StorageEngine() {
+    DEREGISTER_HOOK_METRIC(unused_rowsets_count);
     _clear();
 }
 
@@ -306,6 +309,14 @@ OLAPStatus StorageEngine::get_all_data_dir_info(vector<DataDirInfo>* data_dir_in
     // 2. get total tablets' size of each data dir
     size_t tablet_count = 0;
     _tablet_manager->update_root_path_info(&path_map, &tablet_count);
+
+    // 3. update metrics in DataDir
+    for (auto& path : path_map) {
+        std::lock_guard<std::mutex> l(_store_lock);
+        auto data_dir = _store_map.find(path.first);
+        DCHECK(data_dir != _store_map.end());
+        data_dir->second->update_user_data_size(path.second.data_used_capacity);
+    }
 
     // add path info to data_dir_infos
     for (auto& entry : path_map) {

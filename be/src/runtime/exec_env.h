@@ -37,7 +37,6 @@ class FragmentMgr;
 class LoadPathMgr;
 class LoadStreamMgr;
 class MemTracker;
-class MetricRegistry;
 class StorageEngine;
 class PoolMemTrackerRegistry;
 class PriorityThreadPool;
@@ -90,7 +89,6 @@ public:
 
     const std::string& token() const;
     ExternalScanContextMgr* external_scan_context_mgr() {return _external_scan_context_mgr;}
-    MetricRegistry* metrics() const { return _metrics; }
     DataStreamMgr* stream_mgr() { return _stream_mgr; }
     ResultBufferMgr* result_mgr() { return _result_mgr; }
     ResultQueueMgr* result_queue_mgr() {return _result_queue_mgr;}
@@ -148,7 +146,6 @@ private:
     std::vector<StorePath> _store_paths;
     // Leave protected so that subclasses can override
     ExternalScanContextMgr* _external_scan_context_mgr = nullptr;
-    MetricRegistry* _metrics = nullptr;
     DataStreamMgr* _stream_mgr = nullptr;
     ResultBufferMgr* _result_mgr = nullptr;
     ResultQueueMgr* _result_queue_mgr = nullptr;

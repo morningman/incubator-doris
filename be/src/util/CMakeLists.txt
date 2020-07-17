@@ -98,6 +98,7 @@ set(UTIL_FILES
   timezone_utils.cpp
   easy_json.cc
   mustache/mustache.cc
+  brpc_stub_cache.cpp
 )
 
 if (WITH_MYSQL)
