@@ -18,8 +18,10 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <string>
+#include <thread>
 
 #include "util/coding.h"
+#include "util/stopwatch.hpp"
 #define private public
 #include "util/bitmap_value.h"
 
@@ -325,6 +327,72 @@ TEST(BitmapValueTest, bitmap_single_convert) {
     bitmap |= bitmap_u;
     ASSERT_EQ(BitmapValue::BITMAP, bitmap._type);
 }
+
+uint32_t rand(uint32_t min, uint32_t max) {
+    return (std::rand() % (max - min + 1)) + min;
+}
+
+void func(BitmapValue* bitmap, int idx, int group, int number) {
+    for(int i = 0; i < group; i++) {
+        BitmapValue* bm = bitmap + i;
+        for (int j = 0; j < number; j++) {
+            // bm->add((i + idx) * number + j + rand(0, 65536));
+            bm->add(rand(0, 600000000));
+        }
+    }
+}
+
+TEST(BitmapValueTest, bitmap_perf) {
+
+    int bitmap_num = 50;
+    int value_num_per_bitmap = 500000;
+    BitmapValue* values = new BitmapValue[bitmap_num];
+
+    MonotonicStopWatch w1;
+    w1.start();
+    /*
+    for (int i = 0; i < bitmap_num; i++) {
+        for (int j = 0; j < value_num_per_bitmap; j++) {
+            // values[i].add(i * value_num_per_bitmap + j);
+            values[i].add(rand(65536, UINT32_MAX));
+        }
+    }
+    */
+    int group = 10;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < bitmap_num; i += group) {
+        threads.push_back(std::thread(func, &values[i], i, group, value_num_per_bitmap));
+    }
+    for (int i = 0; i < bitmap_num / group; i++) {
+        threads[i].join();
+    }
+    std::cout << "generate bit map cost: " << w1.elapsed_time() << std::endl;
+
+    for (int i = 0; i < bitmap_num; i++) {
+        std::cout << "get size " << i << ": " << values[i].getSizeInBytes() << std::endl;
+    }
+    
+    std::cout << "begin" << std::endl;
+    MonotonicStopWatch w;
+    w.start();
+    BitmapValue res;
+    for (int i = 0; i < bitmap_num; i++) {
+        res |= values[i];
+    }
+    std::cout << bitmap_num << " * " << value_num_per_bitmap << " cost: " << w.elapsed_time()
+        << ", cardi: " << res.cardinality() << std::endl;
+
+    std::cout << "begin2" << std::endl;
+    w.reset();
+    BitmapValue res2;
+    for (int i = 0; i < bitmap_num; i++) {
+        res2 &= values[i];
+    }
+    std::cout << bitmap_num << " * " << value_num_per_bitmap << " cost: " << w.elapsed_time()
+        << ", cardi: " << res2.cardinality() << std::endl;
+    delete[] values;
+}
+
 } // namespace doris
 
 int main(int argc, char** argv) {
