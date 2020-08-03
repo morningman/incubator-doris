@@ -17,9 +17,13 @@
 
 package org.apache.doris.http.rest;
 
-public class MetaBaseAction {
-    private static String CONTENT_DISPOSITION = "Content-disposition";
+public enum RestApiStatusCode {
+    OK(0),
+    COMMON_ERROR(1);
 
-    public static final String CLUSTER_ID = "cluster_id";
-    public static final String TOKEN = "token";
+    public int code;
+
+    RestApiStatusCode(int code) {
+        this.code = code;
+    }
 }

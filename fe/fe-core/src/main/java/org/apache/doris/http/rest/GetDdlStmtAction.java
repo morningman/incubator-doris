@@ -20,9 +20,7 @@ package org.apache.doris.http.rest;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.Table;
-import org.apache.doris.common.DdlException;
-import org.apache.doris.http.entity.HttpStatus;
-import org.apache.doris.http.entity.ResponseEntity;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 
@@ -51,30 +49,23 @@ import javax.servlet.http.HttpServletResponse;
 public class GetDdlStmtAction extends RestBaseController {
 
     private static final Logger LOG = LogManager.getLogger(GetDdlStmtAction.class);
-    private static final String DB_PARAM = "db";
-    private static final String TABLE_PARAM = "tbl";
 
-    @RequestMapping(path = "/api/_get_ddl",method = RequestMethod.GET)
-    public Object execute(HttpServletRequest request, HttpServletResponse response)
-            throws DdlException {
-        executeCheckPassword(request,response);
+    @RequestMapping(path = "/api/_get_ddl", method = RequestMethod.GET)
+    public Object execute(HttpServletRequest request, HttpServletResponse response) {
+        executeCheckPassword(request, response);
         checkGlobalAuth(ConnectContext.get().getCurrentUserIdentity(), PrivPredicate.ADMIN);
-        ResponseEntity entity = ResponseEntity.status(HttpStatus.OK).build("Success");
 
-        String dbName = request.getParameter(DB_PARAM);
-        String tableName = request.getParameter(TABLE_PARAM);
+        String dbName = request.getParameter(DB_KEY);
+        String tableName = request.getParameter(TABLE_KEY);
 
         if (Strings.isNullOrEmpty(dbName) || Strings.isNullOrEmpty(tableName)) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("Missing params. Need database name and Table name");
-            return  entity;
+            return ResponseEntityBuilder.badRequest("Missing params. Need database name and Table name");
         }
 
-        Database db = Catalog.getCurrentCatalog().getDb(dbName);
+        String fullDbName = getFullDbName(dbName);
+        Database db = Catalog.getCurrentCatalog().getDb(fullDbName);
         if (db == null) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("Database[" + dbName + "] does not exist");
-            return  entity;
+            return ResponseEntityBuilder.okWithCommonError("Database[" + dbName + "] does not exist");
         }
 
         List<String> createTableStmt = Lists.newArrayList();
@@ -85,21 +76,19 @@ public class GetDdlStmtAction extends RestBaseController {
         try {
             Table table = db.getTable(tableName);
             if (table == null) {
-                throw new DdlException("Table[" + tableName + "] does not exist");
+                return ResponseEntityBuilder.okWithCommonError("Table[" + tableName + "] does not exist");
             }
 
             Catalog.getDdlStmt(table, createTableStmt, addPartitionStmt, createRollupStmt, true, false /* show password */);
-
         } finally {
             db.readUnlock();
         }
 
         Map<String, List<String>> results = Maps.newHashMap();
-        results.put("TABLE", createTableStmt);
-        results.put("PARTITION", addPartitionStmt);
-        results.put("ROLLUP", createRollupStmt);
+        results.put("create_table", createTableStmt);
+        results.put("create_partition", addPartitionStmt);
+        results.put("create_rollup", createRollupStmt);
 
-        entity.setData(results);
-        return entity;
+        return ResponseEntityBuilder.ok(results);
     }
 }

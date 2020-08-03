@@ -20,8 +20,7 @@ package org.apache.doris.http.rest;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.MetaNotFoundException;
-import org.apache.doris.http.entity.HttpStatus;
-import org.apache.doris.http.entity.ResponseEntity;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.load.Load;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
@@ -42,39 +41,28 @@ public class GetLoadInfoAction extends RestBaseController {
 
     protected Catalog catalog;
 
-    @RequestMapping(path = "/api/{" + DB_KEY + "}/_load_info",method = RequestMethod.GET)
-    public Object execute(HttpServletRequest request, HttpServletResponse response)
-            throws DdlException {
-        executeCheckPassword(request,response);
+    @RequestMapping(path = "/api/{" + DB_KEY + "}/_load_info", method = RequestMethod.GET)
+    public Object execute(HttpServletRequest request, HttpServletResponse response) {
+        executeCheckPassword(request, response);
+
         this.catalog = Catalog.getCurrentCatalog();
-        ResponseEntity entity = ResponseEntity.status(HttpStatus.OK).build("Success");
 
         Load.JobInfo info = new Load.JobInfo(request.getParameter(DB_KEY),
                 request.getParameter(LABEL_KEY),
                 ConnectContext.get().getClusterName());
         if (Strings.isNullOrEmpty(info.dbName)) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("No database selected");
-            return entity;
+            return ResponseEntityBuilder.badRequest("No database selected");
         }
         if (Strings.isNullOrEmpty(info.label)) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("No label selected");
-            return entity;
+            return ResponseEntityBuilder.badRequest("No label selected");
         }
         if (Strings.isNullOrEmpty(info.clusterName)) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("No cluster selected");
-            return entity;
+            return ResponseEntityBuilder.badRequest("No cluster selected");
         }
 
-        try {
-            RedirectView redirectView = redirectToMaster(request, response);
-            if (redirectView != null) {
-                return redirectView;
-            }
-        } catch (Exception e){
-            e.printStackTrace();
+        RedirectView redirectView = redirectToMaster(request, response);
+        if (redirectView != null) {
+            return redirectView;
         }
 
         try {
@@ -88,16 +76,12 @@ public class GetLoadInfoAction extends RestBaseController {
                 }
             }
         } catch (DdlException | MetaNotFoundException e) {
-            catalog.getLoadManager().getLoadJobInfo(info);
+            try {
+                catalog.getLoadManager().getLoadJobInfo(info);
+            } catch (DdlException e1) {
+                return ResponseEntityBuilder.okWithCommonError(e1.getMessage());
+            }
         }
-        entity = ResponseEntity.status(HttpStatus.OK).build(new Result(info));
-        return entity;
-    }
-
-    private static class Result extends RestBaseResult {
-        private Load.JobInfo jobInfo;
-        public Result(Load.JobInfo info) {
-            jobInfo = info;
-        }
+        return ResponseEntityBuilder.ok(info);
     }
 }

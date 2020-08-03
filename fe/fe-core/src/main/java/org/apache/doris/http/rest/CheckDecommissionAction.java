@@ -21,10 +21,10 @@ import org.apache.doris.alter.SystemHandler;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.Pair;
-import org.apache.doris.http.entity.HttpStatus;
-import org.apache.doris.http.entity.ResponseEntity;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
+import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
 
 import com.google.common.base.Strings;
@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -51,25 +52,20 @@ public class CheckDecommissionAction extends RestBaseController {
 
     public static final String HOST_PORTS = "host_ports";
 
-    @RequestMapping(path = "/api/check_decommission",method = RequestMethod.GET)
-    public Object execute(HttpServletRequest request, HttpServletResponse response)
-            throws DdlException {
-        ResponseEntity entity = ResponseEntity.status(HttpStatus.OK).build("Success");
+    @RequestMapping(path = "/api/check_decommission", method = RequestMethod.GET)
+    public Object execute(HttpServletRequest request, HttpServletResponse response) {
         //check user auth
-        executeCheckPassword(request,response);
+        executeCheckPassword(request, response);
         checkGlobalAuth(ConnectContext.get().getCurrentUserIdentity(), PrivPredicate.OPERATOR);
+
         String hostPorts = request.getParameter(HOST_PORTS);
         if (Strings.isNullOrEmpty(hostPorts)) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("No host:port specified");
-            return  entity;
+            return ResponseEntityBuilder.badRequest("No host:port specified");
         }
 
         String[] hostPortArr = hostPorts.split(",");
         if (hostPortArr.length == 0) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("No host:port specified");
-            return  entity;
+            return ResponseEntityBuilder.badRequest("No host:port specified");
         }
 
         List<Pair<String, Integer>> hostPortPairs = Lists.newArrayList();
@@ -78,12 +74,17 @@ public class CheckDecommissionAction extends RestBaseController {
             try {
                 pair = SystemInfoService.validateHostAndPort(hostPort);
             } catch (AnalysisException e) {
-                throw new DdlException(e.getMessage());
+                return ResponseEntityBuilder.badRequest(e.getMessage());
             }
             hostPortPairs.add(pair);
         }
 
-        SystemHandler.checkDecommission(hostPortPairs);
-        return entity;
+        try {
+            List<Backend> backends = SystemHandler.checkDecommission(hostPortPairs);
+            List<String> backendsList = backends.stream().map(b -> b.getHost() + ":" + b.getHeartbeatPort()).collect(Collectors.toList());
+            return ResponseEntityBuilder.ok(backendsList);
+        } catch (DdlException e) {
+            return ResponseEntityBuilder.okWithCommonError(e.getMessage());
+        }
     }
 }

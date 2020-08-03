@@ -17,20 +17,20 @@
 
 package org.apache.doris.http.rest;
 
-import org.apache.doris.common.DdlException;
-import org.apache.doris.http.entity.HttpStatus;
-import org.apache.doris.http.entity.ResponseEntity;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.QueryDetail;
 import org.apache.doris.qe.QueryDetailQueue;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -41,21 +41,18 @@ import javax.servlet.http.HttpServletResponse;
 // This class is used to get current query_id of connection_id.
 // Every connection holds at most one query at every point.
 // Some we can get query_id firstly, and get query by query_id.
-
+@RestController
 public class QueryDetailAction extends RestBaseController {
     private static final Logger LOG = LogManager.getLogger(QueryDetailAction.class);
 
     @RequestMapping(path = "/api/query_detail", method = RequestMethod.GET)
-    protected Object query_detail(HttpServletRequest request, HttpServletResponse response) throws DdlException {
+    protected Object query_detail(HttpServletRequest request, HttpServletResponse response) {
         executeCheckPassword(request, response);
-        ResponseEntity entity = ResponseEntity.status(HttpStatus.OK).build("Success");
         checkGlobalAuth(ConnectContext.get().getCurrentUserIdentity(), PrivPredicate.ADMIN);
 
         String eventTimeStr = request.getParameter("event_time");
-        if (eventTimeStr == null) {
-            entity.setCode(HttpStatus.BAD_REQUEST.value());
-            entity.setMsg("not valid parameter");
-            return entity;
+        if (Strings.isNullOrEmpty(eventTimeStr)) {
+            return ResponseEntityBuilder.badRequest("Missing event_time");
         }
 
         long eventTime = Long.valueOf(eventTimeStr.trim());
@@ -63,8 +60,7 @@ public class QueryDetailAction extends RestBaseController {
 
         Map<String, List<QueryDetail>> result = Maps.newHashMap();
         result.put("query_details", queryDetails);
-        entity.setData(result);
-        return entity;
+        return ResponseEntityBuilder.ok(result);
     }
 }
 

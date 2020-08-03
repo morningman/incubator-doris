@@ -17,20 +17,20 @@
 
 package org.apache.doris.http.rest;
 
-import org.apache.doris.common.DdlException;
 import org.apache.doris.common.util.DebugUtil;
-import org.apache.doris.http.entity.HttpStatus;
-import org.apache.doris.http.entity.ResponseEntity;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.service.ExecuteEnv;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -40,34 +40,35 @@ import javax.servlet.http.HttpServletResponse;
 // This class is used to get current query_id of connection_id.
 // Every connection holds at most one query at every point.
 // Some we can get query_id firstly, and get query by query_id.
+@RestController
 public class ConnectionAction extends RestBaseController {
     private static final Logger LOG = LogManager.getLogger(ConnectionAction.class);
 
-    @RequestMapping(path = "/api/connection",method = RequestMethod.GET)
-    protected Object connection(HttpServletRequest request, HttpServletResponse response) throws DdlException {
+    @RequestMapping(path = "/api/connection", method = RequestMethod.GET)
+    protected Object connection(HttpServletRequest request, HttpServletResponse response) {
         executeCheckPassword(request, response);
-        ResponseEntity entity = ResponseEntity.status(HttpStatus.OK).build("Success");
         checkGlobalAuth(ConnectContext.get().getCurrentUserIdentity(), PrivPredicate.ADMIN);
 
         String connStr = request.getParameter("connection_id");
-        if (connStr == null) {
-            entity.setCode(HttpStatus.BAD_REQUEST.value());
-            entity.setMsg("not valid parameter");
-            return entity;
+        if (Strings.isNullOrEmpty(connStr)) {
+            return ResponseEntityBuilder.badRequest("Missing connection_id");
         }
 
-        long connectionId = Long.valueOf(connStr.trim());
+        long connectionId = -1;
+        try {
+            connectionId = Long.valueOf(connStr.trim());
+        } catch (NumberFormatException e) {
+            return ResponseEntityBuilder.badRequest("Invalid connection id: " + e.getMessage());
+        }
+
         ConnectContext context = ExecuteEnv.getInstance().getScheduler().getContext(connectionId);
         if (context == null || context.queryId() == null) {
-            entity.setCode(HttpStatus.NOT_FOUND.value());
-            entity.setMsg("connection id " + connectionId + " not found.");
-            return entity;
+            return ResponseEntityBuilder.okWithCommonError("connection id " + connectionId + " not found.");
         }
         String queryId = DebugUtil.printId(context.queryId());
 
         Map<String, String> result = Maps.newHashMap();
         result.put("query_id", queryId);
-        entity.setData(result);
-        return entity;
+        return ResponseEntityBuilder.ok(result);
     }
 }

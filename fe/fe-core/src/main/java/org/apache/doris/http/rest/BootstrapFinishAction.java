@@ -19,19 +19,23 @@ package org.apache.doris.http.rest;
 
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.Config;
-import org.apache.doris.common.DdlException;
-import org.apache.doris.http.entity.HttpStatus;
-import org.apache.doris.http.entity.ResponseEntity;
+import org.apache.doris.http.entity.ResponseBody;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * Api for checking the whether the FE has been started successfully.
+ */
+@RestController
 public class BootstrapFinishAction {
 
     private static final String CLUSTER_ID = "cluster_id";
@@ -41,15 +45,15 @@ public class BootstrapFinishAction {
     public static final String QUERY_PORT = "queryPort";
     public static final String RPC_PORT = "rpcPort";
 
-
-    @RequestMapping(path = "/api/bootstrap",method = RequestMethod.GET)
-    public Object execute(HttpServletRequest request, HttpServletResponse response) throws DdlException {
+    @RequestMapping(path = "/api/bootstrap", method = RequestMethod.GET)
+    public ResponseEntity execute(HttpServletRequest request, HttpServletResponse response) {
         boolean isReady = Catalog.getCurrentCatalog().isReady();
 
+        ResponseBody body = new ResponseBody();
+
         // to json response
-        BootstrapResult result = null;
+        BootstrapResult result = new BootstrapResult();
         if (isReady) {
-            result = new BootstrapResult();
             String clusterIdStr = request.getParameter(CLUSTER_ID);
             String token = request.getParameter(TOKEN);
             if (!Strings.isNullOrEmpty(clusterIdStr) && !Strings.isNullOrEmpty(token)) {
@@ -58,51 +62,39 @@ public class BootstrapFinishAction {
                 try {
                     clusterId = Integer.valueOf(clusterIdStr);
                 } catch (NumberFormatException e) {
-                    result.status = ActionStatus.FAILED;
-                    result.msg = "invalid cluster id format: " + clusterIdStr;
+                    return ResponseEntityBuilder.badRequest("invalid cluster id format: " + clusterIdStr);
                 }
 
-                if (result.status == ActionStatus.OK) {
-                    if (clusterId != Catalog.getCurrentCatalog().getClusterId()) {
-                        result.status = ActionStatus.FAILED;
-                        result.msg = "invalid cluster id: " + Catalog.getCurrentCatalog().getClusterId();
-                    }
+
+                if (clusterId != Catalog.getCurrentCatalog().getClusterId()) {
+                    return ResponseEntityBuilder.okWithCommonError("invalid cluster id: " + clusterId);
                 }
 
-                if (result.status == ActionStatus.OK) {
-                    if (!token.equals(Catalog.getCurrentCatalog().getToken())) {
-                        result.status = ActionStatus.FAILED;
-                        result.msg = "invalid token: " + Catalog.getCurrentCatalog().getToken();
-                    }
+
+                if (!token.equals(Catalog.getCurrentCatalog().getToken())) {
+                    return ResponseEntityBuilder.okWithCommonError("invalid token: " + token);
                 }
 
-                if (result.status == ActionStatus.OK) {
-                    // cluster id and token are valid, return replayed journal id
-                    long replayedJournalId = Catalog.getCurrentCatalog().getReplayedJournalId();
-                    result.setMaxReplayedJournal(replayedJournalId);
-                    result.setQueryPort(Config.query_port);
-                    result.setRpcPort(Config.rpc_port);
-                }
+                // cluster id and token are valid, return replayed journal id
+                long replayedJournalId = Catalog.getCurrentCatalog().getReplayedJournalId();
+                result.setMaxReplayedJournal(replayedJournalId);
+                result.setQueryPort(Config.query_port);
+                result.setRpcPort(Config.rpc_port);
             }
-        } else {
-            result = new BootstrapResult("not ready");
+
+            return ResponseEntityBuilder.ok(result);
         }
 
-        ResponseEntity entity = ResponseEntity.status(HttpStatus.OK).build(result);
-        return entity;
+        return ResponseEntityBuilder.ok("not ready");
     }
 
-    public static class BootstrapResult extends RestBaseResult {
+    private static class BootstrapResult {
         private long replayedJournalId = 0;
         private int queryPort = 0;
         private int rpcPort = 0;
 
         public BootstrapResult() {
-            super();
-        }
 
-        public BootstrapResult(String msg) {
-            super(msg);
         }
 
         public void setMaxReplayedJournal(long replayedJournalId) {
@@ -127,11 +119,6 @@ public class BootstrapFinishAction {
 
         public int getRpcPort() {
             return rpcPort;
-        }
-        @Override
-        public String toJson() {
-            Gson gson = new Gson();
-            return gson.toJson(this);
         }
     }
 }

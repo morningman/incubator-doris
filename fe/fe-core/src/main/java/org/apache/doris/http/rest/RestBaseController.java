@@ -17,16 +17,21 @@
 
 package org.apache.doris.http.rest;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.base64.Base64;
+import io.netty.util.CharsetUtil;
+
 import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.cluster.ClusterNamespace;
-import org.apache.doris.common.DdlException;
 import org.apache.doris.http.controller.BaseController;
 import org.apache.doris.http.exception.UnauthorizedException;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.thrift.TNetworkAddress;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import org.apache.logging.log4j.LogManager;
@@ -44,11 +49,6 @@ import java.nio.ByteBuffer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.base64.Base64;
-import io.netty.util.CharsetUtil;
-
 public class RestBaseController extends BaseController {
 
     protected static final String DB_KEY = "db";
@@ -57,7 +57,7 @@ public class RestBaseController extends BaseController {
     private static final Logger LOG = LogManager.getLogger(RestBaseController.class);
 
     public void executeCheckPassword(HttpServletRequest request,
-                                     HttpServletResponse response) throws DdlException {
+                                     HttpServletResponse response) throws UnauthorizedException {
         ActionAuthorizationInfo authInfo = getAuthorizationInfo(request);
         // check password
         UserIdentity currentUser = checkPassword(authInfo);
@@ -130,9 +130,7 @@ public class RestBaseController extends BaseController {
         return true;
     }
 
-
-    public RedirectView redirectTo(HttpServletRequest request, TNetworkAddress addr)
-            throws DdlException {
+    public RedirectView redirectTo(HttpServletRequest request, TNetworkAddress addr) {
         URI urlObj = null;
         URI resultUriObj = null;
         String urlStr = request.getRequestURI();
@@ -141,17 +139,20 @@ public class RestBaseController extends BaseController {
             resultUriObj = new URI("http", null, addr.getHostname(),
                     addr.getPort(), urlObj.getPath(), "", null);
         } catch (Exception e) {
-            LOG.warn(e.getMessage());
-            throw new DdlException(e.getMessage());
+            throw new RuntimeException(e);
         }
-        RedirectView redirectView = new RedirectView(resultUriObj.toASCIIString()  + request.getQueryString());
+        String redirectUrl = resultUriObj.toASCIIString();
+        if (!Strings.isNullOrEmpty(request.getQueryString())) {
+            redirectUrl += request.getQueryString();
+        }
+        LOG.info("redirect url: {}", redirectUrl);
+        RedirectView redirectView = new RedirectView(redirectUrl);
         redirectView.setContentType("text/html;charset=utf-8");
         redirectView.setStatusCode(org.springframework.http.HttpStatus.TEMPORARY_REDIRECT);
         return redirectView;
     }
 
-    public RedirectView redirectToMaster(HttpServletRequest request,
-                                         HttpServletResponse response) throws DdlException {
+    public RedirectView redirectToMaster(HttpServletRequest request, HttpServletResponse response) {
         Catalog catalog = Catalog.getCurrentCatalog();
         if (catalog.isMaster()) {
             return null;
@@ -160,11 +161,12 @@ public class RestBaseController extends BaseController {
         return redirectView;
     }
 
-    public boolean getFile(HttpServletRequest request, HttpServletResponse response, Object obj,String fileName) {
-        response.setHeader("Content-type","application/octet-stream");
-        response.addHeader("Content-Disposition", "attachment;fileName=" + fileName);// 设置文件名
-        if(obj instanceof  File){
-            File file = (File)obj;
+    public void getFile(HttpServletRequest request, HttpServletResponse response, Object obj, String fileName)
+            throws IOException {
+        response.setHeader("Content-type", "application/octet-stream");
+        response.addHeader("Content-Disposition", "attachment;fileName=" + fileName); // set file name
+        if (obj instanceof File) {
+            File file = (File) obj;
             byte[] buffer = new byte[1024];
             FileInputStream fis = null;
             BufferedInputStream bis = null;
@@ -177,9 +179,7 @@ public class RestBaseController extends BaseController {
                     os.write(buffer, 0, i);
                     i = bis.read(buffer);
                 }
-                return true;
-            } catch (Exception e) {
-                e.printStackTrace();
+                return;
             } finally {
                 if (bis != null) {
                     try {
@@ -196,27 +196,26 @@ public class RestBaseController extends BaseController {
                     }
                 }
             }
-        } else if(obj instanceof byte[]){
-            try {
-                OutputStream os = response.getOutputStream();
-                os.write((byte[]) obj);
-                return true;
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-        }
-
-        return false;
-    }
-    public boolean writeFileResponse(HttpServletRequest request, HttpServletResponse response,File imageFile){
-        if (imageFile == null || !imageFile.exists()) {
-            return false;
-        } else {
-            response.setHeader("Content-type","application/octet-stream");
-            response.addHeader("Content-Disposition", "attachment;fileName=" + imageFile.getName());// 设置文件名
-            response.setHeader("X-Image-Size",imageFile.length() +"");
-            return getFile(request,response,imageFile,imageFile.getName());
+        } else if (obj instanceof byte[]) {
+            OutputStream os = response.getOutputStream();
+            os.write((byte[]) obj);
         }
     }
 
+    public void writeFileResponse(HttpServletRequest request, HttpServletResponse response, File imageFile) throws IOException {
+        Preconditions.checkArgument(imageFile != null && imageFile.exists());
+        response.setHeader("Content-type", "application/octet-stream");
+        response.addHeader("Content-Disposition", "attachment;fileName=" + imageFile.getName());
+        response.setHeader("X-Image-Size", imageFile.length() + "");
+        getFile(request, response, imageFile, imageFile.getName());
+    }
+
+    public String getFullDbName(String dbName) {
+        String fullDbName = dbName;
+        String clusterName = ClusterNamespace.getClusterNameFromFullName(fullDbName);
+        if (clusterName == null) {
+            fullDbName = ClusterNamespace.getFullName(SystemInfoService.DEFAULT_CLUSTER, dbName);
+        }
+        return fullDbName;
+    }
 }
