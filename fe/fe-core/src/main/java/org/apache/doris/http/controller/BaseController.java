@@ -63,6 +63,11 @@ public class BaseController {
             return;
         }
 
+        checkAuth(request, response);
+        return;
+    }
+
+    public void checkAuth(HttpServletRequest request, HttpServletResponse response) {
         // cookie is invalid. check auth info in request
         ActionAuthorizationInfo authInfo = getAuthorizationInfo(request);
         UserIdentity currentUser = checkPassword(authInfo);

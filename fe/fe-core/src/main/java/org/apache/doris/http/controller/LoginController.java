@@ -33,7 +33,7 @@ public class LoginController extends BaseController {
 
     @RequestMapping(path = "/login", method = RequestMethod.POST)
     public Object login(HttpServletRequest request, HttpServletResponse response) {
-        checkAuthWithCookie(request, response);
+        checkAuth(request, response);
         Map<String, Object> msg = new HashMap<>();
         msg.put("code", 200);
         msg.put("msg", "Login success!");
