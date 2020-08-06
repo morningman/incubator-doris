@@ -18,12 +18,15 @@
 package org.apache.doris.analysis;
 
 import org.apache.doris.catalog.AggregateType;
-import org.apache.doris.catalog.Type;
 import org.apache.doris.catalog.Column;
 import org.apache.doris.catalog.OlapTable;
+import org.apache.doris.catalog.Type;
 import org.apache.doris.common.DdlException;
 
 import com.google.common.base.Preconditions;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * This is a result of semantic analysis for AddMaterializedViewClause.
@@ -32,6 +35,8 @@ import com.google.common.base.Preconditions;
  * It just a intermediate variable between semantic analysis and final handler.
  */
 public class MVColumnItem {
+    private static final Logger LOG = LogManager.getLogger(MVColumnItem.class);
+
     private String name;
     // the origin type of slot ref
     private Type type;
@@ -105,7 +110,8 @@ public class MVColumnItem {
         } else {
             Column result = new Column(baseColumn);
             result.setIsKey(isKey);
-            // result.setType(type);
+            LOG.info("cmy set type {} for column: {}", type, baseColumn.toString());
+            result.setType(type);
             result.setAggregationType(aggregationType, isAggregationTypeImplicit);
             return result;
         }
