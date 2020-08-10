@@ -44,7 +44,7 @@ message ColumnMessage {
 
 enum CompressKind {
     COMPRESS_NONE = 0;
-    COMPRESS_LZO = 1;
+    COMPRESS_LZO = 1; // LZO is deprecated, use COMPRESS_LZ4 instead
     COMPRESS_LZ4 = 2;
 }
 

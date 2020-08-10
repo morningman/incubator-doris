@@ -203,7 +203,7 @@ message OLAPHeaderMessage {
     optional SchemaChangeStatusMessage schema_change_status = 8;    // TabletMetaPB.alter_task
     optional DataFileType data_file_type = 9 [default = OLAP_DATA_FILE];    // ? only column oriented
     optional uint32 next_column_unique_id = 10 [default = 0];   // TabletSchemaPB.next_column_unique_id
-    optional CompressKind compress_kind = 11 [default = COMPRESS_LZO];  // TabletSchemaPB.compress_kind
+    optional CompressKind compress_kind = 11 [default = COMPRESS_LZ4];  // TabletSchemaPB.compress_kind
     optional uint32 segment_size = 12 [default = 4292870144];   // ? not used
     repeated DeletePredicatePB delete_data_conditions = 13; // not serialized any more, just read from PDelta
     // bloom filter false positive probability

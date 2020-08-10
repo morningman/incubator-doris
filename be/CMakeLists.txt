@@ -60,7 +60,8 @@ else()
     option(MAKE_TEST "ON for make unit test or OFF for not" OFF)
 endif()
 message(STATUS "make test: ${MAKE_TEST}")
-option(WITH_MYSQL "Support access MySQL" ON)
+option(WITH_MYSQL "Support access MySQL" OFF)
+option(WITH_LZO "Support lzo compress" OFF)
 
 # Check gcc
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

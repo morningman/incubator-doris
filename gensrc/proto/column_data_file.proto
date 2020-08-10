@@ -56,7 +56,7 @@ message ColumnDataHeaderMessage {
     // 每一列的统计信息
     required uint64 index_length = 7;
     required uint64 data_length = 8;
-    required CompressKind compress_kind = 9 [default = COMPRESS_LZO];
+    required CompressKind compress_kind = 9 [default = COMPRESS_LZ4];
     repeated StreamInfoMessage stream_info = 10;
     repeated ColumnEncodingMessage column_encoding = 11;
     required uint32 stream_buffer_size = 12;
