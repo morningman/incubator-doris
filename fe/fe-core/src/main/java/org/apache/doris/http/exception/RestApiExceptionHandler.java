@@ -17,7 +17,7 @@
 
 package org.apache.doris.http.exception;
 
-import org.apache.doris.common.DdlException;
+import org.apache.doris.common.UserException;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
 
 import org.apache.logging.log4j.LogManager;
@@ -41,11 +41,18 @@ public class RestApiExceptionHandler {
         return ResponseEntityBuilder.unauthorized(e.getMessage());
     }
 
-    @ExceptionHandler(DdlException.class)
+    @ExceptionHandler(UserException.class)
     @ResponseBody
-    public Object ddlExceptionHandler(DdlException e) {
-        LOG.debug("ddl exception", e);
+    public Object userExceptionHandler(UserException e) {
+        LOG.debug("user exception", e);
         return ResponseEntityBuilder.ok(e.getMessage());
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    @ResponseBody
+    public Object badRequestExceptionHandler(BadRequestException e) {
+        LOG.debug("bad request exception", e);
+        return ResponseEntityBuilder.badRequest(e.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

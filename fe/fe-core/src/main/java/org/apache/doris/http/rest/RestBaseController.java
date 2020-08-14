@@ -26,13 +26,15 @@ import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.thrift.TNetworkAddress;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.servlet.view.RedirectView;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,18 +42,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 public class RestBaseController extends BaseController {
 
+    protected static final String NS_KEY = "ns";
     protected static final String DB_KEY = "db";
     protected static final String TABLE_KEY = "table";
     protected static final String LABEL_KEY = "label";
     private static final Logger LOG = LogManager.getLogger(RestBaseController.class);
 
-    public void executeCheckPassword(HttpServletRequest request,
-                                     HttpServletResponse response) throws UnauthorizedException {
+    public ActionAuthorizationInfo executeCheckPassword(HttpServletRequest request,
+                                                        HttpServletResponse response) throws UnauthorizedException {
         ActionAuthorizationInfo authInfo = getAuthorizationInfo(request);
         // check password
         UserIdentity currentUser = checkPassword(authInfo);
@@ -62,6 +62,7 @@ public class RestBaseController extends BaseController {
         ctx.setCurrentUserIdentity(currentUser);
         ctx.setCluster(authInfo.cluster);
         ctx.setThreadLocalInfo();
+        return authInfo;
     }
 
 
