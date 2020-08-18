@@ -24,6 +24,10 @@ import org.apache.doris.qe.submitter.QueryResultSet;
 import org.apache.doris.qe.submitter.SQLSubmitter;
 import org.apache.doris.system.SystemInfoService;
 
+import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,19 +36,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.google.common.base.Strings;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 /**
- * And meta info like databases, tables and schema
+ * For query via http
  */
 @RestController
 public class QueryAction extends RestBaseController {
@@ -52,6 +53,10 @@ public class QueryAction extends RestBaseController {
     private static SQLSubmitter sqlSubmitter = new SQLSubmitter();
 
     private static final String PARAM_SYNC = "sync";
+    private static final String PARAM_LIMIT = "limit";
+
+    private static final long DEFAULT_ROW_LIMIT = 1000;
+    private static final long MAX_ROW_LIMIT = 10000;
 
     /**
      * Execute a SQL.
@@ -69,7 +74,7 @@ public class QueryAction extends RestBaseController {
             @PathVariable(value = DB_KEY) String dbName,
             HttpServletRequest request, HttpServletResponse response,
             @RequestBody String sqlBody) throws DdlException {
-        ActionAuthorizationInfo authInfo = executeCheckPassword(request, response);
+        ActionAuthorizationInfo authInfo = checkWithCookie(request, response, false);
 
         if (!ns.equalsIgnoreCase(SystemInfoService.DEFAULT_CLUSTER)) {
             return ResponseEntityBuilder.badRequest("Only support 'default_cluster' now");
@@ -79,6 +84,12 @@ public class QueryAction extends RestBaseController {
         String syncParam = request.getParameter(PARAM_SYNC);
         if (!Strings.isNullOrEmpty(syncParam)) {
             isSync = syncParam.equals("1");
+        }
+
+        String limitParam = request.getParameter(PARAM_LIMIT);
+        long limit = DEFAULT_ROW_LIMIT;
+        if (!Strings.isNullOrEmpty(limitParam)) {
+            limit = Math.min(Long.valueOf(limitParam), MAX_ROW_LIMIT);
         }
 
         Type type = new TypeToken<QueryRequestBody>() {
@@ -92,7 +103,10 @@ public class QueryAction extends RestBaseController {
         // 1. Set session variable
         setSessionVariables(queryRequestBody.variables);
         // 2. Submit SQL
-        Future<QueryResultSet> future = sqlSubmitter.submit(queryRequestBody.sql, authInfo.fullUserName, authInfo.password);
+        SQLSubmitter.SQLQueryContext queryCtx = new SQLSubmitter.SQLQueryContext(
+                queryRequestBody.sql, authInfo.fullUserName, authInfo.password, limit
+        );
+        Future<QueryResultSet> future = sqlSubmitter.submit(queryCtx);
 
         if (isSync) {
             try {

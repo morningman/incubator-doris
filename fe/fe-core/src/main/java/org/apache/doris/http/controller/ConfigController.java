@@ -17,58 +17,48 @@
 
 package org.apache.doris.http.controller;
 
-import org.apache.doris.analysis.SetType;
 import org.apache.doris.common.Config;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
-import org.apache.doris.qe.VariableMgr;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/rest/v1")
-public class VariableController {
+public class ConfigController {
 
-    @RequestMapping(path = "/variable", method = RequestMethod.GET)
+    private static final List<String> CONFIG_TABLE_HEADER = Lists.newArrayList("Name", "Value");
+
+    @RequestMapping(path = "/config", method = RequestMethod.GET)
     public Object variable() {
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = Maps.newHashMap();
         appendConfigureInfo(result);
-        appendVariableInfo(result);
         return ResponseEntityBuilder.ok(result);
     }
 
     private void appendConfigureInfo(Map<String, Object> result) {
-        HashMap<String, String> confmap;
-        List<Map<String, String>> confList = new ArrayList<>();
+
+        result.put("column_names", CONFIG_TABLE_HEADER);
+        List<Map<String, String>> list = Lists.newArrayList();
+        result.put("rows", list);
         try {
-            confmap = Config.dump();
+            Map<String, String> confmap = Config.dump();
             for (String key : confmap.keySet()) {
                 Map<String, String> info = new HashMap<>();
                 info.put("Name", key);
                 info.put("Value", confmap.get(key));
-                confList.add(info);
+                list.add(info);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        result.put("configureInfo", confList);
-    }
-
-    private void appendVariableInfo(Map<String, Object> result) {
-        List<Map<String, String>> varList = new ArrayList<>();
-        List<List<String>> variableInfo = VariableMgr.dump(SetType.GLOBAL, null, null);
-        for (List<String> list : variableInfo) {
-            Map<String, String> info = new HashMap<>();
-            info.put("Name", list.get(0));
-            info.put("Value", list.get(1));
-            varList.add(info);
-        }
-        result.put("variableInfo", varList);
     }
 }

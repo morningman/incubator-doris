@@ -22,23 +22,23 @@ import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.service.ExecuteEnv;
 
-import com.google.common.collect.Lists;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/rest/v1")
-public class SessionController {
+public class SessionController extends BaseController {
 
-    private static final ArrayList<String> SESSION_TABLE_HEADER = Lists.newArrayList();
+    private static final List<String> SESSION_TABLE_HEADER = Lists.newArrayList();
 
     static {
         SESSION_TABLE_HEADER.add("Id");
@@ -54,27 +54,32 @@ public class SessionController {
 
     @RequestMapping(path = "/session", method = RequestMethod.GET)
     public Object session() {
-        List<Map<String, String>> result = new ArrayList<>();
+        Map<String, Object> result = Maps.newHashMap();
         appendSessionInfo(result);
         ResponseEntity entity = ResponseEntityBuilder.ok(result);
         ((ResponseBody) entity.getBody()).setCount(result.size());
         return entity;
     }
 
-    private void appendSessionInfo(List<Map<String, String>> result) {
+    private void appendSessionInfo(Map<String, Object> result) {
         List<ConnectContext.ThreadInfo> threadInfos = ExecuteEnv.getInstance().getScheduler().listConnection("root");
-        List<List<String>> rowSet = Lists.newArrayList();
+        List<List<String>> rows = Lists.newArrayList();
+
+        result.put("column_names", SESSION_TABLE_HEADER);
+        List<Map<String, String>> list = Lists.newArrayList();
+        result.put("rows", list);
+
         long nowMs = System.currentTimeMillis();
         for (ConnectContext.ThreadInfo info : threadInfos) {
-            rowSet.add(info.toRow(nowMs));
+            rows.add(info.toRow(nowMs));
         }
 
-        for (List<String> row : rowSet) {
+        for (List<String> row : rows) {
             Map<String, String> record = new HashMap<>();
             for (int i = 0; i < row.size(); i++) {
                 record.put(SESSION_TABLE_HEADER.get(i), row.get(i));
             }
-            result.add(record);
+            list.add(record);
         }
     }
 }

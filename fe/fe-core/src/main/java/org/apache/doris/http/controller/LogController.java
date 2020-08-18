@@ -61,7 +61,6 @@ public class LogController {
         // get parameters
         addVerboseName = request.getParameter("add_verbose");
         delVerboseName = request.getParameter("del_verbose");
-//        System.out.println(delVerboseName.length());
         LOG.info("add verbose name: {}, del verbose name: {}", addVerboseName, delVerboseName);
         appendLogConf(map);
         appendLogInfo(map);
@@ -117,15 +116,15 @@ public class LogController {
             long startPos = fileSize < WEB_LOG_BYTES ? 0L : fileSize - WEB_LOG_BYTES;
             long webContentLength = fileSize < WEB_LOG_BYTES ? fileSize : WEB_LOG_BYTES;
             raf.seek(startPos);
-            map.put("Showinglast", webContentLength + " bytes of log");
-            StringBuffer buffer = new StringBuffer();
-            String fileBuffer = null;
-            buffer.append("<pre>");
-            while ((fileBuffer = raf.readLine()) != null) {
-                buffer.append(fileBuffer).append("</br>");
+            map.put("showingLast", webContentLength + " bytes of log");
+            StringBuilder sb = new StringBuilder();
+            String line = null;
+            sb.append("<pre>");
+            while ((line = raf.readLine()) != null) {
+                sb.append(line).append("</br>");
             }
-            buffer.append("</pre>");
-            map.put("log", buffer.toString());
+            sb.append("</pre>");
+            map.put("log", line.toString());
 
         } catch (FileNotFoundException e) {
             map.put("error", "Couldn't open log file: " + logPath);

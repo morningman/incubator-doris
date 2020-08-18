@@ -43,23 +43,19 @@ public class SQLSubmitter {
 
     private ThreadPoolExecutor executor = ThreadPoolManager.newDaemonCacheThreadPool(2, "SQL submitter", true);
 
-    public Future<QueryResultSet> submit(String sql, String user, String passwd) {
-        Worker worker = new Worker(ConnectContext.get(), sql, user, passwd);
+    public Future<QueryResultSet> submit(SQLQueryContext queryCtx) {
+        Worker worker = new Worker(ConnectContext.get(), queryCtx);
         return executor.submit(worker);
     }
 
     private static class Worker implements Callable<QueryResultSet> {
 
         private ConnectContext ctx;
-        private String sql;
-        private String user;
-        private String passwd;
+        private SQLQueryContext queryCtx;
 
-        public Worker(ConnectContext ctx, String sql, String user, String passwd) {
+        public Worker(ConnectContext ctx, SQLQueryContext queryCtx) {
             this.ctx = ctx;
-            this.sql = sql;
-            this.user = user;
-            this.passwd = passwd;
+            this.queryCtx = queryCtx;
         }
 
         @Override
@@ -69,10 +65,9 @@ public class SQLSubmitter {
             String dbUrl = String.format(DB_URL_PATTERN, Config.query_port, ctx.getDatabase());
             try {
                 Class.forName(JDBC_DRIVER);
-                conn = DriverManager.getConnection(dbUrl, user, passwd);
-                stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(sql);
-
+                conn = DriverManager.getConnection(dbUrl, queryCtx.user, queryCtx.passwd);
+                stmt = conn.prepareStatement(queryCtx.sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                ResultSet rs = stmt.executeQuery(queryCtx.sql);
                 QueryResultSet resultSet = generateResult(rs);
 
                 rs.close();
@@ -109,17 +104,33 @@ public class SQLSubmitter {
             }
             // 2. data
             List<List<Object>> rows = Lists.newArrayList();
-            while (rs.next()) {
+            long rowCount = 0;
+            while (rs.next() && rowCount < queryCtx.limit) {
                 List<Object> row = Lists.newArrayListWithCapacity(colNum);
                 // index start from 1
                 for (int i = 1; i <= colNum; ++i) {
                     row.add(rs.getObject(i));
                 }
                 rows.add(row);
+                rowCount++;
             }
             result.put("meta", metaFields);
             result.put("data", rows);
             return new QueryResultSet(result);
+        }
+    }
+
+    public static class SQLQueryContext {
+        public String sql;
+        public String user;
+        public String passwd;
+        public long limit; // limit the number of rows returned by the query
+
+        public SQLQueryContext(String sql, String user, String passwd, long limit) {
+            this.sql = sql;
+            this.user = user;
+            this.passwd = passwd;
+            this.limit = limit;
         }
     }
 }

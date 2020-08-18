@@ -33,7 +33,10 @@ import org.apache.doris.qe.ShowResultSet;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
+import org.apache.commons.validator.routines.UrlValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +44,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +55,7 @@ import javax.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/rest/v1")
-public class SystemController extends BaseController{
+public class SystemController extends BaseController {
 
     private static final Logger LOG = LogManager.getLogger(SystemController.class);
 
@@ -83,8 +87,8 @@ public class SystemController extends BaseController{
         return node;
     }
 
-    private ResponseEntity appendSystemInfo(String procPath, String path,HttpServletRequest request) {
-        List<Map<String, String>> list = new ArrayList<>();
+    private ResponseEntity appendSystemInfo(String procPath, String path, HttpServletRequest request) {
+        UrlValidator validator = new UrlValidator();
         Map<String, Object> map = new HashMap<>();
 
         ProcNodeInterface procNode = getProcNode(procPath);
@@ -134,50 +138,62 @@ public class SystemController extends BaseController{
         Preconditions.checkNotNull(columnNames);
         Preconditions.checkNotNull(rows);
 
-
+        Map<String, Object> result = Maps.newHashMap();
+        result.put("column_names", columnNames);
+        List<String> hrefColumns = Lists.newArrayList();
+        if (isDir) {
+            hrefColumns.add(columnNames.get(0));
+        }
+        List<Map<String, Object>> list = Lists.newArrayList();
         for (List<String> strList : rows) {
-            Map<String, String> resultMap = new HashMap<>();
+            Map<String, Object> rowColumns = new HashMap<>();
+            List<String> hrefPaths = Lists.newArrayList();
 
-            int columnIndex = 1;
             for (int i = 0; i < strList.size(); i++) {
-                if (isDir && columnIndex == 1) {
-                    String str = strList.get(i);
-                    resultMap.put(columnNames.get(0), str);
+                String str = strList.get(i);
+                if (isDir && i == 0) {
+                    // the first column of dir proc is always a href column
                     String escapeStr = str.replace("%", "%25");
                     String uriPath = "path=" + path + "/" + escapeStr;
-                    resultMap.put("hrefPath", uriPath);
-                } else {
-                    resultMap.put(columnNames.get(i), strList.get(i));
+                    hrefPaths.add("/rest/v1/system?" + uriPath);
+                } else if (validator.isValid(str)) {
+                    // if the value is a URL, add it to href columns, and change the content to "URL"
+                    hrefPaths.add(str);
+                    str = "URL";
+                    if (!hrefColumns.contains(columnNames.get(i))) {
+                        hrefColumns.add(columnNames.get(i));
+                    }
                 }
-                ++columnIndex;
+
+                rowColumns.put(columnNames.get(i), str);
             }
-            list.add(resultMap);
+            if (!hrefPaths.isEmpty()) {
+                rowColumns.put("__hrefPaths", hrefPaths);
+            }
+            list.add(rowColumns);
         }
-        ResponseEntity entity = ResponseEntityBuilder.ok(list);
+        result.put("rows", list);
+
+        // assemble href column names
+        if (!hrefColumns.isEmpty()) {
+            result.put("href_columns", hrefColumns);
+        }
+
+        // add parent url
+        result.put("parent_url", getParentUrl(path));
+
+        ResponseEntity entity = ResponseEntityBuilder.ok(result);
         ((ResponseBody) entity.getBody()).setCount(list.size());
         return entity;
     }
 
-    // some expamle:
-    //   '/'            => '/'
-    //   '///aaa'       => '///'
-    //   '/aaa/bbb///'  => '/aaa'
-    //   '/aaa/bbb/ccc' => '/aaa/bbb'
-    // ATTN: the root path's parent is itself.
-    private String getParentPath(String path) {
-        int lastSlashIndex = path.length() - 1;
-        while (lastSlashIndex > 0) {
-            int tempIndex = path.lastIndexOf('/', lastSlashIndex);
-            if (tempIndex > 0) {
-                if (tempIndex == lastSlashIndex) {
-                    lastSlashIndex = tempIndex - 1;
-                    continue;
-                } else if (tempIndex < lastSlashIndex) { // '//aaa/bbb'
-                    lastSlashIndex = tempIndex;
-                    return path.substring(0, lastSlashIndex);
-                }
-            }
+    private String getParentUrl(String pathStr) {
+        Path path = Paths.get(pathStr);
+        path = path.getParent();
+        if (path == null) {
+            return "/rest/v1/system";
+        } else {
+            return "/rest/v1/system?path=" + path.toString();
         }
-        return "/";
     }
 }

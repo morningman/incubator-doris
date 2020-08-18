@@ -26,6 +26,7 @@ import org.apache.doris.analysis.CompoundPredicate;
 import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.cluster.ClusterNamespace;
+import org.apache.doris.common.Config;
 import org.apache.doris.http.HttpAuthManager;
 import org.apache.doris.http.HttpAuthManager.SessionValue;
 import org.apache.doris.http.exception.UnauthorizedException;
@@ -33,22 +34,22 @@ import org.apache.doris.mysql.privilege.PaloPrivilege;
 import org.apache.doris.mysql.privilege.PrivBitSet;
 import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
+import org.apache.doris.service.FrontendOptions;
 import org.apache.doris.system.SystemInfoService;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.UUID;
-
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.UUID;
 
 public class BaseController {
 
@@ -59,19 +60,27 @@ public class BaseController {
 
     // We first check cookie, if not admin, we check http's authority header
     public void checkAuthWithCookie(HttpServletRequest request, HttpServletResponse response) {
-        if (checkCookie(request, response)) {
-            return;
+        checkWithCookie(request, response, true);
+    }
+
+    public ActionAuthorizationInfo checkWithCookie(HttpServletRequest request, HttpServletResponse response, boolean checkAuth) {
+        ActionAuthorizationInfo authInfo = checkCookie(request, response, checkAuth);
+        if (authInfo != null) {
+            return authInfo;
         }
 
         // cookie is invalid. check auth info in request
-        ActionAuthorizationInfo authInfo = getAuthorizationInfo(request);
+        authInfo = getAuthorizationInfo(request);
         UserIdentity currentUser = checkPassword(authInfo);
-        // we need admin priv
-        checkGlobalAuth(currentUser, PrivPredicate.of(PrivBitSet.of(PaloPrivilege.ADMIN_PRIV,
-                PaloPrivilege.NODE_PRIV), CompoundPredicate.Operator.OR));
+
+        if (checkAuth) {
+            checkGlobalAuth(currentUser, PrivPredicate.of(PrivBitSet.of(PaloPrivilege.ADMIN_PRIV,
+                    PaloPrivilege.NODE_PRIV), CompoundPredicate.Operator.OR));
+        }
 
         SessionValue value = new SessionValue();
         value.currentUser = currentUser;
+        value.password = authInfo.password;
         addSession(request, response, value);
 
         ConnectContext ctx = new ConnectContext(null);
@@ -83,44 +92,56 @@ public class BaseController {
         ctx.setThreadLocalInfo();
         LOG.debug("check auth without cookie success for user: {}, thread: {}",
                 currentUser, Thread.currentThread().getId());
-        return;
+        return authInfo;
     }
 
     protected void addSession(HttpServletRequest request, HttpServletResponse response, SessionValue value) {
         String key = UUID.randomUUID().toString();
         Cookie cookie = new Cookie(PALO_SESSION_ID, key);
         cookie.setMaxAge(PALO_SESSION_EXPIRED_TIME);
+        cookie.setPath("/");
         response.addCookie(cookie);
+        LOG.debug("cmy add session cookie: {} {}", PALO_SESSION_ID, key);
         HttpAuthManager.getInstance().addSessionValue(key, value);
     }
 
-    private boolean checkCookie(HttpServletRequest request, HttpServletResponse response) {
+    private ActionAuthorizationInfo checkCookie(HttpServletRequest request, HttpServletResponse response,
+                                                boolean checkAuth) {
         String sessionId = getCookieValue(request, PALO_SESSION_ID, response);
         HttpAuthManager authMgr = HttpAuthManager.getInstance();
-        if (!Strings.isNullOrEmpty(sessionId)) {
-            SessionValue sessionValue = authMgr.getSessionValue(sessionId);
-            if (sessionValue == null) {
-                return false;
-            }
-            if (Catalog.getCurrentCatalog().getAuth().checkGlobalPriv(sessionValue.currentUser,
-                    PrivPredicate.of(PrivBitSet.of(PaloPrivilege.ADMIN_PRIV,
-                            PaloPrivilege.NODE_PRIV),
-                            CompoundPredicate.Operator.OR))) {
-                updateCookieAge(request, PALO_SESSION_ID, PALO_SESSION_EXPIRED_TIME, response);
-
-                ConnectContext ctx = new ConnectContext(null);
-                ctx.setQualifiedUser(sessionValue.currentUser.getQualifiedUser());
-                ctx.setRemoteIP(request.getRemoteHost());
-                ctx.setCurrentUserIdentity(sessionValue.currentUser);
-                ctx.setCatalog(Catalog.getCurrentCatalog());
-                ctx.setCluster(SystemInfoService.DEFAULT_CLUSTER);
-                ctx.setThreadLocalInfo();
-                LOG.debug("check cookie success for user: {}, thread: {}",
-                        sessionValue.currentUser, Thread.currentThread().getId());
-                return true;
-            }
+        if (Strings.isNullOrEmpty(sessionId)) {
+            return null;
         }
-        return false;
+
+        SessionValue sessionValue = authMgr.getSessionValue(sessionId);
+        if (sessionValue == null) {
+            return null;
+        }
+
+        if (checkAuth && !Catalog.getCurrentCatalog().getAuth().checkGlobalPriv(sessionValue.currentUser,
+                PrivPredicate.of(PrivBitSet.of(PaloPrivilege.ADMIN_PRIV,
+                        PaloPrivilege.NODE_PRIV), CompoundPredicate.Operator.OR))) {
+            // need to check auth and check auth failed
+            return null;
+        }
+
+        updateCookieAge(request, PALO_SESSION_ID, PALO_SESSION_EXPIRED_TIME, response);
+
+        ConnectContext ctx = new ConnectContext(null);
+        ctx.setQualifiedUser(sessionValue.currentUser.getQualifiedUser());
+        ctx.setRemoteIP(request.getRemoteHost());
+        ctx.setCurrentUserIdentity(sessionValue.currentUser);
+        ctx.setCatalog(Catalog.getCurrentCatalog());
+        ctx.setCluster(SystemInfoService.DEFAULT_CLUSTER);
+        ctx.setThreadLocalInfo();
+        LOG.debug("check cookie success for user: {}, thread: {}",
+                sessionValue.currentUser, Thread.currentThread().getId());
+        ActionAuthorizationInfo authInfo = new ActionAuthorizationInfo();
+        authInfo.fullUserName = sessionValue.currentUser.getQualifiedUser();
+        authInfo.remoteIp = request.getRemoteHost();
+        authInfo.password = sessionValue.password;
+        authInfo.cluster = SystemInfoService.DEFAULT_CLUSTER;
+        return authInfo;
     }
 
     public String getCookieValue(HttpServletRequest request, String cookieName, HttpServletResponse response) {
@@ -129,6 +150,7 @@ public class BaseController {
             for (Cookie cookie : cookies) {
                 if (cookie.getName() != null && cookie.getName().equals(cookieName)) {
                     String sessionId = cookie.getValue();
+                    LOG.debug("get cookie value. {}: {}", cookie.getName(), sessionId);
                     return sessionId;
                 }
             }
@@ -142,9 +164,9 @@ public class BaseController {
             if (cookie.getName() != null && cookie.getName().equals(cookieName)) {
                 cookie.setMaxAge(age);
                 response.addCookie(cookie);
+                LOG.info("cmy get update cookie: {} {}", cookie.getName(), cookie.getValue());
             }
         }
-
     }
 
     public static class ActionAuthorizationInfo {
@@ -266,4 +288,7 @@ public class BaseController {
         return Long.parseLong(strParam);
     }
 
+    protected String getCurrentFrontendURL() {
+        return "http://" + FrontendOptions.getLocalHostAddress() + ":" + Config.http_port;
+    }
 }

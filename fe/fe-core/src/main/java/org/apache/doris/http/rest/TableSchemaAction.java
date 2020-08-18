@@ -94,13 +94,12 @@ public class TableSchemaAction extends RestBaseController {
                         baseInfo.put("name", column.getDisplayName());
                         propList.add(baseInfo);
                     }
-                    baseInfo.put("type", primitiveType.toString());
-                    baseInfo.put("comment", column.getComment());
-                    baseInfo.put("name", column.getName());
-                    propList.add(baseInfo);
+                    resultMap.put("status", 200);
+                    resultMap.put("properties", propList);
+                } catch (Exception e) {
+                    // Transform the general Exception to custom DorisHttpException
+                    return ResponseEntityBuilder.okWithCommonError(e.getMessage());
                 }
-                resultMap.put("status", 200);
-                resultMap.put("properties", propList);
             } finally {
                 db.readUnlock();
             }

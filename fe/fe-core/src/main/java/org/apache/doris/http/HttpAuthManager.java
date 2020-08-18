@@ -35,6 +35,7 @@ public final class HttpAuthManager {
 
     public static class SessionValue {
         public UserIdentity currentUser;
+        public String password;
     }
 
     // session_id => session value
