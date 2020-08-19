@@ -53,7 +53,7 @@ private:
 
 TEST_F(MetricsActionTest, prometheus_output) {
     MetricRegistry metric_registry("test");
-    MetricEntity* entity = metric_registry.register_entity("metrics_action_test.prometheus_output", {});
+    std::shared_ptr<MetricEntity> entity = metric_registry.register_entity("metrics_action_test.prometheus_output", {});
 
     IntGauge cpu_idle;
     DEFINE_GAUGE_METRIC_PROTOTYPE_5ARG(cpu_idle, MetricUnit::PERCENT);
@@ -78,7 +78,7 @@ TEST_F(MetricsActionTest, prometheus_output) {
 
 TEST_F(MetricsActionTest, prometheus_no_prefix) {
     MetricRegistry metric_registry("");
-    MetricEntity* entity = metric_registry.register_entity("metrics_action_test.prometheus_no_prefix", {});
+    std::shared_ptr<MetricEntity> entity = metric_registry.register_entity("metrics_action_test.prometheus_no_prefix", {});
 
     IntGauge cpu_idle;
     DEFINE_GAUGE_METRIC_PROTOTYPE_5ARG(cpu_idle, MetricUnit::PERCENT);

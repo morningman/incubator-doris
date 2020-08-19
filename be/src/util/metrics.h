@@ -289,10 +289,21 @@ enum class MetricEntityType {
     kTablet
 };
 
+/// MetricEntity usually contains a set of metrics.
+/// For example, one data directory has oone MetricEntity,
+/// and multiple metrics related to the data directory,
+/// such as the number of reads and writes, disk space, etc.,
+/// will be registered in the same MetricEntity.
+///
+/// MetricEntity itself will be registered in MetricRegistery,
+/// and other objects should hold the shared_ptr of MetricEntity.
+/// When MetricEntity is destroyed, it will be unregistered from MetricRegistery automatically.
 class MetricEntity {
 public:
-    MetricEntity(MetricEntityType type, const std::string& name, const Labels& labels)
-        : _type(type), _name(name), _labels(labels) {}
+    MetricEntity(MetricEntityType type, const std::string& name, const Labels& labels, MetricRegistry* reg = nullptr)
+        : _type(type), _name(name), _labels(labels), _metric_registry(reg) {}
+
+    ~MetricEntity();
 
     const std::string& name() const { return _name; }
 
@@ -311,6 +322,7 @@ private:
     MetricEntityType _type;
     std::string _name;
     Labels _labels;
+    MetricRegistry* _metric_registry; // not owned, maybe null for unit test
 
     mutable SpinLock _lock;
     MetricMap _metrics;
@@ -324,7 +336,7 @@ public:
     MetricRegistry(const std::string& name) : _name(name) {}
     ~MetricRegistry();
 
-    MetricEntity* register_entity(const std::string& name, const Labels& labels, MetricEntityType type = MetricEntityType::kServer);
+    std::shared_ptr<MetricEntity> register_entity(const std::string& name, const Labels& labels, MetricEntityType type = MetricEntityType::kServer);
     void deregister_entity(const std::string& name);
     std::shared_ptr<MetricEntity> get_entity(const std::string& name);
 

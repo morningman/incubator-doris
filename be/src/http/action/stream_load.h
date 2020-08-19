@@ -54,7 +54,7 @@ private:
 private:
     ExecEnv* _exec_env;
 
-    MetricEntity* _stream_load_entity;
+    std::shared_ptr<MetricEntity> _stream_load_entity;
     IntCounter streaming_load_requests_total;
     IntCounter streaming_load_bytes;
     IntCounter streaming_load_duration_ms;

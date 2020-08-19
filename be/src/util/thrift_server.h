@@ -145,7 +145,7 @@ private:
     class ThriftServerEventProcessor;
     friend class ThriftServerEventProcessor;
 
-    MetricEntity* _thrift_server_metric_entity;
+    std::shared_ptr<MetricEntity> _thrift_server_metric_entity;
     // Number of currently active connections
     IntGauge thrift_current_connections;
     // Total connections made over the lifetime of this server

@@ -96,7 +96,6 @@ StreamLoadAction::StreamLoadAction(ExecEnv* exec_env) : _exec_env(exec_env) {
 }
 
 StreamLoadAction::~StreamLoadAction() {
-    DorisMetrics::instance()->metric_registry()->deregister_entity(_stream_load_entity->name());
 }
 
 void StreamLoadAction::handle(HttpRequest* req) {

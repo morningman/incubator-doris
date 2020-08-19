@@ -182,7 +182,7 @@ public:
 
     MetricRegistry* metric_registry() { return &_metric_registry; }
     SystemMetrics* system_metrics() { return _system_metrics.get(); }
-    MetricEntity* server_entity() { return _server_metric_entity; }
+    std::shared_ptr<MetricEntity> server_entity() { return _server_metric_entity; }
 
 private:
     // Don't allow constrctor
@@ -200,7 +200,7 @@ private:
 
     std::unique_ptr<SystemMetrics> _system_metrics;
 
-    MetricEntity* _server_metric_entity;
+    std::shared_ptr<MetricEntity> _server_metric_entity;
 };
 
 }; // namespace doris

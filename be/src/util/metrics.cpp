@@ -110,10 +110,18 @@ std::string MetricPrototype::combine_name(const std::string& registry_name) cons
     return (registry_name.empty() ? std::string() : registry_name  + "_") + simple_name();
 }
 
+MetricEntity::~MetricEntity() {
+    if (_metric_registry != nullptr) {
+        _metric_registry->deregister_entity(_name);
+    }
+}
+
 void MetricEntity::register_metric(const MetricPrototype* metric_type, Metric* metric) {
     std::lock_guard<SpinLock> l(_lock);
-    DCHECK(_metrics.find(metric_type) == _metrics.end()) << "metric is already exist! " << _name << ":" << metric_type->name;
-    _metrics.emplace(metric_type, metric);
+    // There may be multiple instance to register same metric
+    if (_metrics.find(metric_type) != _metrics.end()) {
+        _metrics.emplace(metric_type, metric);
+    }
 }
 
 void MetricEntity::deregister_metric(const MetricPrototype* metric_type) {
@@ -156,13 +164,16 @@ void MetricEntity::trigger_hook_unlocked(bool force) const {
 MetricRegistry::~MetricRegistry() {
 }
 
-MetricEntity* MetricRegistry::register_entity(const std::string& name, const Labels& labels, MetricEntityType type) {
-    std::shared_ptr<MetricEntity> entity = std::make_shared<MetricEntity>(type, name, labels);
-
+std::shared_ptr<MetricEntity> MetricRegistry::register_entity(const std::string& name, const Labels& labels, MetricEntityType type) {
+    // There may be multiple instances sharing an entity, so if the entity exists, returns the existing one
     std::lock_guard<SpinLock> l(_lock);
-    DCHECK(_entities.find(name) == _entities.end()) << name;
-    _entities.insert(std::make_pair(name, entity));
-    return entity.get();
+    auto find = _entities.find(name);
+    if (find == _entities.end()) {
+        std::shared_ptr<MetricEntity> entity = std::make_shared<MetricEntity>(type, name, labels, this);
+        _entities.insert(std::make_pair(name, entity));
+        return entity;
+    }
+    return find->second;
 }
 
 void MetricRegistry::deregister_entity(const std::string& name) {

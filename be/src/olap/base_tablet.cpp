@@ -43,7 +43,6 @@ BaseTablet::BaseTablet(TabletMetaSharedPtr tablet_meta, DataDir* data_dir)
 }
 
 BaseTablet::~BaseTablet() {
-    DorisMetrics::instance()->metric_registry()->deregister_entity(_metric_entity->name());
 }
 
 OLAPStatus BaseTablet::set_tablet_state(TabletState state) {

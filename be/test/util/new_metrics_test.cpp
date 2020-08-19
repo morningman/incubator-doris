@@ -272,22 +272,23 @@ TEST_F(MetricsTest, MetricRegistryRegister) {
     ASSERT_EQ("[]", registry.to_json());
     ASSERT_EQ("", registry.to_core_string());
 
-    // Before register
-    auto entity = registry.get_entity("test_entity").get();
-    ASSERT_EQ(nullptr, entity);
+    {
+        // Before register
+        auto entity = registry.get_entity("test_entity");
+        ASSERT_EQ(nullptr, entity.get());
 
-    // Register
-    entity = registry.register_entity("test_entity", {});
-    ASSERT_NE(nullptr, entity);
+        // Register
+        entity = registry.register_entity("test_entity", {});
+        ASSERT_NE(nullptr, entity);
 
-    // After register
-    auto entity1 = registry.get_entity("test_entity").get();
-    ASSERT_NE(nullptr, entity1);
-    ASSERT_EQ(entity, entity1);
+        // After register
+        auto entity1 = registry.get_entity("test_entity");
+        ASSERT_NE(nullptr, entity1);
+        ASSERT_EQ(entity.get(), entity1.get());
+    }
 
-    registry.deregister_entity("test_entity");
-    entity = registry.get_entity("test_entity").get();
-    ASSERT_EQ(nullptr, entity);
+    entity = registry.get_entity("test_entity");
+    ASSERT_EQ(nullptr, entity.get());
 }
 
 TEST_F(MetricsTest, MetricRegistryOutput) {
@@ -314,7 +315,6 @@ test_registry_cpu_idle 8
 )", registry.to_prometheus());
         ASSERT_EQ(R"([{"tags":{"metric":"cpu_idle"},"unit":"percent","value":8}])", registry.to_json());
         ASSERT_EQ("test_registry_cpu_idle LONG 8\n", registry.to_core_string());
-        registry.deregister_entity("test_entity");
     }
 
     {
@@ -331,7 +331,6 @@ test_registry_cpu{mode="idle"} 18
 )", registry.to_prometheus());
         ASSERT_EQ(R"([{"tags":{"metric":"cpu","mode":"idle"},"unit":"percent","value":18}])", registry.to_json());
         ASSERT_EQ("", registry.to_core_string());
-        registry.deregister_entity("test_entity");
     }
 
     {
@@ -348,7 +347,6 @@ test_registry_cpu_idle{name="lable_test"} 28
 )", registry.to_prometheus());
         ASSERT_EQ(R"([{"tags":{"metric":"cpu_idle","name":"lable_test"},"unit":"percent","value":28}])", registry.to_json());
         ASSERT_EQ("", registry.to_core_string());
-        registry.deregister_entity("test_entity");
     }
 
     {
@@ -365,7 +363,6 @@ test_registry_cpu{name="lable_test",mode="idle"} 38
 )", registry.to_prometheus());
         ASSERT_EQ(R"([{"tags":{"metric":"cpu","mode":"idle","name":"lable_test"},"unit":"percent","value":38}])", registry.to_json());
         ASSERT_EQ("", registry.to_core_string());
-        registry.deregister_entity("test_entity");
     }
 
     {
@@ -388,7 +385,6 @@ test_registry_cpu{mode="guest"} 58
 )", registry.to_prometheus());
         ASSERT_EQ(R"([{"tags":{"metric":"cpu","mode":"guest"},"unit":"percent","value":58},{"tags":{"metric":"cpu","mode":"idle"},"unit":"percent","value":48}])", registry.to_json());
         ASSERT_EQ("", registry.to_core_string());
-        registry.deregister_entity("test_entity");
     }
 }
 }

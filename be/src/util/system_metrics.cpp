@@ -203,14 +203,14 @@ SystemMetrics::SystemMetrics(MetricRegistry* registry,
 #else
     auto entity = _registry->register_entity("server", {});
 #endif
-    DCHECK(entity != nullptr);
+    DCHECK(entity.get() != nullptr);
     entity->register_hook(_s_hook_name, std::bind(&SystemMetrics::update, this));
-    _install_cpu_metrics(entity);
-    _install_memory_metrics(entity);
+    _install_cpu_metrics(entity.get());
+    _install_memory_metrics(entity.get());
     _install_disk_metrics(disk_devices);
     _install_net_metrics(network_interfaces);
-    _install_fd_metrics(entity);
-    _install_snmp_metrics(entity);
+    _install_fd_metrics(entity.get());
+    _install_snmp_metrics(entity.get());
 }
 
 SystemMetrics::~SystemMetrics() {
@@ -309,7 +309,7 @@ void SystemMetrics::_update_memory_metrics() {
 void SystemMetrics::_install_disk_metrics(const std::set<std::string>& disk_devices) {
     for (auto& disk_device : disk_devices) {
         auto disk_entity = _registry->register_entity(std::string("disk_metrics.") + disk_device, {{"device", disk_device}});
-        DiskMetrics* metrics = new DiskMetrics(disk_entity);
+        DiskMetrics* metrics = new DiskMetrics(disk_entity.get());
         _disk_metrics.emplace(disk_device, metrics);
     }
 }
@@ -395,7 +395,7 @@ void SystemMetrics::_update_disk_metrics() {
 void SystemMetrics::_install_net_metrics(const std::vector<std::string>& interfaces) {
     for (auto& interface : interfaces) {
         auto interface_entity = _registry->register_entity(std::string("network_metrics.") + interface, {{"device", interface}});
-        NetworkMetrics* metrics = new NetworkMetrics(interface_entity);
+        NetworkMetrics* metrics = new NetworkMetrics(interface_entity.get());
         _network_metrics.emplace(interface, metrics);
     }
 }
