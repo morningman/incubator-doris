@@ -152,7 +152,7 @@ public:
 
 private:
     ExecEnv* _exec_env;  // not owned
-    ExecNode* _plan;  // lives in _runtime_state->obj_pool()
+    ExecNode* _plan = nullptr;  // lives in _runtime_state->obj_pool()
     TUniqueId _query_id;
     std::shared_ptr<MemTracker> _mem_tracker;
 
