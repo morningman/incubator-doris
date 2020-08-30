@@ -26,9 +26,6 @@ import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.system.SystemInfoService;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,11 +35,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * Upload file
@@ -53,22 +53,11 @@ public class UploadAction extends RestBaseController {
     private static TmpFileMgr fileMgr = new TmpFileMgr(Config.tmp_dir);
     private static LoadSubmitter loadSubmitter = new LoadSubmitter();
 
+    private static final String PARAM_COLUMN_SEPARATOR = "column_separator";
+    private static final String PARAM_PREVIEW = "preview";
     private static final String PARAM_FILE_ID = "file_id";
     private static final String PARAM_FILE_UUID = "file_uuid";
 
-    private static final long DEFAULT_ROW_LIMIT = 1000;
-    private static final long MAX_ROW_LIMIT = 10000;
-
-    /**
-     * Execute a SQL.
-     * Request body:
-     * {
-     *     "sql" : "select * from tbl1",
-     *     "variables": {
-     *         "exec_mem_limit" : 2147483648
-     *     }
-     * }
-     */
     @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.POST})
     public Object upload(
             @PathVariable(value = NS_KEY) String ns,
@@ -86,14 +75,27 @@ public class UploadAction extends RestBaseController {
         String fullDbName = getFullDbName(dbName);
         checkTblAuth(ConnectContext.get().getCurrentUserIdentity(), fullDbName, tblName, PrivPredicate.LOAD);
 
+        String columnSeparator = request.getParameter(PARAM_COLUMN_SEPARATOR);
+        if (Strings.isNullOrEmpty(columnSeparator)) {
+            columnSeparator = "\t";
+        }
+
+        String preview = request.getParameter(PARAM_PREVIEW);
+        if (Strings.isNullOrEmpty(preview)) {
+            preview = "true";
+        }
+
         if (file.isEmpty()) {
             return ResponseEntityBuilder.badRequest("Empty file");
         }
 
         try {
-            TmpFileMgr.TmpFile tmpFile = fileMgr.upload(file);
+            TmpFileMgr.TmpFile tmpFile = fileMgr.upload(new TmpFileMgr.UploadFile(file, columnSeparator));
+            if (preview.equalsIgnoreCase("true")) {
+                tmpFile.setPreview();
+            }
             return ResponseEntityBuilder.ok(tmpFile);
-        } catch (TmpFileMgr.TmpFileException e) {
+        } catch (TmpFileMgr.TmpFileException | IOException e) {
             return ResponseEntityBuilder.okWithCommonError(e.getMessage());
         }
     }
