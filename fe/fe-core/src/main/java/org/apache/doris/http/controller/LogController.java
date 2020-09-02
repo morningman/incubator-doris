@@ -58,12 +58,19 @@ public class LogController {
     @RequestMapping(path = "/log", method = RequestMethod.GET)
     public Object log(HttpServletRequest request) {
         Map<String, Map<String, String>> map = new HashMap<>();
+        appendLogConf(map);
+        appendLogInfo(map);
+        return ResponseEntityBuilder.ok(map);
+    }
+
+    @RequestMapping(path = "/log", method = RequestMethod.POST)
+    public Object logLevel(HttpServletRequest request) {
+        Map<String, Map<String, String>> map = new HashMap<>();
         // get parameters
         addVerboseName = request.getParameter("add_verbose");
         delVerboseName = request.getParameter("del_verbose");
         LOG.info("add verbose name: {}, del verbose name: {}", addVerboseName, delVerboseName);
         appendLogConf(map);
-        appendLogInfo(map);
         return ResponseEntityBuilder.ok(map);
     }
 
@@ -118,13 +125,13 @@ public class LogController {
             raf.seek(startPos);
             map.put("showingLast", webContentLength + " bytes of log");
             StringBuilder sb = new StringBuilder();
-            String line = null;
+            String line = "";
             sb.append("<pre>");
             while ((line = raf.readLine()) != null) {
                 sb.append(line).append("</br>");
             }
             sb.append("</pre>");
-            map.put("log", line.toString());
+            map.put("log", sb.toString());
 
         } catch (FileNotFoundException e) {
             map.put("error", "Couldn't open log file: " + logPath);

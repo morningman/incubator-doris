@@ -34,7 +34,7 @@ GET /rest/v1/log
 
 ## Description
 
-Log Action 用于获取 Doris 最新的一部分 WARNING 日志，以及动态设置 FE 的日志级别。
+GET 用于获取 Doris 最新的一部分 WARNING 日志，POST 方法用于动态设置 FE 的日志级别。
     
 ## Path parameters
 
@@ -44,11 +44,11 @@ Log Action 用于获取 Doris 最新的一部分 WARNING 日志，以及动态�
 
 * `add_verbose`
 
-    可选参数。开启指定 Package 的 DEBUG 级别日志。
+    POST 方法可选参数。开启指定 Package 的 DEBUG 级别日志。
     
 * `del_verbose`
 
-    可选参数。关闭指定 Package 的 DEBUG 级别日志。
+    POST 方法可选参数。关闭指定 Package 的 DEBUG 级别日志。
 
 ## Request body
 
@@ -57,6 +57,8 @@ Log Action 用于获取 Doris 最新的一部分 WARNING 日志，以及动态�
 ## Response
     
 ```
+GET /rest/v1/log
+
 {
 	"msg": "success",
 	"code": 0,
@@ -77,3 +79,20 @@ Log Action 用于获取 Doris 最新的一部分 WARNING 日志，以及动态�
 ```
     
 其中 `data.LogContents.log` 表示最新一部分 `fe.warn.log` 中的日志内容。
+
+```
+POST /rest/v1/log?add_verbose=org
+
+{
+	"msg": "success",
+	"code": 0,
+	"data": {
+		"LogConfiguration": {
+			"VerboseNames": "org",
+			"AuditNames": "slow_query,query",
+			"Level": "INFO"
+		}
+	},
+	"count": 0
+}
+```
