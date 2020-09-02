@@ -17,13 +17,13 @@
 
 package org.apache.doris.common.util;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -133,6 +133,7 @@ public class TmpFileMgr {
         }
 
         public void setPreview() throws IOException {
+            lines = Lists.newArrayList();
             try (FileReader fr = new FileReader(absPath);
                  BufferedReader bf = new BufferedReader(fr)) {
                 String str;
@@ -178,3 +179,4 @@ public class TmpFileMgr {
         }
     }
 }
+

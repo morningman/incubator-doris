@@ -22,6 +22,7 @@ import org.apache.doris.common.Config;
 import org.apache.doris.common.ThreadPoolManager;
 import org.apache.doris.http.rest.UploadAction;
 
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -76,11 +77,14 @@ public class LoadSubmitter {
             conn.setRequestProperty("Authorization", "Basic " + authEncoding);
             conn.addRequestProperty("Expect", "100-continue");
             conn.addRequestProperty("Content-Type", "text/plain; charset=UTF-8");
-            if (loadContext.columns != null) {
+            if (!Strings.isNullOrEmpty(loadContext.columns)) {
                 conn.addRequestProperty("columns", loadContext.columns);
             }
-            if (loadContext.columnSeparator != null) {
+            if (!Strings.isNullOrEmpty(loadContext.columnSeparator)) {
                 conn.addRequestProperty("column_separator", loadContext.columnSeparator);
+            }
+            if (!Strings.isNullOrEmpty(loadContext.label)) {
+                conn.addRequestProperty("label", loadContext.label);
             }
             conn.setDoOutput(true);
             conn.setDoInput(true);
