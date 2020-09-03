@@ -50,43 +50,26 @@ Session Action 用于获取当前的会话信息。
 
 ## Response
 
-* 不指定 `<query_id>`
-
-    ```
-    {
-    	"msg": "success",
-    	"code": 0,
-    	"data": {
-    		"columns_names": ["User", "Default Db", "SQL", "Query Type", "Start Time", "End Time", "Cost", "Query State", "Profile"],
-    		"href_column": "Profile",
-    		"rows": [{
-    			"User": "root",
-    			"Query Type": "Query",
-    			"Total": "316ms",
-    			"QueryId": "fbb2582c72884d29-9dd9de3b42b740e9",
-    			"Default Db": "default_cluster:db1",
-    			"Sql Statement": "select count(*) from store_sales5",
-    			"Start Time": "2020-08-26 16:27:20",
-    			"Query State": "EOF",
-    			"End Time": "2020-08-26 16:27:20",
-    			"__hrefPath": "/query_profile/query_id=fbb2582c72884d29-9dd9de3b42b740e9"
-    		}]
-    	},
-    	"count": 1
-    }
-    ```
+```
+{
+	"msg": "success",
+	"code": 0,
+	"data": {
+		"column_names": ["Id", "User", "Host", "Cluster", "Db", "Command", "Time", "State", "Info"],
+		"rows": [{
+			"User": "root",
+			"Command": "Sleep",
+			"State": "",
+			"Cluster": "default_cluster",
+			"Host": "10.81.85.89:31465",
+			"Time": "230",
+			"Id": "0",
+			"Info": "",
+			"Db": "db1"
+		}]
+	},
+	"count": 2
+}
+```
     
-    返回结果同 `System Action`。
-    
-* 指定 `<query_id>`
-
-    ```
-    {
-    	"msg": "success",
-    	"code": 0,
-    	"data": "Query:</br>&nbsp;&nbsp;&nbsp;&nbsp;Summary:</br>...",
-    	"count": 0
-    }
-    ```
-    
-    `data` 为 profile 的文本内容。
+返回结果同 `System Action`。是一个表格的描述。

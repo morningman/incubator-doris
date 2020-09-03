@@ -140,7 +140,7 @@ public class ProfileManager {
                 Map<String, String> infoStrings = element.infoStrings;
                 
                 List<String> row = Lists.newArrayList();
-                for (String str : PROFILE_HEADERS ) {
+                for (String str : PROFILE_HEADERS) {
                     row.add(infoStrings.get(str));
                 }
                 result.add(row);

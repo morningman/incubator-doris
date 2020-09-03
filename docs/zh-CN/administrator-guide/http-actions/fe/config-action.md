@@ -1,6 +1,6 @@
 ---
 {
-    "title": "HA ACTION",
+    "title": "CONFIG ACTION",
     "language": "zh-CN"
 }
 ---
@@ -24,17 +24,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# HA Action
+# Config Action
 
 ## Request
 
 ```
-GET /rest/v1/ha
+GET /rest/v1/config/fe/
 ```
 
 ## Description
 
-HA Action 用于获取 FE 集群的高可用组信息。
+Config Action 用于获取当前 FE 的配置信息
     
 ## Path parameters
 
@@ -55,41 +55,29 @@ HA Action 用于获取 FE 集群的高可用组信息。
 	"msg": "success",
 	"code": 0,
 	"data": {
-		"Observernodes": [],
-		"CurrentJournalId": [{
-			"Value": 433648,
-			"Name": "FrontendRole"
-		}],
-		"Electablenodes": [{
-			"Value": "xafj-palo-rpm64.xafj.baidu.com",
-			"Name": "xafj-palo-rpm64.xafj.baidu.com"
-		}],
-		"allowedFrontends": [{
-			"Value": "name: 10.81.85.89_9213_1597652404352, role: FOLLOWER, 10.81.85.89:9213",
-			"Name": "10.81.85.89_9213_1597652404352"
-		}],
-		"removedFronteds": [],
-		"CanRead": [{
-			"Value": true,
-			"Name": "Status"
-		}],
-		"databaseNames": [{
-			"Value": "433436 ",
-			"Name": "DatabaseNames"
-		}],
-		"FrontendRole": [{
-			"Value": "MASTER",
-			"Name": "FrontendRole"
-		}],
-		"CheckpointInfo": [{
-			"Value": 433435,
-			"Name": "Version"
+		"column_names": ["Name", "Value"],
+		"rows": [{
+			"Value": "DAY",
+			"Name": "sys_log_roll_interval"
 		}, {
-			"Value": "2020-09-03T02:07:37.000+0000",
-			"Name": "lastCheckPointTime"
+			"Value": "23",
+			"Name": "consistency_check_start_time"
+		}, {
+			"Value": "4096",
+			"Name": "max_mysql_service_task_threads_num"
+		}, {
+			"Value": "1000",
+			"Name": "max_unfinished_load_job"
+		}, {
+			"Value": "100",
+			"Name": "max_routine_load_job_num"
+		}, {
+			"Value": "SYNC",
+			"Name": "master_sync_policy"
 		}]
 	},
 	"count": 0
 }
 ```
     
+返回结果同 `System Action`。是一个表格的描述。

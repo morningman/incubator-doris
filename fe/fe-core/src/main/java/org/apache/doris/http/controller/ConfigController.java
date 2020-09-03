@@ -37,7 +37,7 @@ public class ConfigController {
 
     private static final List<String> CONFIG_TABLE_HEADER = Lists.newArrayList("Name", "Value");
 
-    @RequestMapping(path = "/config", method = RequestMethod.GET)
+    @RequestMapping(path = "/config/fe", method = RequestMethod.GET)
     public Object variable() {
         Map<String, Object> result = Maps.newHashMap();
         appendConfigureInfo(result);

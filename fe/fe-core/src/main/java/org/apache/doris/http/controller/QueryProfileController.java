@@ -47,6 +47,9 @@ public class QueryProfileController extends BaseController {
     @RequestMapping(path = "/query_profile/{" + QUERY_ID + "}", method = RequestMethod.GET)
     public Object profile(@PathVariable(value = QUERY_ID) String queryId) {
         String profile = ProfileManager.getInstance().getProfile(queryId);
+        if (profile == null) {
+            return ResponseEntityBuilder.okWithCommonError("Query " + queryId + " does not exist");
+        }
         profile = profile.replaceAll("\n", "</br>");
         profile = profile.replaceAll(" ", "&nbsp;&nbsp;");
         return ResponseEntityBuilder.ok(profile);
@@ -61,7 +64,6 @@ public class QueryProfileController extends BaseController {
         return entity;
     }
 
-    // Note: we do not show 'Query ID' column in web page
     private void addFinishedQueryInfo(Map<String, Object> result) {
         List<List<String>> finishedQueries = ProfileManager.getInstance().getAllQueries();
         List<String> columnHeaders = ProfileManager.PROFILE_HEADERS;
@@ -74,7 +76,7 @@ public class QueryProfileController extends BaseController {
         }
 
         result.put("column_names", columnHeaders);
-        result.put("href_column", Lists.newArrayList("Profile"));
+        result.put("href_column", Lists.newArrayList(ProfileManager.QUERY_ID));
         List<Map<String, Object>> list = Lists.newArrayList();
         result.put("rows", list);
 
