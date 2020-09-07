@@ -37,19 +37,20 @@ import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.service.FrontendOptions;
 import org.apache.doris.system.SystemInfoService;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
+
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 public class BaseController {
 
@@ -107,13 +108,13 @@ public class BaseController {
 
     private ActionAuthorizationInfo checkCookie(HttpServletRequest request, HttpServletResponse response,
                                                 boolean checkAuth) {
-        String sessionId = getCookieValue(request, PALO_SESSION_ID, response);
-        HttpAuthManager authMgr = HttpAuthManager.getInstance();
-        if (Strings.isNullOrEmpty(sessionId)) {
+        List<String> sessionIds = getCookieValues(request, PALO_SESSION_ID, response);
+        if (sessionIds.isEmpty()) {
             return null;
         }
 
-        SessionValue sessionValue = authMgr.getSessionValue(sessionId);
+        HttpAuthManager authMgr = HttpAuthManager.getInstance();
+        SessionValue sessionValue = authMgr.getSessionValue(sessionIds);
         if (sessionValue == null) {
             return null;
         }
@@ -144,18 +145,19 @@ public class BaseController {
         return authInfo;
     }
 
-    public String getCookieValue(HttpServletRequest request, String cookieName, HttpServletResponse response) {
+    public List<String> getCookieValues(HttpServletRequest request, String cookieName, HttpServletResponse response) {
         Cookie[] cookies = request.getCookies();
+        List<String> sessionIds = Lists.newArrayList();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if (cookie.getName() != null && cookie.getName().equals(cookieName)) {
                     String sessionId = cookie.getValue();
                     LOG.debug("get cookie value. {}: {}", cookie.getName(), sessionId);
-                    return sessionId;
+                    sessionIds.add(sessionId);
                 }
             }
         }
-        return null;
+        return sessionIds;
     }
 
     public void updateCookieAge(HttpServletRequest request, String cookieName, int age, HttpServletResponse response) {

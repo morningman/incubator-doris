@@ -18,15 +18,17 @@
 package org.apache.doris.http.controller;
 
 import org.apache.doris.http.HttpAuthManager;
+
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/rest/v1")
@@ -48,5 +50,4 @@ public class LogoutController extends BaseController {
         msg.put("msg", "Logout success!");
         return msg;
     }
-
 }

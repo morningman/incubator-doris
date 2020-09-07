@@ -20,6 +20,8 @@ package org.apache.doris.http;
 import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.http.HttpAuthManager.SessionValue;
 
+import com.google.common.collect.Lists;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,11 +37,11 @@ public class HttpAuthManagerTest {
         sessionValue.currentUser = UserIdentity.createAnalyzedUserIdentWithIp(username, "%");
         authMgr.addSessionValue(sessionId, sessionValue);
         Assert.assertEquals(1, authMgr.getAuthSessions().size());
-        System.out.println("username in test: " + authMgr.getSessionValue(sessionId).currentUser);
-        Assert.assertEquals(username, authMgr.getSessionValue(sessionId).currentUser.getQualifiedUser());
+        System.out.println("username in test: " + authMgr.getSessionValue(Lists.newArrayList(sessionId)).currentUser);
+        Assert.assertEquals(username, authMgr.getSessionValue(Lists.newArrayList(sessionId)).currentUser.getQualifiedUser());
         
         String noExistSession = "no-exist-session-id";
-        Assert.assertNull(authMgr.getSessionValue(noExistSession));
+        Assert.assertNull(authMgr.getSessionValue(Lists.newArrayList(noExistSession)));
         Assert.assertEquals(1, authMgr.getAuthSessions().size());
     }
 }

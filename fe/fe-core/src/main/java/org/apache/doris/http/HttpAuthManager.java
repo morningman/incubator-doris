@@ -26,6 +26,7 @@ import com.google.common.cache.CacheBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 // We simulate a simplified session here: only store user-name of clients who already logged in,
@@ -57,10 +58,14 @@ public final class HttpAuthManager {
         return instance;
     }
 
-    public SessionValue getSessionValue(String sessionId) {
-        if (!Strings.isNullOrEmpty(sessionId)) {
+    public SessionValue getSessionValue(List<String> sessionIds) {
+        for (String sessionId : sessionIds) {
             SessionValue sv = authSessions.getIfPresent(sessionId);
-            LOG.debug("get session value {} by session id: {}, left size: {}", sv.currentUser, sessionId, authSessions.size());
+            if (sv != null) {
+                LOG.debug("get session value {} by session id: {}, left size: {}",
+                        sv == null ? null : sv.currentUser, sessionId, authSessions.size());
+                return sv;
+            }
         }
         return null;
     }
