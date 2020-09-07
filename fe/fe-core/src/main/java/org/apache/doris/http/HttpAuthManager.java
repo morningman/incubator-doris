@@ -23,11 +23,16 @@ import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.concurrent.TimeUnit;
 
 // We simulate a simplified session here: only store user-name of clients who already logged in,
 // and we only have a default admin user for now.
 public final class HttpAuthManager {
+    private static final Logger LOG = LogManager.getLogger(HttpAuthManager.class);
+
     private static long SESSION_EXPIRE_TIME = 2; // hour
     private static long SESSION_MAX_SIZE = 100; // avoid to store too many
 
@@ -54,14 +59,16 @@ public final class HttpAuthManager {
 
     public SessionValue getSessionValue(String sessionId) {
         if (!Strings.isNullOrEmpty(sessionId)) {
-            return authSessions.getIfPresent(sessionId);
+            SessionValue sv = authSessions.getIfPresent(sessionId);
+            LOG.debug("get session value {} by session id: {}, left size: {}", sv.currentUser, sessionId, authSessions.size());
         }
         return null;
     }
+
     public void removeSession(String sessionId){
         if (!Strings.isNullOrEmpty(sessionId)) {
             authSessions.invalidate(sessionId);
-//            authSessions.put(sessionId,null);
+            LOG.debug("remove session id: {}, left size: {}", sessionId, authSessions.size());
         }
     }
 

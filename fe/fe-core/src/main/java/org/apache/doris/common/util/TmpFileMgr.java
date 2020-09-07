@@ -42,7 +42,7 @@ public class TmpFileMgr {
 
     private static final long MAX_TOTAL_FILE_SIZE_BYTES = 1 * 1024 * 1024 * 1024L; // 1GB
     private static final long MAX_TOTAL_FILE_NUM = 100;
-    private static final long MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024L; // 100MB
+    public static final long MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024L; // 100MB
     private static final String UPLOAD_DIR = "_doris_upload";
 
     private AtomicLong fileIdGenerator = new AtomicLong(0);

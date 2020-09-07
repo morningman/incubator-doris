@@ -89,9 +89,9 @@ public class QueryProfileController extends BaseController {
 
             // add hyper link
             if (Strings.isNullOrEmpty(queryId)) {
-                rowMap.put("__hrefPath", Lists.newArrayList("/query_profile/-1"));
+                rowMap.put("__hrefPaths", Lists.newArrayList("/query_profile/-1"));
             } else {
-                rowMap.put("__hrefPath", Lists.newArrayList("/query_profile/" + queryId));
+                rowMap.put("__hrefPaths", Lists.newArrayList("/query_profile/" + queryId));
             }
             list.add(rowMap);
         }
