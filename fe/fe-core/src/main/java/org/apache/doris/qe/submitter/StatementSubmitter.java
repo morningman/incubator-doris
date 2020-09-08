@@ -64,29 +64,32 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class StatementSubmitter {
     private static final Logger LOG = LogManager.getLogger(StatementSubmitter.class);
 
+    private static final String TYPE_RESULT_SET = "result_set";
+    private static final String TYPE_EXEC_STATUS = "exec_status";
+
     private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
     private static final String DB_URL_PATTERN = "jdbc:mysql://127.0.0.1:%d/%s";
 
     private ThreadPoolExecutor executor = ThreadPoolManager.newDaemonCacheThreadPool(2, "SQL submitter", true);
 
-    public Future<QueryResultSet> submit(SQLQueryContext queryCtx) {
+    public Future<ExecutionResultSet> submit(StmtContext queryCtx) {
         Worker worker = new Worker(ConnectContext.get(), queryCtx);
         return executor.submit(worker);
     }
 
-    private static class Worker implements Callable<QueryResultSet> {
+    private static class Worker implements Callable<ExecutionResultSet> {
 
         private ConnectContext ctx;
-        private SQLQueryContext queryCtx;
+        private StmtContext queryCtx;
 
-        public Worker(ConnectContext ctx, SQLQueryContext queryCtx) {
+        public Worker(ConnectContext ctx, StmtContext queryCtx) {
             this.ctx = ctx;
             this.queryCtx = queryCtx;
         }
 
         @Override
-        public QueryResultSet call() throws Exception {
-            StatementBase stmtBase = analyzeStmt(queryCtx.sql);
+        public ExecutionResultSet call() throws Exception {
+            StatementBase stmtBase = analyzeStmt(queryCtx.stmt);
 
             Connection conn = null;
             Statement stmt = null;
@@ -96,15 +99,15 @@ public class StatementSubmitter {
                 conn = DriverManager.getConnection(dbUrl, queryCtx.user, queryCtx.passwd);
 
                 if (stmtBase instanceof QueryStmt || stmtBase instanceof ShowStmt) {
-                    stmt = conn.prepareStatement(queryCtx.sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-                    ResultSet rs = stmt.executeQuery(queryCtx.sql);
-                    QueryResultSet resultSet = generateResult(rs);
+                    stmt = conn.prepareStatement(queryCtx.stmt, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    ResultSet rs = stmt.executeQuery(queryCtx.stmt);
+                    ExecutionResultSet resultSet = generateResultSet(rs);
                     rs.close();
                     return resultSet;
                 } else if (stmtBase instanceof InsertStmt || stmtBase instanceof DdlStmt || stmtBase instanceof ExportStmt) {
                     stmt = conn.createStatement();
-                    stmt.execute(queryCtx.sql);
-                    QueryResultSet resultSet = generateResult(stmt.getResultSet());
+                    stmt.execute(queryCtx.stmt);
+                    ExecutionResultSet resultSet = generateExecStatus();
                     return resultSet;
                 } else {
                     throw new Exception("Unsupported statement type");
@@ -125,8 +128,27 @@ public class StatementSubmitter {
             }
         }
 
-        public QueryResultSet generateResult(ResultSet rs) throws SQLException {
+        /**
+         * Result json sample:
+         * {
+         * 	"type": "result_set",
+         * 	"data": [
+         * 		[1],
+         * 		[2]
+         * 	],
+         * 	"meta": [{
+         * 		"name": "k1",
+         * 		"type": "INT"
+         *        }],
+         * 	"status": {}
+         * }
+         */
+        private ExecutionResultSet generateResultSet(ResultSet rs) throws SQLException {
             Map<String, Object> result = Maps.newHashMap();
+            result.put("type", TYPE_RESULT_SET);
+            if (rs == null) {
+                return new ExecutionResultSet(result);
+            }
             ResultSetMetaData metaData = rs.getMetaData();
             int colNum = metaData.getColumnCount();
             // 1. metadata
@@ -152,7 +174,21 @@ public class StatementSubmitter {
             }
             result.put("meta", metaFields);
             result.put("data", rows);
-            return new QueryResultSet(result);
+            return new ExecutionResultSet(result);
+        }
+
+        /**
+         * Result json sample:
+         * {
+         * 	"type": "exec_status",
+         * 	"status": {}
+         * }
+         */
+        private ExecutionResultSet generateExecStatus() throws SQLException {
+            Map<String, Object> result = Maps.newHashMap();
+            result.put("type", TYPE_EXEC_STATUS);
+            result.put("status", Maps.newHashMap());
+            return new ExecutionResultSet(result);
         }
 
         private StatementBase analyzeStmt(String stmtStr) throws Exception {
@@ -165,14 +201,14 @@ public class StatementSubmitter {
         }
     }
 
-    public static class SQLQueryContext {
-        public String sql;
+    public static class StmtContext {
+        public String stmt;
         public String user;
         public String passwd;
-        public long limit; // limit the number of rows returned by the query
+        public long limit; // limit the number of rows returned by the stmt
 
-        public SQLQueryContext(String sql, String user, String passwd, long limit) {
-            this.sql = sql;
+        public StmtContext(String stmt, String user, String passwd, long limit) {
+            this.stmt = stmt;
             this.user = user;
             this.passwd = passwd;
             this.limit = limit;

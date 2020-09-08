@@ -49,9 +49,9 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/rest/v1")
-public class IndexController {
+public class HardwareInfoController {
 
-    @RequestMapping(path = "/index", method = RequestMethod.GET)
+    @RequestMapping(path = "/hardware_info/fe", method = RequestMethod.GET)
     public Object index() {
         Map<String, Map<String, String>> map = new HashMap<>();
         appendVersionInfo(map);

@@ -20,7 +20,7 @@ package org.apache.doris.http.rest;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.qe.ConnectContext;
-import org.apache.doris.qe.submitter.QueryResultSet;
+import org.apache.doris.qe.submitter.ExecutionResultSet;
 import org.apache.doris.qe.submitter.StatementSubmitter;
 import org.apache.doris.system.SystemInfoService;
 
@@ -44,12 +44,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * For query via http
+ * For execute stmt via http
  */
 @RestController
-public class QueryAction extends RestBaseController {
-    private static final Logger LOG = LogManager.getLogger(QueryAction.class);
-    private static StatementSubmitter sqlSubmitter = new StatementSubmitter();
+public class StmtExecutionAction extends RestBaseController {
+    private static final Logger LOG = LogManager.getLogger(StmtExecutionAction.class);
+    private static StatementSubmitter stmtSubmitter = new StatementSubmitter();
 
     private static final String PARAM_SYNC = "sync";
     private static final String PARAM_LIMIT = "limit";
@@ -61,7 +61,7 @@ public class QueryAction extends RestBaseController {
      * Execute a SQL.
      * Request body:
      * {
-     *     "sql" : "select * from tbl1"
+     *     "stmt" : "select * from tbl1"
      * }
      */
     @RequestMapping(path = "/api/query/{" + NS_KEY + "}/{" + DB_KEY + "}", method = {RequestMethod.POST})
@@ -69,7 +69,7 @@ public class QueryAction extends RestBaseController {
             @PathVariable(value = NS_KEY) String ns,
             @PathVariable(value = DB_KEY) String dbName,
             HttpServletRequest request, HttpServletResponse response,
-            @RequestBody String sqlBody) throws DdlException {
+            @RequestBody String stmtBody) throws DdlException {
         ActionAuthorizationInfo authInfo = checkWithCookie(request, response, false);
 
         if (!ns.equalsIgnoreCase(SystemInfoService.DEFAULT_CLUSTER)) {
@@ -88,29 +88,29 @@ public class QueryAction extends RestBaseController {
             limit = Math.min(Long.valueOf(limitParam), MAX_ROW_LIMIT);
         }
 
-        Type type = new TypeToken<QueryRequestBody>() {
+        Type type = new TypeToken<StmtRequestBody>() {
         }.getType();
-        QueryRequestBody queryRequestBody = new Gson().fromJson(sqlBody, type);
+        StmtRequestBody stmtRequestBody = new Gson().fromJson(stmtBody, type);
 
-        LOG.info("sql: {}", queryRequestBody.sql);
+        LOG.info("stmt: {}", stmtRequestBody.stmt);
 
         ConnectContext.get().setDatabase(getFullDbName(dbName));
 
-        // 2. Submit SQL
-        StatementSubmitter.SQLQueryContext queryCtx = new StatementSubmitter.SQLQueryContext(
-                queryRequestBody.sql, authInfo.fullUserName, authInfo.password, limit
+        // 2. Submit stmt
+        StatementSubmitter.StmtContext stmtCtx = new StatementSubmitter.StmtContext(
+                stmtRequestBody.stmt, authInfo.fullUserName, authInfo.password, limit
         );
-        Future<QueryResultSet> future = sqlSubmitter.submit(queryCtx);
+        Future<ExecutionResultSet> future = stmtSubmitter.submit(stmtCtx);
 
         if (isSync) {
             try {
-                QueryResultSet resultSet = future.get();
+                ExecutionResultSet resultSet = future.get();
                 return ResponseEntityBuilder.ok(resultSet.getResult());
             } catch (InterruptedException e) {
-                LOG.warn("failed to execute query", e);
+                LOG.warn("failed to execute stmt", e);
                 return ResponseEntityBuilder.okWithCommonError("Failed to execute sql: " + e.getMessage());
             } catch (ExecutionException e) {
-                LOG.warn("failed to execute query", e);
+                LOG.warn("failed to execute stmt", e);
                 return ResponseEntityBuilder.okWithCommonError("Failed to execute sql: " + e.getMessage());
             }
         } else {
@@ -118,7 +118,7 @@ public class QueryAction extends RestBaseController {
         }
     }
 
-    private static class QueryRequestBody {
-        public String sql;
+    private static class StmtRequestBody {
+        public String stmt;
     }
 }

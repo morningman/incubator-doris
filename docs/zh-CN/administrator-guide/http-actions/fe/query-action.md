@@ -51,10 +51,7 @@ Query Action 用于指定 SQL 查询并返回结果。
 
 ```
 {
-    "sql" : "select * from tbl1",
-    "variables": {
-        "exec_mem_limit" : 2147483648
-    }
+    "stmt" : "select * from tbl1"
 }
 ```
 
@@ -63,34 +60,50 @@ Query Action 用于指定 SQL 查询并返回结果。
 
 ### Response
 
-```
-{
-	"msg": "OK",
-	"code": 0,
-	"data": [{
-		"meta": [{
-				"name": "col1",
-				"type": "INT"
-			},
-			{
-				"name": "col2",
-				"type": "BIGINT"
-			}
-		],
-		"data": [
-			[1, 2],
-			[1, 3],
-			[2, 4]
-		],
-		"status": [{
-			"server_status": 2,
-			"warning_count": 0
-		}]
-	}],
-	"count": 3
-}
-```
+* 返回结果集
 
-* meta 字段描述返回的列信息
-* data 字段返回结果行。其中每一行的中的列类型，需要通过 meta 字段内容判断。
-* status 字段返回 MySQL 的一些信息，如告警行数，状态码等。
+    ```
+    {
+    	"msg": "success",
+    	"code": 0,
+    	"data": {
+    		"type": "result_set",
+    		"data": [
+    			[1],
+    			[2]
+    		],
+    		"meta": [{
+    			"name": "k1",
+    			"type": "INT"
+    		}],
+    		"status": {}
+    	},
+    	"count": 0
+    }
+    ```
+
+    * type 字段为 `result_set` 表示返回结果集。需要根据 meta 和 data 字段获取并展示结果。meta 字段描述返回的列信息。data 字段返回结果行。其中每一行的中的列类型，需要通过 meta 字段内容判断。status 字段返回 MySQL 的一些信息，如告警行数，状态码等。
+
+* 返回结果集
+
+    ```
+    {
+    	"msg": "success",
+    	"code": 0,
+    	"data": {
+    		"type": "result_set",
+    		"data": [
+    			[1],
+    			[2]
+    		],
+    		"meta": [{
+    			"name": "k1",
+    			"type": "INT"
+    		}],
+    		"status": {}
+    	},
+    	"count": 0
+    }
+    ```
+
+    * type 字段为 `result_set` 表示返回结果集。需要根据 meta 和 data 字段获取并展示结果。meta 字段描述返回的列信息。data 字段返回结果行。其中每一行的中的列类型，需要通过 meta 字段内容判断。status 字段返回 MySQL 的一些信息，如告警行数，状态码等。

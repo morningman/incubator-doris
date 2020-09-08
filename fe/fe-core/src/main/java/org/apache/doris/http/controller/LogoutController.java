@@ -18,13 +18,11 @@
 package org.apache.doris.http.controller;
 
 import org.apache.doris.http.HttpAuthManager;
+import org.apache.doris.http.entity.ResponseEntityBuilder;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -34,7 +32,7 @@ import javax.servlet.http.HttpServletResponse;
 @RequestMapping("/rest/v1")
 public class LogoutController extends BaseController {
 
-    @RequestMapping(path = "/logout", method = RequestMethod.GET)
+    @RequestMapping(path = "/logout", method = RequestMethod.POST)
     public Object login(HttpServletRequest request, HttpServletResponse response) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
@@ -45,9 +43,6 @@ public class LogoutController extends BaseController {
                 }
             }
         }
-        Map<String, Object> msg = new HashMap<>();
-        msg.put("code", 200);
-        msg.put("msg", "Logout success!");
-        return msg;
+        return ResponseEntityBuilder.ok();
     }
 }

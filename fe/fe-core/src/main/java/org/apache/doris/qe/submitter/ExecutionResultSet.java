@@ -18,13 +18,16 @@
 package org.apache.doris.qe.submitter;
 
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import java.util.Map;
 
-public class QueryResultSet {
+public class ExecutionResultSet {
 
     private Map<String, Object> result;
 
-    public QueryResultSet(Map<String, Object> result) {
+    public ExecutionResultSet(Map<String, Object> result) {
         this.result = result;
     }
 
@@ -34,5 +37,12 @@ public class QueryResultSet {
 
     public Map<String, Object> getResult() {
         return result;
+    }
+
+    public static ExecutionResultSet emptyResult() {
+        Map<String, Object> result = Maps.newHashMap();
+        result.put("meta", Lists.newArrayList());
+        result.put("data", Lists.newArrayList());
+        return new ExecutionResultSet(result);
     }
 }
