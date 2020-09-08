@@ -21,7 +21,7 @@ import org.apache.doris.common.DdlException;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.submitter.QueryResultSet;
-import org.apache.doris.qe.submitter.SQLSubmitter;
+import org.apache.doris.qe.submitter.StatementSubmitter;
 import org.apache.doris.system.SystemInfoService;
 
 import com.google.common.base.Strings;
@@ -37,7 +37,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.lang.reflect.Type;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -50,7 +49,7 @@ import javax.servlet.http.HttpServletResponse;
 @RestController
 public class QueryAction extends RestBaseController {
     private static final Logger LOG = LogManager.getLogger(QueryAction.class);
-    private static SQLSubmitter sqlSubmitter = new SQLSubmitter();
+    private static StatementSubmitter sqlSubmitter = new StatementSubmitter();
 
     private static final String PARAM_SYNC = "sync";
     private static final String PARAM_LIMIT = "limit";
@@ -62,10 +61,7 @@ public class QueryAction extends RestBaseController {
      * Execute a SQL.
      * Request body:
      * {
-     *     "sql" : "select * from tbl1",
-     *     "variables": {
-     *         "exec_mem_limit" : 2147483648
-     *     }
+     *     "sql" : "select * from tbl1"
      * }
      */
     @RequestMapping(path = "/api/query/{" + NS_KEY + "}/{" + DB_KEY + "}", method = {RequestMethod.POST})
@@ -97,13 +93,11 @@ public class QueryAction extends RestBaseController {
         QueryRequestBody queryRequestBody = new Gson().fromJson(sqlBody, type);
 
         LOG.info("sql: {}", queryRequestBody.sql);
-        LOG.info("var: {}", queryRequestBody.variables);
 
         ConnectContext.get().setDatabase(getFullDbName(dbName));
-        // 1. Set session variable
-        setSessionVariables(queryRequestBody.variables);
+
         // 2. Submit SQL
-        SQLSubmitter.SQLQueryContext queryCtx = new SQLSubmitter.SQLQueryContext(
+        StatementSubmitter.SQLQueryContext queryCtx = new StatementSubmitter.SQLQueryContext(
                 queryRequestBody.sql, authInfo.fullUserName, authInfo.password, limit
         );
         Future<QueryResultSet> future = sqlSubmitter.submit(queryCtx);
@@ -124,11 +118,7 @@ public class QueryAction extends RestBaseController {
         }
     }
 
-    private void setSessionVariables(Map<String, String> variables) {
-    }
-
     private static class QueryRequestBody {
         public String sql;
-        public Map<String, String> variables;
     }
 }

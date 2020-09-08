@@ -18,13 +18,26 @@
 package org.apache.doris.qe.submitter;
 
 
+import org.apache.doris.analysis.DdlStmt;
+import org.apache.doris.analysis.ExportStmt;
+import org.apache.doris.analysis.InsertStmt;
+import org.apache.doris.analysis.QueryStmt;
+import org.apache.doris.analysis.ShowStmt;
+import org.apache.doris.analysis.SqlParser;
+import org.apache.doris.analysis.SqlScanner;
+import org.apache.doris.analysis.StatementBase;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.ThreadPoolManager;
+import org.apache.doris.common.util.SqlParserUtils;
 import org.apache.doris.qe.ConnectContext;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -37,7 +50,20 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 
-public class SQLSubmitter {
+/**
+ * This is a simple stmt submitter for submitting a statement to the local FE.
+ * It uses a fixed-size thread pool to receive query requests,
+ * so it is only suitable for a small number of low-frequency request scenarios.
+ * Now it support submitting the following type of stmt:
+ *      QueryStmt
+ *      ShowStmt
+ *      InsertStmt
+ *      DdlStmt
+ *      ExportStmt
+ */
+public class StatementSubmitter {
+    private static final Logger LOG = LogManager.getLogger(StatementSubmitter.class);
+
     private static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
     private static final String DB_URL_PATTERN = "jdbc:mysql://127.0.0.1:%d/%s";
 
@@ -60,31 +86,41 @@ public class SQLSubmitter {
 
         @Override
         public QueryResultSet call() throws Exception {
+            StatementBase stmtBase = analyzeStmt(queryCtx.sql);
+
             Connection conn = null;
             Statement stmt = null;
             String dbUrl = String.format(DB_URL_PATTERN, Config.query_port, ctx.getDatabase());
             try {
                 Class.forName(JDBC_DRIVER);
                 conn = DriverManager.getConnection(dbUrl, queryCtx.user, queryCtx.passwd);
-                stmt = conn.prepareStatement(queryCtx.sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-                ResultSet rs = stmt.executeQuery(queryCtx.sql);
-                QueryResultSet resultSet = generateResult(rs);
 
-                rs.close();
-                stmt.close();
-                conn.close();
-                return resultSet;
+                if (stmtBase instanceof QueryStmt || stmtBase instanceof ShowStmt) {
+                    stmt = conn.prepareStatement(queryCtx.sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    ResultSet rs = stmt.executeQuery(queryCtx.sql);
+                    QueryResultSet resultSet = generateResult(rs);
+                    rs.close();
+                    return resultSet;
+                } else if (stmtBase instanceof InsertStmt || stmtBase instanceof DdlStmt || stmtBase instanceof ExportStmt) {
+                    stmt = conn.createStatement();
+                    stmt.execute(queryCtx.sql);
+                    QueryResultSet resultSet = generateResult(stmt.getResultSet());
+                    return resultSet;
+                } else {
+                    throw new Exception("Unsupported statement type");
+                }
             } finally {
                 try {
                     if (stmt != null) {
                         stmt.close();
                     }
                 } catch (SQLException se2) {
+                    LOG.warn("failed to close stmt", se2);
                 }
                 try {
                     if (conn != null) conn.close();
                 } catch (SQLException se) {
-                    se.printStackTrace();
+                    LOG.warn("failed to close connection", se);
                 }
             }
         }
@@ -117,6 +153,15 @@ public class SQLSubmitter {
             result.put("meta", metaFields);
             result.put("data", rows);
             return new QueryResultSet(result);
+        }
+
+        private StatementBase analyzeStmt(String stmtStr) throws Exception {
+            SqlParser parser = new SqlParser(new SqlScanner(new StringReader(stmtStr)));
+            try {
+                return SqlParserUtils.getFirstStmt(parser);
+            } catch (Exception e) {
+                throw new Exception("error happens when parsing stmt: " + e.getMessage());
+            }
         }
     }
 
