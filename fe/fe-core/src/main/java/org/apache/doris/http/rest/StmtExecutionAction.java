@@ -92,6 +92,9 @@ public class StmtExecutionAction extends RestBaseController {
         }.getType();
         StmtRequestBody stmtRequestBody = new Gson().fromJson(stmtBody, type);
 
+        if (Strings.isNullOrEmpty(stmtRequestBody.stmt)) {
+            return ResponseEntityBuilder.badRequest("Missing statement request body");
+        }
         LOG.info("stmt: {}", stmtRequestBody.stmt);
 
         ConnectContext.get().setDatabase(getFullDbName(dbName));
