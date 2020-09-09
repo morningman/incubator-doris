@@ -40,12 +40,16 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/*
+/**
  * calc row count from replica to table
  * fe_host:fe_http_port/api/check_decommission?host_ports=host:port,host2:port2...
  * return:
- * {"status":"OK","msg":"Success"}
- * {"status":"FAILED","msg":"err info..."}
+ * {
+ * 	"msg": "OK",
+ * 	"code": 0,
+ * 	"data": ["192.168.10.11:9050", "192.168.10.11:9050"],
+ * 	"count": 0
+ * }
  */
 @RestController
 public class CheckDecommissionAction extends RestBaseController {

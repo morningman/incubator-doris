@@ -40,7 +40,7 @@ import javax.servlet.http.HttpServletResponse;
  * To cancel a load transaction with given load label
  */
 @RestController
-public class CancelStreamLoad extends RestBaseController {
+public class CancelLoadAction extends RestBaseController {
 
     @RequestMapping(path = "/api/{" + DB_KEY + "}/_cancel", method = RequestMethod.POST)
     public Object execute(@PathVariable(value = DB_KEY) final String dbName,

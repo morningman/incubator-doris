@@ -45,9 +45,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @RestController
-public class LoadController extends RestBaseController {
+public class LoadAction extends RestBaseController {
 
-    private static final Logger LOG = LogManager.getLogger(LoadController.class);
+    private static final Logger LOG = LogManager.getLogger(LoadAction.class);
 
     public static final String SUB_LABEL_NAME_PARAM = "sub_label";
 

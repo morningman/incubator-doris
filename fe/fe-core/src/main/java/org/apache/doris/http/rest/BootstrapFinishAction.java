@@ -19,7 +19,6 @@ package org.apache.doris.http.rest;
 
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.common.Config;
-import org.apache.doris.http.entity.ResponseBody;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
 
 import com.google.common.base.Strings;
@@ -34,6 +33,17 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  * Api for checking the whether the FE has been started successfully.
+ * Response
+ *     {
+ *     	"msg": "OK",
+ *     	"code": 0,
+ *     	"data": {
+ *     		"queryPort": 9030,
+ *     		"rpcPort": 9020,
+ *     		"maxReplayedJournal": 17287
+ *       },
+ *     	"count": 0
+ *     }
  */
 @RestController
 public class BootstrapFinishAction {
@@ -48,8 +58,6 @@ public class BootstrapFinishAction {
     @RequestMapping(path = "/api/bootstrap", method = RequestMethod.GET)
     public ResponseEntity execute(HttpServletRequest request, HttpServletResponse response) {
         boolean isReady = Catalog.getCurrentCatalog().isReady();
-
-        ResponseBody body = new ResponseBody();
 
         // to json response
         BootstrapResult result = new BootstrapResult();
@@ -88,6 +96,9 @@ public class BootstrapFinishAction {
         return ResponseEntityBuilder.okWithCommonError("not ready");
     }
 
+    /**
+     * This class is also for json DeSer, so get/set method must be remained.
+     */
     private static class BootstrapResult {
         private long replayedJournalId = 0;
         private int queryPort = 0;

@@ -32,7 +32,7 @@ under the License.
 
 ## Description
 
-用于指定的BE是否能够被下线。比如判断节点下线后，剩余的节点是否能够满足空间要求和副本数要求等。
+用于判断指定的BE是否能够被下线。比如判断节点下线后，剩余的节点是否能够满足空间要求和副本数要求等。
     
 ## Path parameters
 
@@ -48,7 +48,7 @@ under the License.
 
 ## Request body
 
-TODO
+无
 
 ## Response
 

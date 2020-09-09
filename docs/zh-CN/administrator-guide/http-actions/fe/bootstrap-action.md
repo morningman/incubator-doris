@@ -32,7 +32,7 @@ under the License.
 
 ## Description
 
-用于判断FE是否启动完成。当不提供任何参数时，仅返回是否启动成功。如果提供了 `token` 和 `cluster_id`，则返回更多详细信息
+用于判断FE是否启动完成。当不提供任何参数时，仅返回是否启动成功。如果提供了 `token` 和 `cluster_id`，则返回更多详细信息。
     
 ## Path parameters
 

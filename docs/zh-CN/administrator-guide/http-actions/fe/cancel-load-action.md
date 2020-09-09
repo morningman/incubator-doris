@@ -1,6 +1,6 @@
 ---
 {
-    "title": "CANCEL LOAD",
+    "title": "Cancel Load Action",
     "language": "zh-CN"
 }
 ---
@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# CANCEL LOAD
+# Cancel Load Action
 
 ## Request
 
