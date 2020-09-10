@@ -17,7 +17,6 @@
 
 package org.apache.doris.http;
 
-import org.apache.doris.common.util.TmpFileMgr;
 import org.apache.doris.http.config.SpringLog4j2Config;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -53,8 +52,10 @@ public class HttpServer extends SpringBootServletInitializer {
         properties.put("spring.http.encoding.charset", "UTF-8");
         properties.put("spring.http.encoding.enabled", true);
         properties.put("spring.http.encoding.force", true);
-        properties.put("spring.servlet.multipart.max-file-size", TmpFileMgr.MAX_SINGLE_FILE_SIZE);
-        properties.put("spring.servlet.multipart.max-request-size", "10MB");
+        // properties.put("spring.http.multipart.maxFileSize", "100Mb");
+        // properties.put("spring.http.multipart.maxRequestSize", "100Mb");
+        properties.put("spring.servlet.multipart.max-file-size", "100MB");
+        properties.put("spring.servlet.multipart.max-request-size", "100MB");
         properties.put("logging.config", dorisHome + "/conf/" + SpringLog4j2Config.SPRING_LOG_XML_FILE);
         new SpringApplicationBuilder()
                 .sources(HttpServer.class)
