@@ -17,13 +17,13 @@
 
 package org.apache.doris.common.util;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -35,7 +35,11 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Manager the file uploaded
+ * Manager the file uploaded.
+ * This file manager is currently only used to manage files
+ * uploaded through the Upload RESTFul API.
+ * And limit the number and size of the maximum upload file.
+ * It can also browse or delete files through the RESTFul API.
  */
 public class TmpFileMgr {
     public static final Logger LOG = LogManager.getLogger(TmpFileMgr.class);
@@ -49,6 +53,8 @@ public class TmpFileMgr {
     private String rootDir;
     private Map<Long, TmpFile> fileMap = Maps.newConcurrentMap();
 
+    private long totalFileSize = 0;
+
     public TmpFileMgr(String dir) {
         this.rootDir = dir + "/" + UPLOAD_DIR;
         init();
@@ -61,11 +67,28 @@ public class TmpFileMgr {
         } else if (!root.isDirectory()) {
             throw new IllegalStateException("Path " + rootDir + " is not directory");
         }
+
+        // delete all files under this dir at startup.
+        // This means that all uploaded files will be lost after FE restarts.
+        // This is just for simplicity.
+        Util.deleteDirectory(root);
     }
 
-    public TmpFile upload(UploadFile uploadFile) throws TmpFileException {
+    /**
+     * Simply used `synchronized` to allow only one user upload file at one time.
+     * So that we can easily control the number of files and total size of files.
+     *
+     * @param uploadFile
+     * @return
+     * @throws TmpFileException
+     */
+    public synchronized TmpFile upload(UploadFile uploadFile) throws TmpFileException {
         if (uploadFile.file.getSize() > MAX_SINGLE_FILE_SIZE) {
             throw new TmpFileException("File size " + uploadFile.file.getSize() + " exceed limit " + MAX_SINGLE_FILE_SIZE);
+        }
+
+        if (totalFileSize + uploadFile.file.getSize() > MAX_TOTAL_FILE_SIZE_BYTES) {
+            throw new TmpFileException("Total file size will exceed limit " + MAX_TOTAL_FILE_SIZE_BYTES);
         }
 
         if(fileMap.size() > MAX_TOTAL_FILE_NUM) {
@@ -83,6 +106,7 @@ public class TmpFileMgr {
             throw new TmpFileException("Failed to upload file. Reason: " + e.getMessage());
         }
         fileMap.put(tmpFile.id, tmpFile);
+        totalFileSize += uploadFile.file.getSize();
         return tmpFile;
     }
 
@@ -92,6 +116,10 @@ public class TmpFileMgr {
             throw new TmpFileException("File with [" + id + "-" + uuid + "] does not exist");
         }
         return tmpFile;
+    }
+
+    public List<TmpFile> listFiles() {
+        return Lists.newArrayList(fileMap.values());
     }
 
     public class TmpFile {
