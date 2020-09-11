@@ -93,7 +93,7 @@ public class UploadAction extends RestBaseController {
 
         String preview = request.getParameter(PARAM_PREVIEW);
         if (Strings.isNullOrEmpty(preview)) {
-            preview = "true";
+            preview = "false"; // default is false
         }
 
         if (file.isEmpty()) {
@@ -203,7 +203,7 @@ public class UploadAction extends RestBaseController {
         // return specified file
         String preview = request.getParameter(PARAM_PREVIEW);
         if (Strings.isNullOrEmpty(preview)) {
-            preview = "true";
+            preview = "true"; // default is true
         }
 
         try {

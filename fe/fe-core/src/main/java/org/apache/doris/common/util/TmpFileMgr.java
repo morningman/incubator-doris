@@ -136,8 +136,9 @@ public class TmpFileMgr {
         public final String uuid;
         public final String originFileName;
         public final long fileSize;
-        public String absPath;
         public String columnSeparator;
+        public String absPath;
+
         public List<List<String>> lines = null;
         public int maxColNum = 0;
 
@@ -187,8 +188,12 @@ public class TmpFileMgr {
             }
         }
 
+        // make a copy without lines and maxColNum.
+        // so that can call `setPreview` and will not affect other instance
         public TmpFile copy() {
-            return new TmpFile(this.id, this.uuid, this.originFileName, this.fileSize, this.columnSeparator);
+            TmpFile copiedFile = new TmpFile(this.id, this.uuid, this.originFileName, this.fileSize, this.columnSeparator);
+            copiedFile.absPath = this.absPath;
+            return copiedFile;
         }
 
         @Override
