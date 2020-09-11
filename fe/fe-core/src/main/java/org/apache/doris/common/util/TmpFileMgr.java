@@ -17,13 +17,13 @@
 
 package org.apache.doris.common.util;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Manager the file uploaded.
@@ -118,8 +120,14 @@ public class TmpFileMgr {
         return tmpFile;
     }
 
-    public List<TmpFile> listFiles() {
-        return Lists.newArrayList(fileMap.values());
+    public List<TmpFileBrief> listFiles() {
+        return fileMap.values().stream().map(t -> new TmpFileBrief(t)).collect(Collectors.toList());
+    }
+
+    public void deleteFile(Long fileId, String fileUUID) {
+        Predicate<Map.Entry<Long, TmpFile>> match = item -> (item.getValue().id == fileId && item.getValue().uuid.equals(fileUUID));
+        fileMap.entrySet().removeIf(match);
+        return;
     }
 
     public class TmpFile {
@@ -186,6 +194,65 @@ public class TmpFileMgr {
             return sb.toString();
         }
     }
+
+    // a brief of TmpFile.
+    // TODO(cmy): it can be removed by using Lombok's annotation in TmpFile class
+    public static class TmpFileBrief {
+        public long id;
+        public String uuid;
+        public String originFileName;
+        public long fileSize;
+        public String columnSeparator;
+
+        public TmpFileBrief(TmpFile tmpFile) {
+            this.id = tmpFile.id;
+            this.uuid = tmpFile.uuid;
+            this.originFileName = tmpFile.originFileName;
+            this.fileSize = tmpFile.fileSize;
+            this.columnSeparator = tmpFile.columnSeparator;
+        }
+
+        public long getId() {
+            return id;
+        }
+
+        public void setId(long id) {
+            this.id = id;
+        }
+
+        public String getUuid() {
+            return uuid;
+        }
+
+        public void setUuid(String uuid) {
+            this.uuid = uuid;
+        }
+
+        public String getOriginFileName() {
+            return originFileName;
+        }
+
+        public void setOriginFileName(String originFileName) {
+            this.originFileName = originFileName;
+        }
+
+        public long getFileSize() {
+            return fileSize;
+        }
+
+        public void setFileSize(long fileSize) {
+            this.fileSize = fileSize;
+        }
+
+        public String getColumnSeparator() {
+            return columnSeparator;
+        }
+
+        public void setColumnSeparator(String columnSeparator) {
+            this.columnSeparator = columnSeparator;
+        }
+    }
+
 
     public static class UploadFile {
         public MultipartFile file;

@@ -18,7 +18,6 @@
 package org.apache.doris.http.rest;
 
 import org.apache.doris.common.Config;
-import org.apache.doris.common.DdlException;
 import org.apache.doris.common.util.LoadSubmitter;
 import org.apache.doris.common.util.TmpFileMgr;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
@@ -39,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -65,9 +65,9 @@ public class UploadAction extends RestBaseController {
             @PathVariable(value = DB_KEY) String dbName,
             @PathVariable(value = TABLE_KEY) String tblName,
             @RequestParam("file") MultipartFile file,
-            HttpServletRequest request, HttpServletResponse response) throws DdlException {
+            HttpServletRequest request, HttpServletResponse response) {
 
-        ActionAuthorizationInfo authInfo = checkWithCookie(request, response, false);
+        checkWithCookie(request, response, false);
 
         if (!ns.equalsIgnoreCase(SystemInfoService.DEFAULT_CLUSTER)) {
             return ResponseEntityBuilder.badRequest("Only support 'default_cluster' now");
@@ -106,7 +106,7 @@ public class UploadAction extends RestBaseController {
             @PathVariable(value = NS_KEY) String ns,
             @PathVariable(value = DB_KEY) String dbName,
             @PathVariable(value = TABLE_KEY) String tblName,
-            HttpServletRequest request, HttpServletResponse response) throws DdlException {
+            HttpServletRequest request, HttpServletResponse response) {
 
         ActionAuthorizationInfo authInfo = checkWithCookie(request, response, false);
 
@@ -145,7 +145,63 @@ public class UploadAction extends RestBaseController {
         }
     }
 
+    @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.GET})
+    public Object list(
+            @PathVariable(value = NS_KEY) String ns,
+            @PathVariable(value = DB_KEY) String dbName,
+            @PathVariable(value = TABLE_KEY) String tblName,
+            HttpServletRequest request, HttpServletResponse response) {
 
+        checkWithCookie(request, response, false);
+
+        if (!ns.equalsIgnoreCase(SystemInfoService.DEFAULT_CLUSTER)) {
+            return ResponseEntityBuilder.badRequest("Only support 'default_cluster' now");
+        }
+
+        String fullDbName = getFullDbName(dbName);
+        checkTblAuth(ConnectContext.get().getCurrentUserIdentity(), fullDbName, tblName, PrivPredicate.LOAD);
+
+        String columnSeparator = request.getParameter(PARAM_COLUMN_SEPARATOR);
+        if (Strings.isNullOrEmpty(columnSeparator)) {
+            columnSeparator = "\t";
+        }
+
+        List<TmpFileMgr.TmpFileBrief> files = fileMgr.listFiles();
+        return ResponseEntityBuilder.ok(files);
+    }
+
+    @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.DELETE})
+    public Object delete(
+            @PathVariable(value = NS_KEY) String ns,
+            @PathVariable(value = DB_KEY) String dbName,
+            @PathVariable(value = TABLE_KEY) String tblName,
+            HttpServletRequest request, HttpServletResponse response) {
+
+        checkWithCookie(request, response, false);
+
+        if (!ns.equalsIgnoreCase(SystemInfoService.DEFAULT_CLUSTER)) {
+            return ResponseEntityBuilder.badRequest("Only support 'default_cluster' now");
+        }
+
+        String fullDbName = getFullDbName(dbName);
+        checkTblAuth(ConnectContext.get().getCurrentUserIdentity(), fullDbName, tblName, PrivPredicate.LOAD);
+
+        String fileIdStr = request.getParameter(PARAM_FILE_ID);
+        if (Strings.isNullOrEmpty(fileIdStr)) {
+            return ResponseEntityBuilder.badRequest("Missing file id parameter");
+        }
+        String fileUUIDStr = request.getParameter(PARAM_FILE_UUID);
+        if (Strings.isNullOrEmpty(fileUUIDStr)) {
+            return ResponseEntityBuilder.badRequest("Missing file id parameter");
+        }
+
+        fileMgr.deleteFile(Long.valueOf(fileIdStr), fileUUIDStr);
+        return ResponseEntityBuilder.ok();
+    }
+
+    /**
+     * A context to save infos of stream load
+     */
     public static class LoadContext {
         public String user;
         public String passwd;
