@@ -29,11 +29,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -125,9 +125,20 @@ public class TmpFileMgr {
         return fileMap.values().stream().map(t -> new TmpFileBrief(t)).collect(Collectors.toList());
     }
 
+    /**
+     * Delete the specified file and remove it from fileMap
+     * @param fileId
+     * @param fileUUID
+     */
     public void deleteFile(Long fileId, String fileUUID) {
-        Predicate<Map.Entry<Long, TmpFile>> match = item -> (item.getValue().id == fileId && item.getValue().uuid.equals(fileUUID));
-        fileMap.entrySet().removeIf(match);
+        Iterator<Map.Entry<Long, TmpFile>> iterator = fileMap.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Long, TmpFile> entry = iterator.next();
+            if (entry.getValue().id == fileId && entry.getValue().uuid.equals(fileUUID)) {
+                entry.getValue().delete();
+                iterator.remove();
+            }
+        }
         return;
     }
 
@@ -194,6 +205,12 @@ public class TmpFileMgr {
             TmpFile copiedFile = new TmpFile(this.id, this.uuid, this.originFileName, this.fileSize, this.columnSeparator);
             copiedFile.absPath = this.absPath;
             return copiedFile;
+        }
+
+        public void delete() {
+            File file = new File(absPath);
+            file.delete();
+            LOG.info("delete tmp file: {}", this);
         }
 
         @Override
