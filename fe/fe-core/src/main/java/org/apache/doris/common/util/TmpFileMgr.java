@@ -74,6 +74,7 @@ public class TmpFileMgr {
         // This means that all uploaded files will be lost after FE restarts.
         // This is just for simplicity.
         Util.deleteDirectory(root);
+        root.mkdirs();
     }
 
     /**
@@ -184,6 +185,10 @@ public class TmpFileMgr {
                     }
                 }
             }
+        }
+
+        public TmpFile copy() {
+            return new TmpFile(this.id, this.uuid, this.originFileName, this.fileSize, this.columnSeparator);
         }
 
         @Override

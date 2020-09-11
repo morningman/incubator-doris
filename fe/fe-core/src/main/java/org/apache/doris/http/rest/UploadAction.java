@@ -59,6 +59,16 @@ public class UploadAction extends RestBaseController {
     private static final String PARAM_FILE_ID = "file_id";
     private static final String PARAM_FILE_UUID = "file_uuid";
 
+    /**
+     * Upload the file
+     * @param ns
+     * @param dbName
+     * @param tblName
+     * @param file
+     * @param request
+     * @param response
+     * @return
+     */
     @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.POST})
     public Object upload(
             @PathVariable(value = NS_KEY) String ns,
@@ -92,15 +102,25 @@ public class UploadAction extends RestBaseController {
 
         try {
             TmpFileMgr.TmpFile tmpFile = fileMgr.upload(new TmpFileMgr.UploadFile(file, columnSeparator));
+            TmpFileMgr.TmpFile copiedFile = tmpFile.copy();
             if (preview.equalsIgnoreCase("true")) {
-                tmpFile.setPreview();
+                copiedFile.setPreview();
             }
-            return ResponseEntityBuilder.ok(tmpFile);
+            return ResponseEntityBuilder.ok(copiedFile);
         } catch (TmpFileMgr.TmpFileException | IOException e) {
             return ResponseEntityBuilder.okWithCommonError(e.getMessage());
         }
     }
 
+    /**
+     * Load the uploaded file
+     * @param ns
+     * @param dbName
+     * @param tblName
+     * @param request
+     * @param response
+     * @return
+     */
     @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.PUT})
     public Object submit(
             @PathVariable(value = NS_KEY) String ns,
@@ -145,6 +165,16 @@ public class UploadAction extends RestBaseController {
         }
     }
 
+    /**
+     * Get all uploaded file or specified file
+     * If preview is true, also return the the preview of the file
+     * @param ns
+     * @param dbName
+     * @param tblName
+     * @param request
+     * @param response
+     * @return
+     */
     @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.GET})
     public Object list(
             @PathVariable(value = NS_KEY) String ns,
@@ -161,13 +191,31 @@ public class UploadAction extends RestBaseController {
         String fullDbName = getFullDbName(dbName);
         checkTblAuth(ConnectContext.get().getCurrentUserIdentity(), fullDbName, tblName, PrivPredicate.LOAD);
 
-        String columnSeparator = request.getParameter(PARAM_COLUMN_SEPARATOR);
-        if (Strings.isNullOrEmpty(columnSeparator)) {
-            columnSeparator = "\t";
+        String fileIdStr = request.getParameter(PARAM_FILE_ID);
+        String fileUUIDStr = request.getParameter(PARAM_FILE_UUID);
+
+        if (Strings.isNullOrEmpty(fileIdStr) || Strings.isNullOrEmpty(fileUUIDStr)) {
+            // not specified file id, return all files list
+            List<TmpFileMgr.TmpFileBrief> files = fileMgr.listFiles();
+            return ResponseEntityBuilder.ok(files);
         }
 
-        List<TmpFileMgr.TmpFileBrief> files = fileMgr.listFiles();
-        return ResponseEntityBuilder.ok(files);
+        // return specified file
+        String preview = request.getParameter(PARAM_PREVIEW);
+        if (Strings.isNullOrEmpty(preview)) {
+            preview = "true";
+        }
+
+        try {
+            TmpFileMgr.TmpFile tmpFile = fileMgr.getFile(Long.valueOf(fileIdStr), fileUUIDStr);
+            TmpFileMgr.TmpFile copiedFile = tmpFile.copy();
+            if (preview.equalsIgnoreCase("true")) {
+                copiedFile.setPreview();
+            }
+            return ResponseEntityBuilder.ok(copiedFile);
+        } catch (TmpFileMgr.TmpFileException | IOException e) {
+            return ResponseEntityBuilder.okWithCommonError(e.getMessage());
+        }
     }
 
     @RequestMapping(path = "/api/{" + NS_KEY + "}/{" + DB_KEY + "}/{" + TABLE_KEY + "}/upload", method = {RequestMethod.DELETE})
