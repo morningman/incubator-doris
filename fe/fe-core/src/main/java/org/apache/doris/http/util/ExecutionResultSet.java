@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.qe.submitter;
+package org.apache.doris.http.util;
 
 
 import com.google.common.collect.Lists;

@@ -19,14 +19,10 @@ package org.apache.doris.http.rest;
 
 import org.apache.doris.common.DdlException;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
+import org.apache.doris.http.util.ExecutionResultSet;
+import org.apache.doris.http.util.StatementSubmitter;
 import org.apache.doris.qe.ConnectContext;
-import org.apache.doris.qe.submitter.ExecutionResultSet;
-import org.apache.doris.qe.submitter.StatementSubmitter;
 import org.apache.doris.system.SystemInfoService;
-
-import com.google.common.base.Strings;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,12 +32,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.lang.reflect.Type;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.lang.reflect.Type;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * For execute stmt via http
