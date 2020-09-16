@@ -20,6 +20,7 @@ package org.apache.doris.http.rest;
 import org.apache.doris.common.Config;
 import org.apache.doris.http.entity.ResponseEntityBuilder;
 
+import org.apache.parquet.Strings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -35,7 +36,35 @@ import javax.servlet.http.HttpServletResponse;
 public class BasepathAction {
     @RequestMapping(path = "/api/basepath", method = RequestMethod.GET)
     public ResponseEntity execute(HttpServletRequest request, HttpServletResponse response) {
-        return ResponseEntityBuilder.ok(Config.rest_api_base_path);
+        BasepathResponse resp = new BasepathResponse();
+        resp.path = Config.rest_api_base_path;
+        if (Strings.isNullOrEmpty(Config.rest_api_base_path)) {
+            resp.enable = false;
+        } else {
+            resp.enable = true;
+        }
+        return ResponseEntityBuilder.ok(resp);
+    }
+
+    public static class BasepathResponse {
+        public boolean enable;
+        public String path;
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public void setEnable(boolean enable) {
+            this.enable = enable;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
     }
 }
 
