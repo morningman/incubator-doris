@@ -1240,4 +1240,7 @@ public class Config extends ConfigBase {
      */
     @ConfField(mutable = true, masterOnly = true)
     public static boolean enable_batch_delete_by_default = false;
+
+    @ConfField(mutable = false, masterOnly = false)
+    public static String rest_api_base_path = "";
 }
