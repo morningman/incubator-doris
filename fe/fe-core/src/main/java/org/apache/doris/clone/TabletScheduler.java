@@ -632,7 +632,24 @@ public class TabletScheduler extends MasterDaemon {
             throw new SchedException(Status.UNRECOVERABLE, "cluster does not exist");
         }
 
-        tabletCtx.chooseDestReplicaForVersionIncomplete(backendsWorkingSlots);
+        try {
+            tabletCtx.chooseDestReplicaForVersionIncomplete(backendsWorkingSlots);
+        } catch (SchedException e) {
+            if (e.getMessage().equals("unable to choose dest replica")) {
+                // This situation may occur when the BE nodes where all replicas of a tablet are located are decommission,
+                // and this task is a VERSION_INCOMPLETE task.
+                // This will lead to failure to select a suitable dest replica.
+                // At this time, we try to convert this task to a REPLICA_MISSINGG task, and schedule it again.
+                LOG.debug("failed to find version incomplete replica for VERSION_INCOMPLETE task. tablet id: {}, "
+                        + "try to find a new backend", tabletCtx.getTabletId());
+                tabletCtx.releaseResource(this, true);
+                handleReplicaMissing(tabletCtx, batchTask);
+                LOG.info("succeed to find new backend for VERSION_INCOMPLETE task. tablet id: {}", tabletCtx.getTabletId());
+                return;
+            } else {
+                throw e;
+            }
+        }
         tabletCtx.chooseSrcReplicaForVersionIncomplete(backendsWorkingSlots);
 
         // create clone task
@@ -660,18 +677,18 @@ public class TabletScheduler extends MasterDaemon {
         stat.counterReplicaUnavailableErr.incrementAndGet();
         try {
             handleReplicaVersionIncomplete(tabletCtx, batchTask);
-            LOG.info("succeed to find version incomplete replica from tablet relocating. tablet id: {}",
+            LOG.info("succeed to find version incomplete replica for tablet relocating. tablet id: {}",
                     tabletCtx.getTabletId());
         } catch (SchedException e) {
             if (e.getStatus() == Status.SCHEDULE_FAILED) {
-                LOG.info("failed to find version incomplete replica from tablet relocating. tablet id: {}, "
-                        + "try to find a new backend", tabletCtx.getTabletId());
+                LOG.debug("failed to find version incomplete replica for tablet relocating. tablet id: {}, {}. "
+                        + "try to find a new backend", e.getMessage(), tabletCtx.getTabletId());
                 // the dest or src slot may be taken after calling handleReplicaVersionIncomplete(),
                 // so we need to release these slots first.
                 // and reserve the tablet in TabletSchedCtx so that it can continue to be scheduled.
                 tabletCtx.releaseResource(this, true);
                 handleReplicaMissing(tabletCtx, batchTask);
-                LOG.info("succeed to find new backend for tablet relocating. tablet id: {}", tabletCtx.getTabletId());
+                LOG.debug("succeed to find new backend for tablet relocating. tablet id: {}", tabletCtx.getTabletId());
             } else {
                 throw e;
             }
@@ -1056,9 +1073,16 @@ public class TabletScheduler extends MasterDaemon {
             BalanceStatus st = bes.isFit(tabletCtx.getTabletSize(), tabletCtx.getStorageMedium(),
                     resultPaths, tabletCtx.getTabletStatus() != TabletStatus.REPLICA_RELOCATING
                     /* if REPLICA_RELOCATING, then it is not a supplement task */);
-            if (!st.ok()) {
-                LOG.debug("unable to find path for supplementing tablet: {}. {}", tabletCtx, st);
-                continue;
+            if (!st.ok() && tabletCtx.getTabletStatus() == TabletStatus.REPLICA_RELOCATING) {
+                // If this is a REPLICA_RELOCATING task and failed to get path on last step,
+                // this may because it fails to find correct storage medium.
+                // So we try to find path again to treat it as a "supplement" task. (supplememt task will ignore medium check)
+                st = bes.isFit(tabletCtx.getTabletSize(), tabletCtx.getStorageMedium(),
+                        resultPaths, true);
+                if (!st.ok()) {
+                    LOG.debug("unable to find path for supplementing tablet: {}. {}", tabletCtx, st);
+                    continue;
+                }
             }
 
             Preconditions.checkState(resultPaths.size() == 1);
