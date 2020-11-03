@@ -486,6 +486,25 @@ public class Coordinator {
                                     fragment.getFragmentId().asInt(), jobId);
                         }
                     }
+
+                    for (Map.Entry<Integer, List<TScanRangeParams>> entry : tParam.params.per_node_scan_ranges.entrySet()) {
+                        for (TScanRangeParams scanRangeParams : entry.getValue()) {
+                            TScanRange scanRange = scanRangeParams.scan_range;
+                            if (scanRange == null) {
+                                break;
+                            }
+                            TPaloScanRange palo_scan_range = scanRange.palo_scan_range;
+                            if (palo_scan_range == null) {
+                                break;
+                            }
+                            if (palo_scan_range.tablet_id == 26842) {
+                                if (execState.backend.getId() != 10002 && execState.backend.getId() != 15468 && execState.backend.getId() != 10004) {
+                                    LOG.info("cmy get invalid backend: {}", execState.backend);
+                                }
+                            }
+                        }
+                    }
+
                     futures.add(Pair.create(execState, execState.execRemoteFragmentAsync()));
 
                     backendId++;
@@ -1169,6 +1188,8 @@ public class Coordinator {
             for (List<Map<Integer, List<TScanRangeParams>>> perInstanceScanRange : perInstanceScanRanges) {
                 FInstanceExecParam instanceParam = new FInstanceExecParam(null, addressScanRange.getKey(), 0, params);
 
+                TNetworkAddress address = addressScanRange.getKey();
+
                 for (Map<Integer, List<TScanRangeParams>> nodeScanRangeMap : perInstanceScanRange) {
                     for (Map.Entry<Integer, List<TScanRangeParams>> nodeScanRange : nodeScanRangeMap.entrySet()) {
                         if (!instanceParam.perNodeScanRanges.containsKey(nodeScanRange.getKey())) {
@@ -1178,6 +1199,19 @@ public class Coordinator {
                         }
                     }
                 }
+
+                for (Map.Entry<Integer, List<TScanRangeParams>> entry : instanceParam.perNodeScanRanges.entrySet()) {
+                    for (TScanRangeParams tsrp : entry.getValue()) {
+                        TScanRange tsr = tsrp.scan_range;
+                        if (tsr == null) continue;
+                        TPaloScanRange tpsr = tsr.palo_scan_range;
+                        if (tpsr == null) continue;
+                        if (!tpsr.hosts.contains(address)) {
+                            LOG.info("cmy debug failed to get addr: {}, tablet: {}", address, tpsr.tablet_id);
+                        }
+                    }
+                }
+
                 params.instanceExecParams.add(instanceParam);
             }
         }
