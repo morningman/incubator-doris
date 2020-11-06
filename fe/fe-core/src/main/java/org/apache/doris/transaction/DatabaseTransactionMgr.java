@@ -40,6 +40,7 @@ import org.apache.doris.common.MetaNotFoundException;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.DebugUtil;
+import org.apache.doris.common.util.MetaLockUtils;
 import org.apache.doris.common.util.TimeUtils;
 import org.apache.doris.common.util.Util;
 import org.apache.doris.metric.MetricRepo;
@@ -677,9 +678,7 @@ public class DatabaseTransactionMgr {
         }
 
         List<Table> tableList = db.getTablesOnIdOrderOrThrowException(tableIdList);
-        for (Table table : tableList) {
-            table.writeLock();
-        }
+        MetaLockUtils.writeLockTables(tableList);
         try {
             boolean hasError = false;
             for (TableCommitInfo tableCommitInfo : transactionState.getIdToTableCommitInfos().values()) {
@@ -816,9 +815,7 @@ public class DatabaseTransactionMgr {
             }
             updateCatalogAfterVisible(transactionState, db);
         } finally {
-            for (int i = tableList.size() - 1; i >=0; i--) {
-                tableList.get(i).writeUnlock();
-            }
+            MetaLockUtils.writeUnlockTables(tableList);
         }
         LOG.info("finish transaction {} successfully", transactionState);
     }
