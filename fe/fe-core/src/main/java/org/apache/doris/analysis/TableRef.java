@@ -503,7 +503,7 @@ public class TableRef implements ParseNode, Writable {
             // without violating outer join semantics.
             analyzer.registerOnClauseConjuncts(conjuncts, this);
             for (Expr e: conjuncts) {
-                List<TupleId> tupleIds = Lists.newArrayList();
+                Set<TupleId> tupleIds = Sets.newHashSet();
                 e.getIds(tupleIds, null);
                 onClauseTupleIds.addAll(tupleIds);
             }

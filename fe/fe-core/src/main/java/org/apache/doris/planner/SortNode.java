@@ -31,16 +31,17 @@ import org.apache.doris.thrift.TPlanNodeType;
 import org.apache.doris.thrift.TSortInfo;
 import org.apache.doris.thrift.TSortNode;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Sorting.
@@ -111,7 +112,7 @@ public class SortNode extends PlanNode {
     }
 
     @Override
-    public void getMaterializedIds(Analyzer analyzer, List<SlotId> ids) {
+    public void getMaterializedIds(Analyzer analyzer, Set<SlotId> ids) {
         super.getMaterializedIds(analyzer, ids);
         Expr.getIds(info.getOrderingExprs(), null, ids);
     }

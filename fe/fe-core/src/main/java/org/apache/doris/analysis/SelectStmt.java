@@ -476,7 +476,7 @@ public class SelectStmt extends QueryStmt {
                 throw new AnalysisException(
                         "WHERE clause must not contain analytic expressions: " + e.toSql());
             }
-            analyzer.registerConjuncts(whereClause, false, getTableRefIds());
+            analyzer.registerConjuncts(whereClause, false, getTableRefIdsSet());
         }
 
         createSortInfo(analyzer);
@@ -543,8 +543,8 @@ public class SelectStmt extends QueryStmt {
     }
 
     @Override
-    public List<TupleId> collectTupleIds() {
-        List<TupleId> result = Lists.newArrayList();
+    public Set<TupleId> collectTupleIds() {
+        Set<TupleId> result = Sets.newHashSet();
         resultExprs.stream().forEach(expr -> expr.getIds(result, null));
         result.addAll(getTableRefIds());
         if (whereClause != null) {
@@ -894,7 +894,7 @@ public class SelectStmt extends QueryStmt {
             TableRef tblRef = fromClause_.get(i);
             // get all equal
             List<Expr> eqJoinPredicates = analyzer.getEqJoinConjuncts(tblRef.getId());
-            List<TupleId> tuple_list = Lists.newArrayList();
+            Set<TupleId> tuple_list = Sets.newHashSet();
             Expr.getIds(eqJoinPredicates, tuple_list, null);
             for (TupleId tid : tuple_list) {
                 if (validTupleId.contains(tid)) {
@@ -909,7 +909,7 @@ public class SelectStmt extends QueryStmt {
                     // is being added.
                     Preconditions.checkState(tid == candidateTableRef.getId());
                     List<Expr> candidateEqJoinPredicates = analyzer.getEqJoinConjunctsExcludeAuxPredicates(tid);
-                    List<TupleId> candidateTupleList = Lists.newArrayList();
+                    Set<TupleId> candidateTupleList = Sets.newHashSet();
                     Expr.getIds(candidateEqJoinPredicates, candidateTupleList, null);
                     int count = candidateTupleList.size();
                     for (TupleId tupleId : candidateTupleList) {
@@ -1165,7 +1165,7 @@ public class SelectStmt extends QueryStmt {
             List<Subquery> subqueryInHaving = Lists.newArrayList();
             havingClauseAfterAnaylzed.collect(Subquery.class, subqueryInHaving);
             for (Subquery subquery : subqueryInHaving) {
-                if (subquery.isCorrelatedPredicate(getTableRefIds())) {
+                if (subquery.isCorrelatedPredicate(getTableRefIdsSet())) {
                     throw new AnalysisException("The correlated having clause is not supported");
                 }
             }
@@ -1189,7 +1189,7 @@ public class SelectStmt extends QueryStmt {
         }
         if (havingClauseAfterAnaylzed != null) {
             havingPred = havingClauseAfterAnaylzed.substitute(combinedSmap, analyzer, false);
-            analyzer.registerConjuncts(havingPred, true, finalAggInfo.getOutputTupleId().asList());
+            analyzer.registerConjuncts(havingPred, true, finalAggInfo.getOutputTupleId().asSet());
             if (LOG.isDebugEnabled()) {
                 LOG.debug("post-agg havingPred: " + havingPred.debugString());
             }
@@ -1501,7 +1501,7 @@ public class SelectStmt extends QueryStmt {
             if (!(((Subquery) expr).getStatement() instanceof SelectStmt)) {
                 throw new AnalysisException("Only support select subquery in case-when clause.");
             }
-            if (expr.isCorrelatedPredicate(getTableRefIds())) {
+            if (expr.isCorrelatedPredicate(getTableRefIdsSet())) {
                 throw new AnalysisException("The correlated subquery in case-when clause is not supported");
             }
             SelectStmt subquery = (SelectStmt) ((Subquery) expr).getStatement();

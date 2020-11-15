@@ -29,15 +29,16 @@ import org.apache.doris.thrift.TExpr;
 import org.apache.doris.thrift.TPlanNode;
 import org.apache.doris.thrift.TPlanNodeType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 //import org.apache.doris.thrift.TAggregateFunctionCall;
 
@@ -277,7 +278,7 @@ public class AggregationNode extends PlanNode {
     }
 
     @Override
-    public void getMaterializedIds(Analyzer analyzer, List<SlotId> ids) {
+    public void getMaterializedIds(Analyzer analyzer, Set<SlotId> ids) {
         super.getMaterializedIds(analyzer, ids);
 
         // we indirectly reference all grouping slots (because we write them)

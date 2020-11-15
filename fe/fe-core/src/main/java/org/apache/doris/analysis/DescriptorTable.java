@@ -21,17 +21,18 @@ import org.apache.doris.catalog.Table;
 import org.apache.doris.common.IdGenerator;
 import org.apache.doris.thrift.TDescriptorTable;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Repository for tuple (and slot) descriptors.
@@ -116,7 +117,7 @@ public class DescriptorTable {
     /**
      * Marks all slots in list as materialized.
      */
-    public void markSlotsMaterialized(List<SlotId> ids) {
+    public void markSlotsMaterialized(Set<SlotId> ids) {
         for (SlotId id: ids) {
             getSlotDesc(id).setIsMaterialized(true);
         }

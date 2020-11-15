@@ -27,17 +27,16 @@ import org.apache.doris.thrift.TExprNode;
 import org.apache.doris.thrift.TExprNodeType;
 import org.apache.doris.thrift.TSlotRef;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -264,7 +263,7 @@ public class SlotRef extends Expr {
     protected boolean isConstantImpl() { return false; }
 
     @Override
-    public boolean isBoundByTupleIds(List<TupleId> tids) {
+    public boolean isBoundByTupleIds(Set<TupleId> tids) {
         Preconditions.checkState(desc != null);
         for (TupleId tid: tids) {
             if (tid.equals(desc.getParent().getId())) return true;
@@ -279,7 +278,7 @@ public class SlotRef extends Expr {
     }
 
     @Override
-    public void getIds(List<TupleId> tupleIds, List<SlotId> slotIds) {
+    public void getIds(Set<TupleId> tupleIds, Set<SlotId> slotIds) {
         Preconditions.checkState(!type.equals(Type.INVALID));
         Preconditions.checkState(desc != null);
         if (slotIds != null) {

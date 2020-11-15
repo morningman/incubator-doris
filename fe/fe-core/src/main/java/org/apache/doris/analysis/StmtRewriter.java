@@ -29,6 +29,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -678,12 +679,12 @@ public class StmtRewriter {
             if (!(conjunct instanceof BinaryPredicate)) continue;
             BinaryPredicate.Operator operator = ((BinaryPredicate) conjunct).getOp();
             if (!operator.isEquivalence()) continue;
-            List<TupleId> lhsTupleIds = Lists.newArrayList();
+            Set<TupleId> lhsTupleIds = Sets.newHashSet();
             conjunct.getChild(0).getIds(lhsTupleIds, null);
             if (lhsTupleIds.isEmpty()) {
                 continue;
             }
-            List<TupleId> rhsTupleIds = Lists.newArrayList();
+            Set<TupleId> rhsTupleIds = Sets.newHashSet();
             conjunct.getChild(1).getIds(rhsTupleIds, null);
             if (rhsTupleIds.isEmpty()) {
                 continue;
@@ -736,7 +737,7 @@ public class StmtRewriter {
             if (expr instanceof InPredicate) {
                 // joinOp = JoinOperator.NULL_AWARE_LEFT_ANTI_JOIN;
                 joinOp = JoinOperator.LEFT_ANTI_JOIN;
-                List<TupleId> tIds = Lists.newArrayList();
+                Set<TupleId> tIds = Sets.newHashSet();
                 joinConjunct.getIds(tIds, null);
                 if (tIds.size() <= 1 || !tIds.contains(inlineView.getDesc().getId())) {
                     throw new AnalysisException("Unsupported NOT IN predicate with subquery: "

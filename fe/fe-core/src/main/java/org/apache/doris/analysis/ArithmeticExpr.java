@@ -27,14 +27,15 @@ import org.apache.doris.thrift.TExprNode;
 import org.apache.doris.thrift.TExprNodeType;
 import org.apache.doris.thrift.TExprOpcode;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.util.Objects;
+import java.util.Set;
 
 public class ArithmeticExpr extends Expr {
     private static final Logger LOG = LogManager.getLogger(ArithmeticExpr.class);
@@ -185,7 +186,7 @@ public class ArithmeticExpr extends Expr {
     public void computeOutputColumn(Analyzer analyzer) {
         super.computeOutputColumn(analyzer);
 
-        List<TupleId> tupleIds = Lists.newArrayList();
+        Set<TupleId> tupleIds = Sets.newHashSet();
         getIds(tupleIds, null);
         Preconditions.checkArgument(tupleIds.size() == 1);
 

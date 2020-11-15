@@ -34,14 +34,15 @@ import org.apache.doris.thrift.THashJoinNode;
 import org.apache.doris.thrift.TPlanNode;
 import org.apache.doris.thrift.TPlanNodeType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -238,7 +239,7 @@ public class HashJoinNode extends PlanNode {
     }
 
     @Override
-    public void getMaterializedIds(Analyzer analyzer, List<SlotId> ids) {
+    public void getMaterializedIds(Analyzer analyzer, Set<SlotId> ids) {
         super.getMaterializedIds(analyzer, ids);
         // we also need to materialize everything referenced by eqJoinConjuncts
         // and otherJoinConjuncts

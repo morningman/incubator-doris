@@ -27,13 +27,14 @@ import org.apache.doris.thrift.TMergeJoinNode;
 import org.apache.doris.thrift.TPlanNode;
 import org.apache.doris.thrift.TPlanNodeType;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
+
 import java.util.List;
+import java.util.Set;
 
 /**
  * Merge join between left child and right child.
@@ -97,7 +98,7 @@ public class MergeJoinNode extends PlanNode {
     }
 
     @Override
-    public void getMaterializedIds(Analyzer analyzer, List<SlotId> ids) {
+    public void getMaterializedIds(Analyzer analyzer, Set<SlotId> ids) {
         super.getMaterializedIds(analyzer, ids);
         // we also need to materialize everything referenced by cmpConjuncts
         // and otherJoinConjuncts

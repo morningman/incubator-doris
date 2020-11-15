@@ -725,7 +725,7 @@ public class Analyzer {
     public void registerFullOuterJoinedConjunct(Expr e) {
         Preconditions.checkState(
                 !globalState.fullOuterJoinedConjuncts.containsKey(e.getId()));
-        List<TupleId> tids = Lists.newArrayList();
+        Set<TupleId> tids = Sets.newHashSet();
         e.getIds(tids, null);
         for (TupleId tid: tids) {
             if (!globalState.fullOuterJoinedTupleIds.containsKey(tid)) continue;
@@ -840,8 +840,8 @@ public class Analyzer {
         globalState.conjuncts.put(e.getId(), e);
         
         // LOG.info("registered conjunct " + p.getId().toString() + ": " + p.toSql());
-        ArrayList<TupleId> tupleIds = Lists.newArrayList();
-        ArrayList<SlotId> slotIds = Lists.newArrayList();
+        Set<TupleId> tupleIds = Sets.newHashSet();
+        Set<SlotId> slotIds = Sets.newHashSet();
         e.getIds(tupleIds, slotIds);
         // register full join conjuncts
         registerFullOuterJoinedConjunct(e);
@@ -884,15 +884,15 @@ public class Analyzer {
 
         // examine children and update eqJoinConjuncts
         for (int i = 0; i < 2; ++i) {
-            List<TupleId> lhsTupleIds = Lists.newArrayList();
+            Set<TupleId> lhsTupleIds = Sets.newHashSet();
             binaryPred.getChild(i).getIds(lhsTupleIds, null);
             if (lhsTupleIds.size() == 1) {
-                if (!globalState.eqJoinConjuncts.containsKey(lhsTupleIds.get(0))) {
+                if (!globalState.eqJoinConjuncts.containsKey(lhsTupleIds.iterator().next())) {
                     List<ExprId> conjunctIds = Lists.newArrayList();
                     conjunctIds.add(e.getId());
-                    globalState.eqJoinConjuncts.put(lhsTupleIds.get(0), conjunctIds);
+                    globalState.eqJoinConjuncts.put(lhsTupleIds.iterator().next(), conjunctIds);
                 } else {
-                    globalState.eqJoinConjuncts.get(lhsTupleIds.get(0)).add(e.getId());
+                    globalState.eqJoinConjuncts.get(lhsTupleIds.iterator().next()).add(e.getId());
                 }
                 binaryPred.setIsEqJoinConjunct(true);
             }
@@ -1040,13 +1040,13 @@ public class Analyzer {
      * evaluated again by or after a join.
      */
     public boolean evalAfterJoin(Expr e) {
-        List<TupleId> tids = Lists.newArrayList();
+        Set<TupleId> tids = Sets.newHashSet();
         e.getIds(tids, null);
         if (tids.isEmpty()) return false;
         if (tids.size() > 1 || isOjConjunct(e) || isFullOuterJoined(e)
-                || (isOuterJoined(tids.get(0))
+                || (isOuterJoined(tids.iterator().next())
                 && (!e.isOnClauseConjunct() || isIjConjunct(e)))
-                || (isAntiJoinedConjunct(e) && !isSemiJoined(tids.get(0)))) {
+                || (isAntiJoinedConjunct(e) && !isSemiJoined(tids.iterator().next()))) {
             return true;
         }
         return false;
@@ -1104,7 +1104,7 @@ public class Analyzer {
         return tid == visibleSemiJoinedTupleId_ || !isSemiJoined(tid);
     }
 
-    public boolean containsOuterJoinedTid(List<TupleId> tids) {
+    public boolean containsOuterJoinedTid(Set<TupleId> tids) {
         for (TupleId tid: tids) {
             if (isOuterJoined(tid)) return true;
         }
@@ -1608,7 +1608,7 @@ public class Analyzer {
         if (!e.isBoundByTupleIds(tupleIds)) {
             return false;
         }
-        ArrayList<TupleId> tids = Lists.newArrayList();
+        Set<TupleId> tids = Sets.newHashSet();
         e.getIds(tids, null);
         if (tids.isEmpty()) {
             return true;
@@ -1639,7 +1639,7 @@ public class Analyzer {
                 // Optimization for single-tid predicates: Legal to assign below the outer join
                 // if the predicate is from the same On-clause that makes tid nullable
                 // (otherwise e needn't be true when that tuple is set).
-                TupleId tid = tids.get(0);
+                TupleId tid = tids.iterator().next();
                 return globalState.ojClauseByConjunct.get(e.getId()) == getLastOjClause(tid);
             }
         }
@@ -1666,7 +1666,7 @@ public class Analyzer {
     public boolean canEvalAntiJoinedConjunct(Expr e, Set<TupleId> nodeTupleIds) {
         TableRef antiJoinRef = getAntiJoinRef(e);
         if (antiJoinRef == null) return true;
-        List<TupleId> tids = Lists.newArrayList();
+        Set<TupleId> tids = Sets.newHashSet();
         e.getIds(tids, null);
         if (tids.size() > 1) {
             return nodeTupleIds.containsAll(antiJoinRef.getAllTableRefIds())
@@ -1674,7 +1674,7 @@ public class Analyzer {
         }
         // A single tid conjunct that is anti-joined can be safely assigned to a
         // node below the anti join that specified it.
-        return globalState.semiJoinedTupleIds.containsKey(tids.get(0));
+        return globalState.semiJoinedTupleIds.containsKey(tids.iterator().next());
     }
 
     /**
@@ -1699,7 +1699,7 @@ public class Analyzer {
      * safe to evaluate e elsewhere as well, but in any case the join must evaluate e.
      */
     public boolean evalByJoin(Expr e) {
-        List<TupleId> tids = Lists.newArrayList();
+        Set<TupleId> tids = Sets.newHashSet();
         e.getIds(tids, null);
 
         if (tids.isEmpty()) {
@@ -1718,7 +1718,7 @@ public class Analyzer {
      * Mark all slots that are referenced in exprs as materialized.
      */
     public void materializeSlots(List<Expr> exprs) {
-        List<SlotId> slotIds = Lists.newArrayList();
+        Set<SlotId> slotIds = Sets.newHashSet();
 
         for (Expr e: exprs) {
             Preconditions.checkState(e.isAnalyzed);
@@ -1758,7 +1758,7 @@ public class Analyzer {
         if (planRoot == null) {
             return;
         }
-        List<SlotId> refdIdList = Lists.newArrayList();
+        Set<SlotId> refdIdList = Sets.newHashSet();
         planRoot.getMaterializedIds(analyzer, refdIdList);
         if (outputExprs != null) {
             Expr.getIds(outputExprs, null, refdIdList);

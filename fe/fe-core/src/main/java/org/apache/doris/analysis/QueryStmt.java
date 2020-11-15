@@ -459,7 +459,7 @@ public abstract class QueryStmt extends StatementBase {
      */
     public abstract void collectTableRefs(List<TableRef> tblRefs);
 
-    abstract List<TupleId> collectTupleIds();
+    abstract Set<TupleId> collectTupleIds();
 
     public ArrayList<OrderByElement> getOrderByElements() {
         return orderByElements;
@@ -571,7 +571,7 @@ public abstract class QueryStmt extends StatementBase {
      * Mark slots referenced in exprs as materialized.
      */
     protected void materializeSlots(Analyzer analyzer, List<Expr> exprs) {
-        List<SlotId> slotIds = Lists.newArrayList();
+        Set<SlotId> slotIds = Sets.newHashSet();
         for (Expr e: exprs) {
             e.getIds(null, slotIds);
         }

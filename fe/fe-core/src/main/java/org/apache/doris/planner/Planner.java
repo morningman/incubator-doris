@@ -32,15 +32,17 @@ import org.apache.doris.rewrite.mvrewrite.MVSelectFailedException;
 import org.apache.doris.thrift.TExplainLevel;
 import org.apache.doris.thrift.TQueryOptions;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The planner is responsible for turning parse trees into plan fragments that can be shipped off to backends for
@@ -85,7 +87,7 @@ public class Planner {
         for (TupleDescriptor tupleDesc : analyzer.getDescTbl().getTupleDescs()) {
             for (SlotDescriptor slotDesc : tupleDesc.getSlots()) {
                 for (Expr expr : outputExprs) {
-                    List<SlotId> slotList = Lists.newArrayList();
+                    Set<SlotId> slotList = Sets.newHashSet();
                     expr.getIds(null, slotList);
                     if (PrimitiveType.DECIMAL != expr.getType().getPrimitiveType() && 
                             PrimitiveType.DECIMALV2 != expr.getType().getPrimitiveType()) {

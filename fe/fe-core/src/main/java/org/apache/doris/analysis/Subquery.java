@@ -17,23 +17,23 @@
 
 package org.apache.doris.analysis;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.doris.catalog.ArrayType;
 import org.apache.doris.catalog.StructField;
 import org.apache.doris.catalog.StructType;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.UserException;
-
-
 import org.apache.doris.thrift.TExprNode;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Class representing a subquery. A Subquery consists of a QueryStmt and has
@@ -159,7 +159,7 @@ public class Subquery extends Expr {
     }
 
     @Override
-    public boolean isCorrelatedPredicate(List<TupleId> tupleIdList) {
+    public boolean isCorrelatedPredicate(Set<TupleId> tupleIdList) {
         List<TupleId> tupleIdFromSubquery = stmt.collectTupleIds();
         for (TupleId tupleId : tupleIdList) {
             if (tupleIdFromSubquery.contains(tupleId)) {

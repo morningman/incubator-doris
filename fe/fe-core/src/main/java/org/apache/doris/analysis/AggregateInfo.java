@@ -22,15 +22,16 @@ import org.apache.doris.common.AnalysisException;
 import org.apache.doris.planner.DataPartition;
 import org.apache.doris.thrift.TPartitionType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Encapsulates all the information needed to compute the aggregate functions of a single
@@ -374,7 +375,7 @@ public final class AggregateInfo extends AggregateInfoBase {
      * Append ids of all slots that are being referenced in the process
      * of performing the aggregate computation described by this AggregateInfo.
      */
-    public void getRefdSlots(List<SlotId> ids) {
+    public void getRefdSlots(Set<SlotId> ids) {
         Preconditions.checkState(outputTupleDesc_ != null);
         if (groupingExprs_ != null) {
             Expr.getIds(groupingExprs_, null, ids);
