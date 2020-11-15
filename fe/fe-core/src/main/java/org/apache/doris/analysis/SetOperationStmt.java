@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -543,8 +544,8 @@ public class SetOperationStmt extends QueryStmt {
     }
 
     @Override
-    public List<TupleId> collectTupleIds() {
-        List<TupleId> result = Lists.newArrayList();
+    public Set<TupleId> collectTupleIds() {
+        Set<TupleId> result = Sets.newHashSet();
         for (SetOperand op: operands) result.addAll(op.getQueryStmt().collectTupleIds());
         return result;
     }

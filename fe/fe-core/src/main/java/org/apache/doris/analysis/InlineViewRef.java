@@ -26,12 +26,12 @@ import org.apache.doris.common.ErrorReport;
 import org.apache.doris.common.UserException;
 import org.apache.doris.rewrite.ExprRewriter;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -178,7 +178,9 @@ public class InlineViewRef extends TableRef {
         queryStmt.analyze(inlineViewAnalyzer);
         correlatedTupleIds_.addAll(queryStmt.getCorrelatedTupleIds(inlineViewAnalyzer));
 
-        queryStmt.getMaterializedTupleIds(materializedTupleIds);
+        Set<TupleId> materializedTupleIdsSet = Sets.newHashSet();
+        queryStmt.getMaterializedTupleIds(materializedTupleIdsSet);
+        materializedTupleIds.addAll(materializedTupleIdsSet);
         if (view != null && !hasExplicitAlias() && !view.isLocalView()) {
             name = analyzer.getFqTableName(name);
             aliases_ = new String[] { name.toString(), view.getName() };

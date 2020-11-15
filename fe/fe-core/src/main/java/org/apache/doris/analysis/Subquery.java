@@ -160,7 +160,7 @@ public class Subquery extends Expr {
 
     @Override
     public boolean isCorrelatedPredicate(Set<TupleId> tupleIdList) {
-        List<TupleId> tupleIdFromSubquery = stmt.collectTupleIds();
+        Set<TupleId> tupleIdFromSubquery = stmt.collectTupleIds();
         for (TupleId tupleId : tupleIdList) {
             if (tupleIdFromSubquery.contains(tupleId)) {
                 return true;
