@@ -40,6 +40,10 @@ import org.apache.doris.mysql.privilege.PrivPredicate;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.rewrite.ExprRewriter;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
@@ -47,10 +51,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -519,6 +519,16 @@ public class SelectStmt extends QueryStmt {
         return result;
     }
 
+    public Set<TupleId> getTableRefIdsSet() {
+        Set<TupleId> set = Sets.newHashSet();
+
+        for (TableRef ref : fromClause_) {
+            set.add(ref.getId());
+        }
+
+        return set;
+    }
+
     public List<TupleId> getTableRefIdsWithoutInlineView() {
         List<TupleId> result = Lists.newArrayList();
 
@@ -761,7 +771,7 @@ public class SelectStmt extends QueryStmt {
         // can also be safely evaluated below the join (picked up by getBoundPredicates()).
         // Such predicates will be marked twice and that is ok.
         List<Expr> unassigned =
-                analyzer.getUnassignedConjuncts(getTableRefIds(), true);
+                analyzer.getUnassignedConjuncts(getTableRefIdsSet(), true);
         List<Expr> unassignedJoinConjuncts = Lists.newArrayList();
         for (Expr e : unassigned) {
             if (analyzer.evalAfterJoin(e)) {
@@ -785,7 +795,7 @@ public class SelectStmt extends QueryStmt {
             // to account for propagated predicates because if an analytic expr is only
             // referenced by a propagated predicate, then it's better to not materialize the
             // analytic expr at all.
-            ArrayList<TupleId> tids = Lists.newArrayList();
+            Set<TupleId> tids = Sets.newHashSet();
             getMaterializedTupleIds(tids); // includes the analytic tuple
             List<Expr> conjuncts = analyzer.getUnassignedConjuncts(tids);
             analyzer.materializeSlots(conjuncts);
@@ -807,7 +817,7 @@ public class SelectStmt extends QueryStmt {
             //         analyzer.getBoundPredicates(aggInfo.getResultTupleId(), groupBySlots, false);
             // havingConjuncts.addAll(bindingPredicates);
             havingConjuncts.addAll(
-                    analyzer.getUnassignedConjuncts(aggInfo.getResultTupleId().asList()));
+                    analyzer.getUnassignedConjuncts(aggInfo.getResultTupleId().asSet()));
             materializeSlots(analyzer, havingConjuncts);
             aggInfo.materializeRequiredSlots(analyzer, baseTblSmap);
         }
@@ -1111,7 +1121,7 @@ public class SelectStmt extends QueryStmt {
         aggExprs.clear();
         TreeNode.collect(substitutedAggs, Expr.isAggregatePredicate(), aggExprs);
 
-        List<TupleId> groupingByTupleIds = new ArrayList<>();
+        Set<TupleId> groupingByTupleIds = Sets.newHashSet();
         if (groupByClause != null) {
             // must do it before copying for createAggInfo()
             if (groupingInfo != null) {
@@ -1598,7 +1608,7 @@ public class SelectStmt extends QueryStmt {
      * ids also include the logical analytic output tuple.
      */
     @Override
-    public void getMaterializedTupleIds(ArrayList<TupleId> tupleIdList) {
+    public void getMaterializedTupleIds(Set<TupleId> tupleIdList) {
         // If select statement has an aggregate, then the aggregate tuple id is materialized.
         // Otherwise, all referenced tables are materialized.
         if (evaluateOrderBy) {

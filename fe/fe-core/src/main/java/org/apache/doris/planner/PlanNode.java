@@ -17,7 +17,6 @@
 
 package org.apache.doris.planner;
 
-import com.google.common.base.Predicates;
 import org.apache.doris.analysis.Analyzer;
 import org.apache.doris.analysis.Expr;
 import org.apache.doris.analysis.ExprSubstitutionMap;
@@ -31,13 +30,14 @@ import org.apache.doris.thrift.TExplainLevel;
 import org.apache.doris.thrift.TPlan;
 import org.apache.doris.thrift.TPlanNode;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.math.LongMath;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,6 +100,17 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     //  Node should compact data.
     protected boolean compactData;
     protected int numInstances;
+
+    protected PlanNode(PlanNodeId id, Set<TupleId> tupleIds, String planNodeName) {
+        this.id = id;
+        this.limit = -1;
+        // make a copy, just to be on the safe side
+        this.tupleIds = Lists.newArrayList(tupleIds);
+        this.tblRefIds = Lists.newArrayList(tupleIds);
+        this.cardinality = -1;
+        this.planNodeName = planNodeName;
+        this.numInstances = 1;
+    }
 
     protected PlanNode(PlanNodeId id, ArrayList<TupleId> tupleIds, String planNodeName) {
         this.id = id;
@@ -239,8 +250,17 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
         return tupleIds;
     }
 
+    public Set<TupleId> getTupleIdsSet() {
+        Preconditions.checkState(tupleIds != null);
+        return Sets.newHashSet(tupleIds);
+    }
+
     public ArrayList<TupleId> getTblRefIds() {
         return tblRefIds;
+    }
+
+    public Set<TupleId> getTblRefIdsSet() {
+        return Sets.newHashSet(tblRefIds);
     }
 
     public void setTblRefIds(ArrayList<TupleId> ids) {
@@ -467,7 +487,7 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
      * Marks all slots referenced in exprs as materialized.
      */
     protected void markSlotsMaterialized(Analyzer analyzer, List<Expr> exprs) {
-        List<SlotId> refdIdList = Lists.newArrayList();
+        Set<SlotId> refdIdList = Sets.newHashSet();
 
         for (Expr expr: exprs) {
             expr.getIds(null, refdIdList);
@@ -551,7 +571,7 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
      * (the rationale being that only conjuncts need to be evaluated explicitly;
      * exprs that are turned into scan predicates, etc., are evaluated implicitly).
      */
-    public void getMaterializedIds(Analyzer analyzer, List<SlotId> ids) {
+    public void getMaterializedIds(Analyzer analyzer, Set<SlotId> ids) {
         for (PlanNode childNode : children) {
             childNode.getMaterializedIds(analyzer, ids);
         }

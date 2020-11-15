@@ -22,16 +22,17 @@ import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.TableAliasGenerator;
 import org.apache.doris.common.UserException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Class representing a statement rewriter. A statement rewriter performs subquery
@@ -572,7 +573,7 @@ public class StmtRewriter {
 
         for (Expr conjunct : onClauseConjuncts) {
             canRewriteScalarFunction(expr, conjunct);
-            updateInlineView(inlineView, conjunct, stmt.getTableRefIds(),
+            updateInlineView(inlineView, conjunct, stmt.getTableRefIdsSet(),
                 lhsExprs, rhsExprs, updateGroupBy);
         }
 
@@ -666,7 +667,7 @@ public class StmtRewriter {
 
         // Check for references to ancestor query blocks (cycles in the dependency
         // graph of query blocks are not supported).
-        if (!onClausePredicate.isBoundByTupleIds(stmt.getTableRefIds())) {
+        if (!onClausePredicate.isBoundByTupleIds(stmt.getTableRefIdsSet())) {
             throw new AnalysisException("Unsupported correlated subquery: "
                     + subqueryStmt.toSql());
         }
@@ -797,7 +798,7 @@ public class StmtRewriter {
      * Return true if the expr tree rooted at 'root' contains a correlated
      * predicate.
      */
-    private static boolean containsCorrelatedPredicate(Expr root, List<TupleId> tupleIds) {
+    private static boolean containsCorrelatedPredicate(Expr root, Set<TupleId> tupleIds) {
         if (isCorrelatedPredicate(root, tupleIds)) {
             return true;
         }
@@ -814,7 +815,7 @@ public class StmtRewriter {
      * correlated if at least one of its SlotRefs belongs to an ancestor
      * query block (i.e. is not bound by the given 'tupleIds').
      */
-    private static boolean isCorrelatedPredicate(Expr expr, List<TupleId> tupleIds) {
+    private static boolean isCorrelatedPredicate(Expr expr, Set<TupleId> tupleIds) {
         return (expr instanceof BinaryPredicate || expr instanceof SlotRef) && !expr.isBoundByTupleIds(tupleIds);
     }
 
@@ -825,7 +826,7 @@ public class StmtRewriter {
      */
     private static ArrayList<Expr> extractCorrelatedPredicates(SelectStmt subqueryStmt)
             throws AnalysisException {
-        List<TupleId> subqueryTupleIds = subqueryStmt.getTableRefIds();
+        Set<TupleId> subqueryTupleIds = subqueryStmt.getTableRefIdsSet();
         ArrayList<Expr> correlatedPredicates = Lists.newArrayList();
 
         if (subqueryStmt.hasWhereClause()) {
@@ -877,8 +878,8 @@ public class StmtRewriter {
      * replace them with true BoolLiterals. The modified expr tree is returned
      * and the extracted correlated predicates are added to 'matches'.
      */
-    private static Expr extractCorrelatedPredicates(Expr root, List<TupleId> tupleIds,
-        ArrayList<Expr> matches) {
+    private static Expr extractCorrelatedPredicates(Expr root, Set<TupleId> tupleIds,
+                                                    ArrayList<Expr> matches) {
         if (isCorrelatedPredicate(root, tupleIds)) {
             matches.add(root);
             return new BoolLiteral(true);
@@ -895,7 +896,7 @@ public class StmtRewriter {
      * correlated predicate cannot be extracted if it is part of a disjunction.
      */
     private static boolean canExtractCorrelatedPredicates(Expr expr,
-            List<TupleId> subqueryTupleIds) {
+                                                          Set<TupleId> subqueryTupleIds) {
         if (!(expr instanceof CompoundPredicate)) {
             return true;
         }
@@ -985,11 +986,11 @@ public class StmtRewriter {
      * both the lhs and rhs of 'expr' reference a tuple of the subquery stmt.
      */
     private static void updateInlineView(
-            InlineViewRef inlineView, Expr expr, List<TupleId> parentQueryTids,
+            InlineViewRef inlineView, Expr expr, Set<TupleId> parentQueryTids,
             List<Expr> lhsExprs, List<Expr> rhsExprs, boolean updateGroupBy)
             throws AnalysisException {
         SelectStmt stmt = (SelectStmt) inlineView.getViewStmt();
-        List<TupleId> subqueryTblIds = stmt.getTableRefIds();
+        Set<TupleId> subqueryTblIds = stmt.getTableRefIdsSet();
         ArrayList<Expr> groupByExprs = null;
         if (updateGroupBy) {
             groupByExprs = Lists.newArrayList();

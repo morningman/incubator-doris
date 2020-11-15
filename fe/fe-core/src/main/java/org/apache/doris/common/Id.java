@@ -17,7 +17,10 @@
 
 package org.apache.doris.common;
 
+import com.google.common.collect.Sets;
+
 import java.util.ArrayList;
+import java.util.Set;
 
 /**
  * Integer ids that cannot accidentally be compared with ints.
@@ -64,6 +67,12 @@ public class Id<IdType extends Id<IdType>> {
         ArrayList<IdType> list = new ArrayList<IdType>();
         list.add((IdType) this);
         return list;
+    }
+
+    public Set<IdType> asSet() {
+        Set<IdType> set = Sets.newHashSet();
+        set.add((IdType) this);
+        return set;
     }
 
     public String toString() {

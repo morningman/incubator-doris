@@ -39,11 +39,11 @@ import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.UserException;
 import org.apache.doris.thrift.TPartitionType;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -339,7 +339,7 @@ public class AnalyticPlanner {
             for (int i = 0; i < inputSmap.size(); ++i) {
                 Expr rhsExpr = inputSmap.getRhs().get(i);
                 // Ignore substitutions that are irrelevant at this plan node and its ancestors.
-                if (!rhsExpr.isBoundByTupleIds(input.getTupleIds())) continue;
+                if (!rhsExpr.isBoundByTupleIds(input.getTupleIdsSet())) continue;
                 rhsExpr.collect(TupleIsNullPredicate.class, tupleIsNullPredsToMaterialize);
             }
             Expr.removeDuplicates(tupleIsNullPredsToMaterialize);

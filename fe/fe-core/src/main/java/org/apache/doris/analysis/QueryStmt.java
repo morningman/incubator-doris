@@ -24,19 +24,18 @@ import org.apache.doris.common.ErrorReport;
 import org.apache.doris.common.UserException;
 import org.apache.doris.rewrite.ExprRewriter;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Abstract base class for any statement that returns results
@@ -246,7 +245,7 @@ public abstract class QueryStmt extends StatementBase {
         if (forbiddenMVRewrite) {
             return expr;
         }
-        if (expr.isBoundByTupleIds(disableTuplesMVRewriter.stream().collect(Collectors.toList()))) {
+        if (expr.isBoundByTupleIds(disableTuplesMVRewriter)) {
             return expr;
         }
         ExprRewriter rewriter = analyzer.getMVExprRewriter();
@@ -452,7 +451,7 @@ public abstract class QueryStmt extends StatementBase {
      * Used in case this stmt is part of an @InlineViewRef,
      * since we need to know the materialized tupls ids of a TableRef.
      */
-    public abstract void getMaterializedTupleIds(ArrayList<TupleId> tupleIdList);
+    public abstract void getMaterializedTupleIds(Set<TupleId> tupleIdList);
 
     /**
      * Returns all physical (non-inline-view) TableRefs of this statement and the nested

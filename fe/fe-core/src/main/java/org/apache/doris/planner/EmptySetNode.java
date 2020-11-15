@@ -17,14 +17,14 @@
 
 package org.apache.doris.planner;
 
-import java.util.ArrayList;
-
 import org.apache.doris.analysis.Analyzer;
 import org.apache.doris.analysis.TupleId;
 import org.apache.doris.thrift.TPlanNode;
 import org.apache.doris.thrift.TPlanNodeType;
 
 import com.google.common.base.Preconditions;
+
+import java.util.Set;
 
 /**
  * Node that returns an empty result set. Used for planning query blocks with a constant
@@ -33,7 +33,7 @@ import com.google.common.base.Preconditions;
  * construct a valid row empty batch.
  */
 public class EmptySetNode extends PlanNode {
-    public EmptySetNode(PlanNodeId id, ArrayList<TupleId> tupleIds) {
+    public EmptySetNode(PlanNodeId id, Set<TupleId> tupleIds) {
         super(id, tupleIds, "EMPTYSET");
         Preconditions.checkArgument(tupleIds.size() > 0);
     }

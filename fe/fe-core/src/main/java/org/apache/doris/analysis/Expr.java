@@ -30,15 +30,16 @@ import org.apache.doris.thrift.TExpr;
 import org.apache.doris.thrift.TExprNode;
 import org.apache.doris.thrift.TExprOpcode;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.google.common.collect.Sets;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -730,7 +731,7 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
         }
     }
 
-    public static boolean isBound(List<? extends Expr> exprs, List<TupleId> tids) {
+    public static boolean isBound(List<? extends Expr> exprs, Set<TupleId> tids) {
         for (Expr expr : exprs) {
             if (!expr.isBoundByTupleIds(tids)) {
                 return false;
@@ -739,8 +740,8 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
         return true;
     }
 
-    public static <C extends Expr> void getIds(List<? extends Expr> exprs, List<TupleId> tupleIds,
-      List<SlotId> slotIds) {
+    public static <C extends Expr> void getIds(List<? extends Expr> exprs, Set<TupleId> tupleIds,
+                                               Set<SlotId> slotIds) {
         if (exprs == null) {
             return;
         }
@@ -784,7 +785,7 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
         }
 
         if (!isConstant() && !isFilter) {
-            List<TupleId> tupleIds = Lists.newArrayList();
+            Set<TupleId> tupleIds = Sets.newHashSet();
             getIds(tupleIds, null);
             Preconditions.checkArgument(tupleIds.size() == 1);
 
@@ -813,11 +814,11 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
                 //}
             //}
 
-            int currentOutputColumn = analyzer.getCurrentOutputColumn(tupleIds.get(0));
+            int currentOutputColumn = analyzer.getCurrentOutputColumn(tupleIds.iterator().next());
             this.outputColumn = currentOutputColumn;
             LOG.info(debugString() + " outputColumn: " + this.outputColumn);
             ++currentOutputColumn;
-            analyzer.setCurrentOutputColumn(tupleIds.get(0), currentOutputColumn);
+            analyzer.setCurrentOutputColumn(tupleIds.iterator().next(), currentOutputColumn);
         }
     }
 
@@ -1073,13 +1074,13 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
      * Returns true if expr is fully bound by tid, otherwise false.
      */
     public boolean isBound(TupleId tid) {
-        return isBoundByTupleIds(Lists.newArrayList(tid));
+        return isBoundByTupleIds(Sets.newHashSet(tid));
     }
 
     /**
      * Returns true if expr is fully bound by tids, otherwise false.
      */
-    public boolean isBoundByTupleIds(List<TupleId> tids) {
+    public boolean isBoundByTupleIds(Set<TupleId> tids) {
         for (Expr child: children) {
             if (!child.isBoundByTupleIds(tids)) return false;
         }
@@ -1099,13 +1100,13 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
     }
 
     public boolean isBound(List<SlotId> slotIds) {
-        final List<TupleId> exprTupleIds = Lists.newArrayList();
-        final List<SlotId> exprSlotIds = Lists.newArrayList();
+        final Set<TupleId> exprTupleIds = Sets.newHashSet();
+        final Set<SlotId> exprSlotIds = Sets.newHashSet();
         getIds(exprTupleIds, exprSlotIds);
         return !exprSlotIds.retainAll(slotIds);
     }
 
-    public void getIds(List<TupleId> tupleIds, List<SlotId> slotIds) {
+    public void getIds(Set<TupleId> tupleIds, Set<SlotId> slotIds) {
         for (Expr child : children) {
             child.getIds(tupleIds, slotIds);
         }
@@ -1471,7 +1472,7 @@ abstract public class Expr extends TreeNode<Expr> implements ParseNode, Cloneabl
         return subqueries.get(0);
     }
 
-    public boolean isCorrelatedPredicate(List<TupleId> tupleIdList) {
+    public boolean isCorrelatedPredicate(Set<TupleId> tupleIdList) {
         if (this instanceof SlotRef && !this.isBoundByTupleIds(tupleIdList)) {
             return true;
         }

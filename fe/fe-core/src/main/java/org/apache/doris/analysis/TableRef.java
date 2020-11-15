@@ -17,7 +17,6 @@
 
 package org.apache.doris.analysis;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.common.AnalysisException;
@@ -29,13 +28,14 @@ import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.rewrite.ExprRewriter;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -645,14 +645,14 @@ public class TableRef implements ParseNode, Writable {
     /**
      * Return the list of tuple ids of the full sequence of table refs up to this one.
      */
-    public List<TupleId> getAllTupleIds() {
+    public Set<TupleId> getAllTupleIds() {
         Preconditions.checkState(isAnalyzed);
         if (leftTblRef != null) {
-            List<TupleId> result = leftTblRef.getAllTupleIds();
+            Set<TupleId> result = leftTblRef.getAllTupleIds();
             result.add(desc.getId());
             return result;
         } else {
-            return Lists.newArrayList(desc.getId());
+            return desc.getId().asSet();
         }
     }
 

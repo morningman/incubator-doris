@@ -48,6 +48,9 @@ import org.apache.doris.rewrite.mvrewrite.NDVToHll;
 import org.apache.doris.rewrite.mvrewrite.ToBitmapToSlotRefRule;
 import org.apache.doris.thrift.TQueryGlobals;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -56,9 +59,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -450,8 +450,8 @@ public class Analyzer {
         return result;
     }
 
-    public List<TupleId> getAllTupleIds() {
-        return new ArrayList<>(tableRefMap_.keySet());
+    public Set<TupleId> getAllTupleIds() {
+        return Sets.newHashSet(tableRefMap_.keySet());
     }
 
     /**
@@ -780,19 +780,17 @@ public class Analyzer {
     }
 
     public void registerConjuncts(List<Expr> l, TupleId tupleId) throws AnalysisException {
-        final List<TupleId> tupleIds = Lists.newArrayList();
-        tupleIds.add(tupleId);
-        registerConjuncts(l, tupleIds);
+        registerConjuncts(l, tupleId.asSet());
     }
 
-    public void registerConjunct(Expr e, List<TupleId> tupleIds) throws AnalysisException {
+    public void registerConjunct(Expr e, Set<TupleId> tupleIds) throws AnalysisException {
         final List<Expr> exprs = Lists.newArrayList();
         exprs.add(e);
         registerConjuncts(exprs, tupleIds);
     }
 
     // register all conjuncts and handle constant conjuncts with ids
-    public void registerConjuncts(List<Expr> l, List<TupleId> ids) throws AnalysisException {
+    public void registerConjuncts(List<Expr> l, Set<TupleId> ids) throws AnalysisException {
         for (Expr e : l) {
             registerConjuncts(e, true, ids);
         }
@@ -807,7 +805,7 @@ public class Analyzer {
     }
 
     // Register all conjuncts and handle constant conjuncts with ids
-    public void registerConjuncts(Expr e, boolean fromHavingClause, List<TupleId> ids) throws AnalysisException {
+    public void registerConjuncts(Expr e, boolean fromHavingClause, Set<TupleId> ids) throws AnalysisException {
         for (Expr conjunct: e.getConjuncts()) {
             registerConjunct(conjunct);
             if (ids != null) {
@@ -931,7 +929,7 @@ public class Analyzer {
      * (logical) tuple ids, can be evaluated by 'tupleIds' and are not tied to an
      * Outer Join clause.
      */
-    public List<Expr> getUnassignedConjuncts(List<TupleId> tupleIds) {
+    public List<Expr> getUnassignedConjuncts(Set<TupleId> tupleIds) {
         List<Expr> result = Lists.newArrayList();
         for (Expr e: getUnassignedConjuncts(tupleIds, true)) {
             if (canEvalPredicate(tupleIds, e)) result.add(e);
@@ -945,7 +943,7 @@ public class Analyzer {
      * Outer Join clause are excluded.
      */
     public List<Expr> getUnassignedConjuncts(
-            List<TupleId> tupleIds, boolean inclOjConjuncts) {
+            Set<TupleId> tupleIds, boolean inclOjConjuncts) {
         List<Expr> result = Lists.newArrayList();
         for (Expr e : globalState.conjuncts.values()) {
             // handle constant conjuncts
@@ -979,7 +977,7 @@ public class Analyzer {
      * the eqJoinConjuncts and sjClauseByConjunct is excluded.
      * This method is used get conjuncts which may be able to pushed down to scan node.
      */
-    public List<Expr> getConjuncts(List<TupleId> tupleIds) {
+    public List<Expr> getConjuncts(Set<TupleId> tupleIds) {
         List<Expr> result = Lists.newArrayList();
         List<ExprId> eqJoinConjunctIds = Lists.newArrayList();
         for (List<ExprId> conjuncts : globalState.eqJoinConjuncts.values()) {
@@ -1002,7 +1000,7 @@ public class Analyzer {
      * Return all unassigned registered conjuncts that are fully bound by given
      * list of tuple ids
      */
-    public List<Expr> getAllUnassignedConjuncts(List<TupleId> tupleIds) {
+    public List<Expr> getAllUnassignedConjuncts(Set<TupleId> tupleIds) {
         List<Expr> result = Lists.newArrayList();
         for (Expr e : globalState.conjuncts.values()) {
             if (!e.isAuxExpr() 
@@ -1281,7 +1279,7 @@ public class Analyzer {
      * Returns false if 'e' originates from an outer-join On-clause and it is incorrect to
      * evaluate 'e' at a node materializing 'tids'. Returns true otherwise.
      */
-    public boolean canEvalOuterJoinedConjunct(Expr e, List<TupleId> tids) {
+   public boolean canEvalOuterJoinedConjunct(Expr e, Set<TupleId> tids) {
         TableRef outerJoin = getOjRef(e);
         if (outerJoin == null) return true;
         return tids.containsAll(outerJoin.getAllTableRefIds());
@@ -1294,8 +1292,8 @@ public class Analyzer {
      * from its On-clause are returned. If an equi-join conjunct is full outer joined,
      * then it is only added to the result if this join is the one to full-outer join it.
      */
-    public List<Expr> getEqJoinConjuncts(List<TupleId> lhsTblRefIds,
-                                         List<TupleId> rhsTblRefIds) {
+    public List<Expr> getEqJoinConjuncts(Set<TupleId> lhsTblRefIds,
+                                         Set<TupleId> rhsTblRefIds) {
         // Contains all equi-join conjuncts that have one child fully bound by one of the
         // rhs table ref ids (the other child is not bound by that rhs table ref id).
         List<ExprId> conjunctIds = Lists.newArrayList();
@@ -1312,11 +1310,11 @@ public class Analyzer {
         // only be constructed with an inline view (which has a single table ref id).
         List<ExprId> ojClauseConjuncts = null;
         if (rhsTblRefIds.size() == 1) {
-            ojClauseConjuncts = globalState.conjunctsByOjClause.get(rhsTblRefIds.get(0));
+            ojClauseConjuncts = globalState.conjunctsByOjClause.get(rhsTblRefIds.iterator().next());
         }
 
         // List of table ref ids that the join node will 'materialize'.
-        List<TupleId> nodeTblRefIds = Lists.newArrayList(lhsTblRefIds);
+        Set<TupleId> nodeTblRefIds = Sets.newHashSet(lhsTblRefIds);
         nodeTblRefIds.addAll(rhsTblRefIds);
         List<Expr> result = Lists.newArrayList();
         for (ExprId conjunctId: conjunctIds) {
@@ -1581,7 +1579,7 @@ public class Analyzer {
      *   Outer Join clause
      */
     private boolean canEvalPredicate(PlanNode node, Expr e) {
-        return canEvalPredicate(node.getTblRefIds(), e);
+        return canEvalPredicate(node.getTblRefIdsSet(), e);
     }
 
     /**
@@ -1606,7 +1604,7 @@ public class Analyzer {
      * - Otherwise, a predicate can only be correctly evaluated if for all outer-joined
      *   referenced tids the last join to outer-join this tid has been materialized.
      */
-    public boolean canEvalPredicate(List<TupleId> tupleIds, Expr e) {
+    public boolean canEvalPredicate(Set<TupleId> tupleIds, Expr e) {
         if (!e.isBoundByTupleIds(tupleIds)) {
             return false;
         }
@@ -1665,7 +1663,7 @@ public class Analyzer {
      * Checks if a conjunct from the On-clause of an anti join can be evaluated in a node
      * that materializes a given list of tuple ids.
      */
-    public boolean canEvalAntiJoinedConjunct(Expr e, List<TupleId> nodeTupleIds) {
+    public boolean canEvalAntiJoinedConjunct(Expr e, Set<TupleId> nodeTupleIds) {
         TableRef antiJoinRef = getAntiJoinRef(e);
         if (antiJoinRef == null) return true;
         List<TupleId> tids = Lists.newArrayList();
@@ -1683,7 +1681,7 @@ public class Analyzer {
      * Returns false if 'e' references a full outer joined tuple and it is incorrect to
      * evaluate 'e' at a node materializing 'tids'. Returns true otherwise.
      */
-    public boolean canEvalFullOuterJoinedConjunct(Expr e, List<TupleId> tids) {
+    public boolean canEvalFullOuterJoinedConjunct(Expr e, Set<TupleId> tids) {
         TableRef fullOuterJoin = getFullOuterJoinRef(e);
         if (fullOuterJoin == null) return true;
         return tids.containsAll(fullOuterJoin.getAllTableRefIds());
@@ -1694,7 +1692,7 @@ public class Analyzer {
      * Wrapper around getUnassignedConjuncts(List<TupleId> tupleIds).
      */
     public List<Expr> getUnassignedConjuncts(PlanNode node) {
-        return getUnassignedConjuncts(node.getTblRefIds());
+        return getUnassignedConjuncts(node.getTblRefIdsSet());
     }
     /**
      * Returns true if e must be evaluated by a join node. Note that it may still be

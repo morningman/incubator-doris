@@ -59,19 +59,20 @@ import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.Reference;
 import org.apache.doris.common.UserException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -164,7 +165,7 @@ public class SingleNodePlanner {
      * materialize them.
      */
     private PlanNode createEmptyNode(QueryStmt stmt, Analyzer analyzer) {
-        ArrayList<TupleId> tupleIds = Lists.newArrayList();
+        Set<TupleId> tupleIds = Sets.newHashSet();
         stmt.getMaterializedTupleIds(tupleIds);
         if (tupleIds.isEmpty()) {
             // Constant selects do not have materialized tuples at this stage.
@@ -386,12 +387,12 @@ public class SingleNodePlanner {
                 }
                 for (FunctionCallExpr aggExpr : aggExprs) {
                     TableRef olapTableRef = selectStmt.getTableRefs().get(0);
-                    if (Expr.isBound(Lists.newArrayList(aggExpr), Lists.newArrayList(olapTableRef.getId()))) {
+                    if (Expr.isBound(Lists.newArrayList(aggExpr), olapTableRef.getId().asSet())) {
                         // do nothing
                         LOG.debug("All agg exprs is bound to olapTable: {}" + olapTableRef.getTable().getName());
                     } else {
-                        List<TupleId> tupleIds = Lists.newArrayList();
-                        List<SlotId> slotIds = Lists.newArrayList();
+                        Set<TupleId> tupleIds = Sets.newHashSet();
+                        Set<SlotId> slotIds = Sets.newHashSet();
                         aggExpr.getIds(tupleIds, slotIds);
                         for (TupleId tupleId : tupleIds) {
                             // if tupleid is agg's result tuple, there is no tableref
@@ -427,7 +428,7 @@ public class SingleNodePlanner {
 
             boolean valueColumnValidate = true;
             List<Expr> allConjuncts = analyzer.getAllConjuncts(selectStmt.getTableRefs().get(0).getId());
-            List<SlotId> conjunctSlotIds = Lists.newArrayList();
+            Set<SlotId> conjunctSlotIds = Sets.newHashSet();
             if (allConjuncts != null) {
                 for (Expr conjunct : allConjuncts) {
                     conjunct.getIds(null, conjunctSlotIds);
@@ -472,8 +473,8 @@ public class SingleNodePlanner {
                         CaseExpr caseExpr = (CaseExpr) aggExpr.getChild(0);
                         List<Expr> conditionExprs = caseExpr.getConditionExprs();
                         for (Expr conditionExpr : conditionExprs) {
-                            List<TupleId> conditionTupleIds = Lists.newArrayList();
-                            List<SlotId> conditionSlotIds = Lists.newArrayList();
+                            Set<TupleId> conditionTupleIds = Sets.newHashSet();
+                            Set<SlotId> conditionSlotIds = Sets.newHashSet();
                             conditionExpr.getIds(conditionTupleIds, conditionSlotIds);
 
                             for (SlotId conditionSlotId : conditionSlotIds) {
@@ -617,7 +618,7 @@ public class SingleNodePlanner {
             boolean groupExprValidate = true;
             ArrayList<Expr> groupExprs = aggInfo.getGroupingExprs();
             for (Expr groupExpr : groupExprs) {
-                List<SlotId> groupSlotIds = Lists.newArrayList();
+                Set<SlotId> groupSlotIds = Sets.newHashSet();
                 groupExpr.getIds(null, groupSlotIds);
 
                 for (SlotDescriptor slot : selectStmt.getTableRefs().get(0).getDesc().getSlots()) {
@@ -680,7 +681,7 @@ public class SingleNodePlanner {
 
         // collect ids of tuples materialized by the subtree that includes all joins
         // and scans
-        ArrayList<TupleId> rowTuples = Lists.newArrayList();
+        Set<TupleId> rowTuples = Sets.newHashSet();
         for (TableRef tblRef : selectStmt.getTableRefs()) {
             rowTuples.addAll(tblRef.getMaterializedTupleIds());
         }
@@ -1125,7 +1126,7 @@ public class SingleNodePlanner {
                                              InlineViewRef inlineViewRef) throws AnalysisException {
         // All conjuncts
         final List<Expr> unassignedConjuncts =
-                analyzer.getUnassignedConjuncts(inlineViewRef.getId().asList(), true);
+                analyzer.getUnassignedConjuncts(inlineViewRef.getId().asSet(), true);
 
         // Constant conjuncts
         final List<Expr> unassignedConstantConjuncts = Lists.newArrayList();
@@ -1153,7 +1154,7 @@ public class SingleNodePlanner {
             InlineViewRef inlineViewRef, List<Expr> unassignedConjuncts, Analyzer analyzer) throws AnalysisException {
         final List<Expr> preds = Lists.newArrayList();
         for (Expr e : unassignedConjuncts) {
-            if (analyzer.canEvalPredicate(inlineViewRef.getId().asList(), e)) {
+            if (analyzer.canEvalPredicate(inlineViewRef.getId().asSet(), e)) {
                 preds.add(e);
             }
         }
@@ -1229,7 +1230,7 @@ public class SingleNodePlanner {
         if (stmt instanceof SelectStmt) {
             final SelectStmt select = (SelectStmt) stmt;
             if (select.getAggInfo() != null) {
-                viewAnalyzer.registerConjuncts(newConjuncts, select.getAggInfo().getOutputTupleId().asList());
+                viewAnalyzer.registerConjuncts(newConjuncts, select.getAggInfo().getOutputTupleId().asSet());
             } else if (select.getTableRefs().size() > 1) {
                 // Conjuncts will be assigned to the lowest outer join node or non-outer join's leaf children.
                 for (int i = select.getTableRefs().size(); i > 1; i--) {
@@ -1238,11 +1239,11 @@ public class SingleNodePlanner {
                         // lowest join is't outer join.
                         if (i == 2) {
                             // Register constant for inner.
-                            viewAnalyzer.registerConjuncts(newConjuncts, joinInnerChild.getDesc().getId().asList());
+                            viewAnalyzer.registerConjuncts(newConjuncts, joinInnerChild.getDesc().getId().asSet());
                             // Register constant for outer.
                             final TableRef joinOuterChild = select.getTableRefs().get(0);
                             final List<Expr> cloneConjuncts = cloneExprs(newConjuncts);
-                            viewAnalyzer.registerConjuncts(cloneConjuncts, joinOuterChild.getDesc().getId().asList());
+                            viewAnalyzer.registerConjuncts(cloneConjuncts, joinOuterChild.getDesc().getId().asSet());
                         }
                         continue;
                     }
@@ -1251,12 +1252,12 @@ public class SingleNodePlanner {
                 }
             } else {
                 Preconditions.checkArgument(select.getTableRefs().size() == 1);
-                viewAnalyzer.registerConjuncts(newConjuncts, select.getTableRefs().get(0).getDesc().getId().asList());
+                viewAnalyzer.registerConjuncts(newConjuncts, select.getTableRefs().get(0).getDesc().getId().asSet());
             }
         } else {
             Preconditions.checkArgument(stmt instanceof SetOperationStmt);
             final SetOperationStmt union = (SetOperationStmt) stmt;
-            viewAnalyzer.registerConjuncts(newConjuncts, union.getTupleId().asList());
+            viewAnalyzer.registerConjuncts(newConjuncts, union.getTupleId().asSet());
         }
     }
 
@@ -1490,8 +1491,8 @@ public class SingleNodePlanner {
                                             List<Expr> joinConjuncts,
                                             Reference<String> errMsg, JoinOperator op) {
         joinConjuncts.clear();
-        final List<TupleId> lhsIds = left.getTblRefIds();
-        final List<TupleId> rhsIds = right.getTblRefIds();
+        final Set<TupleId> lhsIds = left.getTblRefIdsSet();
+        final Set<TupleId> rhsIds = right.getTblRefIdsSet();
         List<Expr> candidates;
         candidates = analyzer.getEqJoinConjuncts(lhsIds, rhsIds);
         if (candidates == null) {
@@ -1592,7 +1593,7 @@ public class SingleNodePlanner {
             ojConjuncts = analyzer.getUnassignedOjConjuncts(innerRef);
             analyzer.markConjunctsAssigned(ojConjuncts);
         } else if (innerRef.getJoinOp().isSemiAntiJoin()) {
-            final List<TupleId> tupleIds = innerRef.getAllTupleIds();
+            final Set<TupleId> tupleIds = innerRef.getAllTupleIds();
             ojConjuncts = analyzer.getUnassignedConjuncts(tupleIds, false);
             analyzer.markConjunctsAssigned(ojConjuncts);
         }
@@ -1728,7 +1729,7 @@ public class SingleNodePlanner {
         // TODO(zc): get unassigned conjuncts
         // List<Expr> conjuncts =
         //         analyzer.getUnassignedConjuncts(unionStmt.getTupleId().asList(), false);
-        List<Expr> conjuncts = analyzer.getUnassignedConjuncts(setOperationStmt.getTupleId().asList());
+        List<Expr> conjuncts = analyzer.getUnassignedConjuncts(setOperationStmt.getTupleId().asSet());
         // TODO chenhao
         // Because Conjuncts can't be assigned to UnionNode and Palo's fe can't evaluate conjuncts,
         // it needs to add SelectNode as UnionNode's parent, when UnionStmt's Ops contains constant 
@@ -1755,10 +1756,10 @@ public class SingleNodePlanner {
                 // Forbid to register Conjuncts with SelectStmt' tuple when Select is constant
                 if ((queryStmt instanceof SelectStmt) && selectHasTableRef) {
                     final SelectStmt select = (SelectStmt) queryStmt;
-                    op.getAnalyzer().registerConjuncts(opConjuncts, select.getTableRefIds());
+                    op.getAnalyzer().registerConjuncts(opConjuncts, select.getTableRefIdsSet());
                 } else if (queryStmt instanceof SetOperationStmt) {
                     final SetOperationStmt subSetOp = (SetOperationStmt) queryStmt;
-                    op.getAnalyzer().registerConjuncts(opConjuncts, subSetOp.getTupleId().asList());
+                    op.getAnalyzer().registerConjuncts(opConjuncts, subSetOp.getTupleId().asSet());
                 } else {
                     if (selectHasTableRef) {
                         Preconditions.checkArgument(false);
@@ -1937,7 +1938,7 @@ public class SingleNodePlanner {
         int resultExprSelectedSize = 0;
         // check whether inlineView contains materialized result expr
         for (Expr e : baseResultExprs) {
-            final List<SlotId> slotIds = Lists.newArrayList();
+            final Set<SlotId> slotIds = Sets.newHashSet();
             e.getIds(null, slotIds);
             boolean exprIsMaterialized = true;
             int exprSize = 0;
@@ -1961,8 +1962,8 @@ public class SingleNodePlanner {
         }
 
         // materialize slots which expr refer and It's total size is smallest
-        final List<SlotId> slotIds = Lists.newArrayList();
-        final List<TupleId> tupleIds = Lists.newArrayList();
+        final Set<SlotId> slotIds = Sets.newHashSet();
+        final Set<TupleId> tupleIds = Sets.newHashSet();
         resultExprSelected.getIds(tupleIds, slotIds);
         for (SlotId id : slotIds) {
             final SlotDescriptor slot = analyzer.getDescTbl().getSlotDesc(id);
@@ -2063,8 +2064,8 @@ public class SingleNodePlanner {
                 continue;
             }
 
-            final List<TupleId> tupleIds = Lists.newArrayList();
-            final List<SlotId> slotIds = Lists.newArrayList();
+            final Set<TupleId> tupleIds = Sets.newHashSet();
+            final Set<SlotId> slotIds = Sets.newHashSet();
             predicate.getIds(tupleIds, slotIds);
 
             boolean isAllSlotReferingGroupBys = true;
@@ -2162,7 +2163,7 @@ public class SingleNodePlanner {
     // Register predicates with TableRef's tuple id.
     private void putPredicatesOnFrom(SelectStmt stmt, Analyzer analyzer, List<Expr> predicates)
             throws AnalysisException {
-        final List<TupleId> tableTupleIds = Lists.newArrayList();
+        final Set<TupleId> tableTupleIds = Sets.newHashSet();
         for (TableRef tableRef : stmt.getTableRefs()) {
             tableTupleIds.add(tableRef.getId());
         }
@@ -2170,7 +2171,7 @@ public class SingleNodePlanner {
         for (Expr predicate : predicates) {
             Preconditions.checkArgument(predicate.isBoundByTupleIds(tableTupleIds),
                     "Predicate:" + predicate.toSql() + " can't be assigned to some PlanNode.");
-            final List<TupleId> predicateTupleIds = Lists.newArrayList();
+            final Set<TupleId> predicateTupleIds = Sets.newHashSet();
             predicate.getIds(predicateTupleIds, null);
             analyzer.registerConjunct(predicate, predicateTupleIds);
         }
@@ -2181,7 +2182,7 @@ public class SingleNodePlanner {
      */
 
     private List<Expr> getBoundPredicates(Analyzer analyzer, TupleDescriptor tupleDesc) {
-        final List<TupleId> tupleIds = Lists.newArrayList();
+        final Set<TupleId> tupleIds = Sets.newHashSet();
         if (tupleDesc != null) {
             tupleIds.add(tupleDesc.getId());
         }
