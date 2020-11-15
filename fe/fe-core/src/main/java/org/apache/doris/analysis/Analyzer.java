@@ -193,6 +193,7 @@ public class Analyzer {
         // A predicate such as "t1.a = t2.b" has two entries, one for 't1' and
         // another one for 't2'.
         private final Map<TupleId, List<ExprId>> eqJoinConjuncts = Maps.newHashMap();
+        private final Set<ExprId> eqJoinConjunctsExprIds = Sets.newHashSet();
 
         // set of conjuncts that have been assigned to some PlanNode
         private final Set<ExprId> assignedConjuncts =
@@ -891,8 +892,10 @@ public class Analyzer {
                     List<ExprId> conjunctIds = Lists.newArrayList();
                     conjunctIds.add(e.getId());
                     globalState.eqJoinConjuncts.put(lhsTupleIds.iterator().next(), conjunctIds);
+                    globalState.eqJoinConjunctsExprIds.addAll(conjunctIds);
                 } else {
                     globalState.eqJoinConjuncts.get(lhsTupleIds.iterator().next()).add(e.getId());
+                    globalState.eqJoinConjunctsExprIds.add(e.getId());
                 }
                 binaryPred.setIsEqJoinConjunct(true);
             }
@@ -932,7 +935,9 @@ public class Analyzer {
     public List<Expr> getUnassignedConjuncts(Set<TupleId> tupleIds) {
         List<Expr> result = Lists.newArrayList();
         for (Expr e: getUnassignedConjuncts(tupleIds, true)) {
-            if (canEvalPredicate(tupleIds, e)) result.add(e);
+            if (canEvalPredicate(tupleIds, e)) {
+                result.add(e);
+            }
         }
         return result;
     }
@@ -979,14 +984,10 @@ public class Analyzer {
      */
     public List<Expr> getConjuncts(Set<TupleId> tupleIds) {
         List<Expr> result = Lists.newArrayList();
-        List<ExprId> eqJoinConjunctIds = Lists.newArrayList();
-        for (List<ExprId> conjuncts : globalState.eqJoinConjuncts.values()) {
-            eqJoinConjunctIds.addAll(conjuncts);
-        }
         for (Expr e : globalState.conjuncts.values()) {
             if (e.isBoundByTupleIds(tupleIds)
                     && !e.isAuxExpr()
-                    && !eqJoinConjunctIds.contains(e.getId())  // to exclude to conjuncts like (A.id = B.id)
+                    && !globalState.eqJoinConjunctsExprIds.contains(e.getId())  // to exclude to conjuncts like (A.id = B.id)
                     && !globalState.ojClauseByConjunct.containsKey(e.getId())
                     && !globalState.sjClauseByConjunct.containsKey(e.getId())
                     && canEvalPredicate(tupleIds, e)) {
@@ -1793,3 +1794,4 @@ public class Analyzer {
         }
     }
 }
+

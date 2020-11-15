@@ -265,10 +265,7 @@ public class SlotRef extends Expr {
     @Override
     public boolean isBoundByTupleIds(Set<TupleId> tids) {
         Preconditions.checkState(desc != null);
-        for (TupleId tid: tids) {
-            if (tid.equals(desc.getParent().getId())) return true;
-        }
-        return false;
+        return tids.contains(desc.getParent().getId());
     }
 
     @Override
@@ -364,3 +361,4 @@ public class SlotRef extends Expr {
         return slotRef;
     }
 }
+
