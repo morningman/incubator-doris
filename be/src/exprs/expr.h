@@ -389,6 +389,11 @@ protected:
         return out.str();
     }
 
+    ExprValue* get_mutable_const_result() { return &_const_result; }
+
+    // Save the result of this expr only if this is a constant expr;
+    ExprValue _const_result;
+
 private:
     friend class ExprTest;
     friend class QueryJitter;

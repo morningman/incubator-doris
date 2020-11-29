@@ -169,7 +169,7 @@ public:
 private:
     // This function is used to directly return the calculated value only
     // after the expression is a constant expression and has been calculated once.
-    void* _get_const_val_directly(const PrimitiveType& type);
+    void* _get_const_val_directly(const PrimitiveType& type, ExprValue* result);
 
 private:
     friend class Expr;
@@ -193,10 +193,6 @@ private:
 
     /// The expr tree this context is for.
     Expr* _root;
-
-    /// Stores the result of the root expr. This is used in interpreted code when we need a
-    /// void*.
-    ExprValue _result;
 
     /// True if this context came from a Clone() call. Used to manage FunctionStateScope.
     bool _is_clone;

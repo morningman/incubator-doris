@@ -258,8 +258,8 @@ bool ExprContext::is_nullable() {
     return false;
 }
 
-void* ExprContext::_get_const_val_directly(const PrimitiveType& type) {
-    if (_result.is_null) {
+void* ExprContext::_get_const_val_directly(const PrimitiveType& type, ExprValue* result) {
+    if (result->is_null) {
         return NULL;
     }
     switch (type) {
@@ -267,45 +267,45 @@ void* ExprContext::_get_const_val_directly(const PrimitiveType& type) {
         return NULL;
     }
     case TYPE_BOOLEAN: {
-        return &_result.bool_val;
+        return &result->bool_val;
     }
     case TYPE_TINYINT: {
-        return &_result.tinyint_val;
+        return &result->tinyint_val;
     }
     case TYPE_SMALLINT: {
-        return &_result.smallint_val;
+        return &result->smallint_val;
     }
     case TYPE_INT: {
-        return &_result.int_val;
+        return &result->int_val;
     }
     case TYPE_BIGINT: {
-        return &_result.bigint_val;
+        return &result->bigint_val;
     }
     case TYPE_LARGEINT: {
-        return &_result.large_int_val;
+        return &result->large_int_val;
     }
     case TYPE_FLOAT: {
-        return &_result.float_val;
+        return &result->float_val;
     }
     case TYPE_TIME:
     case TYPE_DOUBLE: {
-        return &_result.double_val;
+        return &result->double_val;
     }
     case TYPE_CHAR:
     case TYPE_VARCHAR:
     case TYPE_HLL:
     case TYPE_OBJECT: {
-        return &_result.string_val;
+        return &result->string_val;
     }
     case TYPE_DATE:
     case TYPE_DATETIME: {
-        return &_result.datetime_val;
+        return &result->datetime_val;
     }
     case TYPE_DECIMAL: {
-        return &_result.decimal_val;
+        return &result->decimal_val;
     }
     case TYPE_DECIMALV2: {
-        return &_result.decimalv2_val;
+        return &result->decimalv2_val;
     }
     default:
         return NULL;
@@ -314,88 +314,90 @@ void* ExprContext::_get_const_val_directly(const PrimitiveType& type) {
 
 void* ExprContext::get_value(Expr* e, TupleRow* row) {
     // Return the calculated constant value directly
-    if (e->is_constant() && _result.is_set) {
-        return _get_const_val_directly(e->_type.type);
+    ExprValue* result = e->get_mutable_const_result();
+    if (e->is_constant() && result->is_set) {
+        return _get_const_val_directly(e->_type.type, result);
     }
 
-    _result.is_set = true;
+    result->is_set = true;
     switch (e->_type.type) {
     case TYPE_NULL: {
-        _result.is_null = true;
+        result->is_null = true;
         return NULL;
     }
     case TYPE_BOOLEAN: {
         doris_udf::BooleanVal v = e->get_boolean_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.bool_val = v.val;
-        return &_result.bool_val;
+        result->bool_val = v.val;
+        return &result->bool_val;
     }
     case TYPE_TINYINT: {
         doris_udf::TinyIntVal v = e->get_tiny_int_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.tinyint_val = v.val;
-        return &_result.tinyint_val;
+        result->tinyint_val = v.val;
+        return &result->tinyint_val;
     }
     case TYPE_SMALLINT: {
         doris_udf::SmallIntVal v = e->get_small_int_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.smallint_val = v.val;
-        return &_result.smallint_val;
+        result->smallint_val = v.val;
+        return &result->smallint_val;
     }
     case TYPE_INT: {
         doris_udf::IntVal v = e->get_int_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.int_val = v.val;
-        return &_result.int_val;
+        result->int_val = v.val;
+        return &result->int_val;
     }
     case TYPE_BIGINT: {
+        LOG(INFO) << "cmy get TYPE_BIGINT";
         doris_udf::BigIntVal v = e->get_big_int_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.bigint_val = v.val;
-        return &_result.bigint_val;
+        result->bigint_val = v.val;
+        return &result->bigint_val;
     }
     case TYPE_LARGEINT: {
         doris_udf::LargeIntVal v = e->get_large_int_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.large_int_val = v.val;
-        return &_result.large_int_val;
+        result->large_int_val = v.val;
+        return &result->large_int_val;
     }
     case TYPE_FLOAT: {
         doris_udf::FloatVal v = e->get_float_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.float_val = v.val;
-        return &_result.float_val;
+        result->float_val = v.val;
+        return &result->float_val;
     }
     case TYPE_TIME:
     case TYPE_DOUBLE: {
         doris_udf::DoubleVal v = e->get_double_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.double_val = v.val;
-        return &_result.double_val;
+        result->double_val = v.val;
+        return &result->double_val;
     }
     case TYPE_CHAR:
     case TYPE_VARCHAR:
@@ -403,49 +405,49 @@ void* ExprContext::get_value(Expr* e, TupleRow* row) {
     case TYPE_OBJECT: {
         doris_udf::StringVal v = e->get_string_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return nullptr;
         }
-        _result.string_val.ptr = reinterpret_cast<char*>(v.ptr);
-        _result.string_val.len = v.len;
-        return &_result.string_val;
+        result->string_val.ptr = reinterpret_cast<char*>(v.ptr);
+        result->string_val.len = v.len;
+        return &result->string_val;
     }
     case TYPE_DATE:
     case TYPE_DATETIME: {
         doris_udf::DateTimeVal v = e->get_datetime_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.datetime_val = DateTimeValue::from_datetime_val(v);
-        return &_result.datetime_val;
+        result->datetime_val = DateTimeValue::from_datetime_val(v);
+        return &result->datetime_val;
     }
     case TYPE_DECIMAL: {
         DecimalVal v = e->get_decimal_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.decimal_val = DecimalValue::from_decimal_val(v);
-        return &_result.decimal_val;
+        result->decimal_val = DecimalValue::from_decimal_val(v);
+        return &result->decimal_val;
     }
     case TYPE_DECIMALV2: {
         DecimalV2Val v = e->get_decimalv2_val(this, row);
         if (v.is_null) {
-            _result.is_null = true;
+            result->is_null = true;
             return NULL;
         }
-        _result.decimalv2_val = DecimalV2Value::from_decimal_val(v);
-        return &_result.decimalv2_val;
+        result->decimalv2_val = DecimalV2Value::from_decimal_val(v);
+        return &result->decimalv2_val;
     }
 #if 0
     case TYPE_ARRAY:
     case TYPE_MAP: {
         doris_udf::ArrayVal v = e->GetArrayVal(this, row);
         if (v.is_null) return NULL;
-        _result.array_val.ptr = v.ptr;
-        _result.array_val.num_tuples = v.num_tuples;
-        return &_result.array_val;
+        result->array_val.ptr = v.ptr;
+        result->array_val.num_tuples = v.num_tuples;
+        return &result->array_val;
     }
 #endif
     default:

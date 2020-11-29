@@ -541,14 +541,14 @@ bool MathFunctions::handle_parse_result(int8_t dest_base, int64_t* num,
 }
 
 BigIntVal MathFunctions::pmod_bigint(FunctionContext* ctx, const BigIntVal& a, const BigIntVal& b) {
-    if (a.is_null || b.is_null) {
+    if (a.is_null || b.is_null || b.val == 0) {
         return BigIntVal::null();
     }
     return BigIntVal(((a.val % b.val) + b.val) % b.val);
 }
 
 DoubleVal MathFunctions::pmod_double(FunctionContext* ctx, const DoubleVal& a, const DoubleVal& b) {
-    if (a.is_null || b.is_null) {
+    if (a.is_null || b.is_null || b.val == 0) {
         return DoubleVal::null();
     }
     return DoubleVal(fmod(fmod(a.val, b.val) + b.val, b.val));
