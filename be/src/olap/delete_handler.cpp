@@ -309,10 +309,12 @@ void DeleteHandler::finalize() {
         return;
     }
 
-    for (auto& cond : _del_conds) {
-        cond.del_cond->finalize();
-        delete cond.del_cond;
+    std::vector<DeleteConditions>::iterator it = _del_conds.begin();
+    for (; it != _del_conds.end(); ++it) {
+        it->del_cond->finalize();
+        delete it->del_cond;
     }
+
     _del_conds.clear();
     _is_inited = false;
 }
