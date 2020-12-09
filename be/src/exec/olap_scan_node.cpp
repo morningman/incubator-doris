@@ -382,7 +382,7 @@ Status OlapScanNode::start_scan(RuntimeState* state) {
 
     VLOG(1) << "Filter idle conjuncts";
     // 4. Filter idle conjunct which already trans to olap filters`
-    remove_pushed_conjuncts(state);
+    // remove_pushed_conjuncts(state);
 
     VLOG(1) << "BuildScanKey";
     // 5. Using `Key Column`'s ColumnValueRange to split ScanRange to several `Sub ScanRange`
