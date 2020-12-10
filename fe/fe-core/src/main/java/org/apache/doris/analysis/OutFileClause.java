@@ -55,6 +55,7 @@ public class OutFileClause {
         RESULT_COL_TYPES.add(PrimitiveType.VARCHAR);
     }
 
+    private static final String LOCAL_FILE_PREFIX = "file:///";
     private static final String BROKER_PROP_PREFIX = "broker.";
     private static final String PROP_BROKER_NAME = "broker.name";
     private static final String PROP_COLUMN_SEPARATOR = "column_separator";
@@ -75,7 +76,8 @@ public class OutFileClause {
     private TFileFormatType fileFormatType;
     private long maxFileSizeBytes = DEFAULT_MAX_FILE_SIZE_BYTES;
     private BrokerDesc brokerDesc = null;
-    // True if result is written to local disk
+    // True if result is written to local disk.
+    // If set to true, the brokerDesc must be null.
     private boolean isLocalOutput = false;
 
     public OutFileClause(String filePath, String format, Map<String, String> properties) {
@@ -111,10 +113,6 @@ public class OutFileClause {
     }
 
     public void analyze(Analyzer analyzer) throws AnalysisException {
-        if (Strings.isNullOrEmpty(filePath)) {
-            throw new AnalysisException("Must specify file in OUTFILE clause");
-        }
-
         analyzeFilePath();
 
         if (!format.equals("csv")) {
@@ -125,11 +123,15 @@ public class OutFileClause {
         analyzeProperties();
     }
 
-    private void analyzeFilePath() {
-        if (filePath.startsWith("file:///")) {
+    private void analyzeFilePath() throws AnalysisException {
+        if (filePath.startsWith(LOCAL_FILE_PREFIX)) {
             isLocalOutput = true;
+            filePath = filePath.substring(LOCAL_FILE_PREFIX.length());
         } else {
             isLocalOutput = false;
+        }
+        if (Strings.isNullOrEmpty(filePath)) {
+            throw new AnalysisException("Must specify file in OUTFILE clause");
         }
     }
 
