@@ -26,7 +26,9 @@
 #include "runtime/row_batch.h"
 #include "runtime/runtime_state.h"
 #include "runtime/tuple_row.h"
+#include "service/backend_options.h"
 #include "util/date_func.h"
+#include "util/file_utils.h"
 #include "util/types.h"
 #include "util/uid_util.h"
 
@@ -64,7 +66,8 @@ void FileResultWriter::_init_profile() {
 }
 
 Status FileResultWriter::_create_file_writer() {
-    std::string file_name = _get_next_file_name();
+    std::string file_name;
+    RETURN_IF_ERROR(_get_next_file_name(&file_name));
     if (_file_opts->is_local_file) {
         _file_writer = new LocalFileWriter(file_name, 0 /* start offset */);
     } else {
@@ -91,10 +94,23 @@ Status FileResultWriter::_create_file_writer() {
 }
 
 // file name format as: my_prefix_0.csv
-std::string FileResultWriter::_get_next_file_name() {
+Status FileResultWriter::_get_next_file_name(std::string* file_name) {
     std::stringstream ss;
     ss << _file_opts->file_path << (_file_idx++) << "." << _file_format_to_name();
-    return ss.str();
+    *file_name = ss.str();
+    if (_file_opts->is_local_file) {
+        // For local file writer, the file_path is a local dir.
+        // Here we do a simple security verification by checking whether the file exists.
+        // Because the file path is currently arbitrarily specified by the user,
+        // Doris is not responsible for ensuring the correctness of the path.
+        // This is just to prevent overwriting the existing file.
+        if (FileUtils::check_exist(*file_name)) {
+            return Status::InternalError("File already exists: " + *file_name
+                    + ". Host: " + BackendOptions::get_localhost());
+        }
+    }
+        
+    return Status::OK();
 }
 
 std::string FileResultWriter::_file_format_to_name() {

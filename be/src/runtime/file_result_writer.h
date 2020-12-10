@@ -82,7 +82,7 @@ private:
 
     Status _create_file_writer();
     // get next export file name
-    std::string _get_next_file_name();
+    Status _get_next_file_name(std::string* file_name);
     std::string _file_format_to_name();
     // close file writer, and if !done, it will create new writer for next file
     Status _close_file_writer(bool done);

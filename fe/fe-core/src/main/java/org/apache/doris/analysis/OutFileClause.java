@@ -105,12 +105,18 @@ public class OutFileClause {
         fileFormatType = TFileFormatType.FORMAT_CSV_PLAIN;
 
         analyzeProperties();
+
+        if (brokerDesc != null && isLocalOutput) {
+            throw new AnalysisException("No need to specify BROKER properties in OUTFILE clause for local file output");
+        } else if (brokerDesc == null && !isLocalOutput) {
+            throw new AnalysisException("Must specify BROKER properties in OUTFILE clause");
+        }
     }
 
     private void analyzeFilePath() throws AnalysisException {
         if (filePath.startsWith(LOCAL_FILE_PREFIX)) {
             isLocalOutput = true;
-            filePath = filePath.substring(LOCAL_FILE_PREFIX.length());
+            filePath = filePath.substring(LOCAL_FILE_PREFIX.length() - 1); // leave last '/'
         } else {
             isLocalOutput = false;
         }
@@ -126,11 +132,6 @@ public class OutFileClause {
 
         Set<String> processedPropKeys = Sets.newHashSet();
         getBrokerProperties(processedPropKeys);
-        if (brokerDesc != null && isLocalOutput) {
-            throw new AnalysisException("No need to specify BROKER properties in OUTFILE clause for local file output");
-        } else if (brokerDesc == null && !isLocalOutput) {
-            throw new AnalysisException("Must specify BROKER properties in OUTFILE clause");
-        }
 
         if (properties.containsKey(PROP_COLUMN_SEPARATOR)) {
             if (!isCsvFormat()) {
@@ -221,7 +222,6 @@ public class OutFileClause {
             // broker_addresses of sinkOptions will be set in Coordinator.
             // Because we need to choose the nearest broker with the result sink node.
         }
-        sinkOptions.setIsLocalOutput(isLocalOutput);
         return sinkOptions;
     }
 }
