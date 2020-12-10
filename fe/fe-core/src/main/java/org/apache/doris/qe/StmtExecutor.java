@@ -25,6 +25,7 @@ import org.apache.doris.analysis.ExportStmt;
 import org.apache.doris.analysis.Expr;
 import org.apache.doris.analysis.InsertStmt;
 import org.apache.doris.analysis.KillStmt;
+import org.apache.doris.analysis.OutFileClause;
 import org.apache.doris.analysis.QueryStmt;
 import org.apache.doris.analysis.RedirectStatus;
 import org.apache.doris.analysis.SelectStmt;
@@ -780,8 +781,12 @@ public class StmtExecutor {
             if (batch.getBatch() != null) {
                 // For some language driver, getting error packet after fields packet will be recognized as a success result
                 // so We need to send fields after first batch arrived
-                if (!isSendFields && !isOutfileQuery) {
-                    sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
+                if (!isSendFields) {
+                    if (!isOutfileQuery) {
+                        sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
+                    } else {
+                        sendFields(OutFileClause.RESULT_COL_NAMES, OutFileClause.RESULT_COL_TYPES);
+                    }
                     isSendFields = true;
                 }
                 for (ByteBuffer row : batch.getBatch().getRows()) {
@@ -793,16 +798,16 @@ public class StmtExecutor {
                 break;
             }
         }
-        if (!isSendFields && !isOutfileQuery) {
-            sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
+        if (!isSendFields) {
+            if (!isOutfileQuery) {
+                sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
+            } else {
+                sendFields(OutFileClause.RESULT_COL_NAMES, OutFileClause.RESULT_COL_TYPES);
+            }
         }
 
         statisticsForAuditLog = batch.getQueryStatistics();
-        if (!isOutfileQuery) {
-            context.getState().setEof();
-        } else {
-            context.getState().setOk(statisticsForAuditLog.returned_rows, 0, "");
-        }
+        context.getState().setEof();
         plannerProfile.setQueryFetchResultFinishTime();
     }
 

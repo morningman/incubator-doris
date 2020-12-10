@@ -17,12 +17,14 @@
 
 package org.apache.doris.analysis;
 
+import org.apache.doris.catalog.PrimitiveType;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.util.ParseUtil;
 import org.apache.doris.common.util.PrintableMap;
 import org.apache.doris.thrift.TFileFormatType;
 import org.apache.doris.thrift.TResultFileSinkOptions;
 
+import com.clearspring.analytics.util.Lists;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -31,6 +33,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,6 +41,21 @@ import java.util.stream.Collectors;
 // For syntax select * from tbl INTO OUTFILE xxxx
 public class OutFileClause {
     private static final Logger LOG = LogManager.getLogger(OutFileClause.class);
+
+    public static final List<String> RESULT_COL_NAMES = Lists.newArrayList();
+    public static final List<PrimitiveType> RESULT_COL_TYPES = Lists.newArrayList();
+
+    static {
+        RESULT_COL_NAMES.add("FileNumber");
+        RESULT_COL_NAMES.add("TotalRows");
+        RESULT_COL_NAMES.add("FileSize");
+        RESULT_COL_NAMES.add("URL");
+
+        RESULT_COL_TYPES.add(PrimitiveType.INT);
+        RESULT_COL_TYPES.add(PrimitiveType.BIGINT);
+        RESULT_COL_TYPES.add(PrimitiveType.BIGINT);
+        RESULT_COL_TYPES.add(PrimitiveType.VARCHAR);
+    }
 
     private static final String LOCAL_FILE_PREFIX = "file:///";
     private static final String BROKER_PROP_PREFIX = "broker.";
