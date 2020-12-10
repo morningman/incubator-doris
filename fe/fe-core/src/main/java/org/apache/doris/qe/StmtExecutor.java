@@ -781,12 +781,8 @@ public class StmtExecutor {
             if (batch.getBatch() != null) {
                 // For some language driver, getting error packet after fields packet will be recognized as a success result
                 // so We need to send fields after first batch arrived
-                if (!isSendFields) {
-                    if(!isOutfileQuery) {
-                        sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
-                    } else {
-                        sendFields(OutFileClause.RESULT_COL_NAMES, OutFileClause.RESULT_COL_TYPES);
-                    }
+                if (!isSendFields && !isOutfileQuery) {
+                    sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
                     isSendFields = true;
                 }
                 for (ByteBuffer row : batch.getBatch().getRows()) {
@@ -798,12 +794,8 @@ public class StmtExecutor {
                 break;
             }
         }
-        if (!isSendFields) {
-            if(!isOutfileQuery) {
-                sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
-            } else {
-                sendFields(OutFileClause.RESULT_COL_NAMES, OutFileClause.RESULT_COL_TYPES);
-            }
+        if (!isSendFields && !isOutfileQuery) {
+            sendFields(queryStmt.getColLabels(), exprToType(queryStmt.getResultExprs()));
         }
 
         statisticsForAuditLog = batch.getQueryStatistics();
