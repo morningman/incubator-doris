@@ -17,12 +17,14 @@
 
 package org.apache.doris.analysis;
 
+import org.apache.doris.catalog.PrimitiveType;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.util.ParseUtil;
 import org.apache.doris.common.util.PrintableMap;
 import org.apache.doris.thrift.TFileFormatType;
 import org.apache.doris.thrift.TResultFileSinkOptions;
 
+import com.clearspring.analytics.util.Lists;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -31,6 +33,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,6 +41,19 @@ import java.util.stream.Collectors;
 // For syntax select * from tbl INTO OUTFILE xxxx
 public class OutFileClause {
     private static final Logger LOG = LogManager.getLogger(OutFileClause.class);
+
+    public static final List<String> RESULT_COL_NAMES = Lists.newArrayList();
+    public static final List<PrimitiveType> RESULT_COL_TYPES = Lists.newArrayList();
+
+    static {
+        RESULT_COL_NAMES.add("FileNumber");
+        RESULT_COL_NAMES.add("FileSizeBytes");
+        RESULT_COL_NAMES.add("DownloadUrl");
+
+        RESULT_COL_TYPES.add(PrimitiveType.INT);
+        RESULT_COL_TYPES.add(PrimitiveType.BIGINT);
+        RESULT_COL_TYPES.add(PrimitiveType.VARCHAR);
+    }
 
     private static final String BROKER_PROP_PREFIX = "broker.";
     private static final String PROP_BROKER_NAME = "broker.name";
@@ -59,6 +75,8 @@ public class OutFileClause {
     private TFileFormatType fileFormatType;
     private long maxFileSizeBytes = DEFAULT_MAX_FILE_SIZE_BYTES;
     private BrokerDesc brokerDesc = null;
+    // True if result is written to local disk
+    private boolean isLocalOutput = false;
 
     public OutFileClause(String filePath, String format, Map<String, String> properties) {
         this.filePath = filePath;
@@ -97,15 +115,21 @@ public class OutFileClause {
             throw new AnalysisException("Must specify file in OUTFILE clause");
         }
 
+        analyzeFilePath();
+
         if (!format.equals("csv")) {
             throw new AnalysisException("Only support CSV format");
         }
         fileFormatType = TFileFormatType.FORMAT_CSV_PLAIN;
 
         analyzeProperties();
+    }
 
-        if (brokerDesc == null) {
-            throw new AnalysisException("Must specify BROKER properties in OUTFILE clause");
+    private void analyzeFilePath() {
+        if (filePath.startsWith("file:///")) {
+            isLocalOutput = true;
+        } else {
+            isLocalOutput = false;
         }
     }
 
@@ -116,8 +140,10 @@ public class OutFileClause {
 
         Set<String> processedPropKeys = Sets.newHashSet();
         getBrokerProperties(processedPropKeys);
-        if (brokerDesc == null) {
-            return;
+        if (brokerDesc != null && isLocalOutput) {
+            throw new AnalysisException("No need to specify BROKER properties in OUTFILE clause for local file output");
+        } else if (brokerDesc == null && !isLocalOutput) {
+            throw new AnalysisException("Must specify BROKER properties in OUTFILE clause");
         }
 
         if (properties.containsKey(PROP_COLUMN_SEPARATOR)) {
@@ -209,6 +235,7 @@ public class OutFileClause {
             // broker_addresses of sinkOptions will be set in Coordinator.
             // Because we need to choose the nearest broker with the result sink node.
         }
+        sinkOptions.setIsLocalOutput(isLocalOutput);
         return sinkOptions;
     }
 }

@@ -47,6 +47,7 @@ struct TResultFileSinkOptions {
     5: optional i64 max_file_size_bytes
     6: optional list<Types.TNetworkAddress> broker_addresses; // only for remote file
     7: optional map<string, string> broker_properties // only for remote file
+	8: optional bool is_local_output
 }
 
 struct TMemoryScratchSink {
