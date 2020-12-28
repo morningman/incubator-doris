@@ -713,6 +713,17 @@ build_js_and_css() {
     cp bootstrap-table.min.css $TP_INSTALL_DIR/webroot/Bootstrap-3.3.7/css
 }
 
+build_libhdfs3() {
+    check_if_source_exist $LIBHDFS3_SOURCE
+    cd $TP_SOURCE_DIR/$LIBHDFS3_SOURCE
+    rm -rf build/ && mkdir -p build
+    cd build
+    CMAKE_PREFIX_PATH=$TP_INSTALL_DIR/include:$TP_INSTALL_DIR/lib:$TP_INSTALL_DIR/lib64:$CMAKE_PREFIX_PATH \
+    CMAKE_CXX_FLAGS="-fpermissive" \
+    ../bootstrap --prefix=$TP_INSTALL_DIR/
+    make -j4  && make install
+}
+
 # See https://github.com/apache/incubator-doris/issues/2910
 # LLVM related codes have already be removed in master, so there is
 # no need to build llvm tool here.
@@ -720,36 +731,37 @@ build_js_and_css() {
 # we just comment it, instead of remove it.
 # build_llvm
 
-build_libunixodbc
-build_libevent
-build_zlib
-build_lz4
-build_bzip
-build_lzo2
-build_openssl
-build_boost # must before thrift
-build_protobuf
-build_gflags
-build_gtest
-build_glog
-build_rapidjson
-build_snappy
-build_gperftools
-build_curl
-build_re2
-build_mysql
-build_thrift
-build_leveldb
-build_brpc
-build_rocksdb
-build_librdkafka
-build_flatbuffers
-build_arrow
-build_s2
-build_bitshuffle
-build_croaringbitmap
-build_orc
-build_cctz
-build_js_and_css
+#build_libunixodbc
+#build_libevent
+#build_zlib
+#build_lz4
+#build_bzip
+#build_lzo2
+#build_openssl
+#build_boost # must before thrift
+#build_protobuf
+#build_gflags
+#build_gtest
+#build_glog
+#build_rapidjson
+#build_snappy
+#build_gperftools
+#build_curl
+#build_re2
+#build_mysql
+#build_thrift
+#build_leveldb
+#build_brpc
+#build_rocksdb
+#build_librdkafka
+#build_flatbuffers
+#build_arrow
+#build_s2
+#build_bitshuffle
+#build_croaringbitmap
+#build_orc
+#build_cctz
+#build_js_and_css
+build_libhdfs3
 
 echo "Finihsed to build all thirdparties"
