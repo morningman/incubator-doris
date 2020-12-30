@@ -107,6 +107,11 @@ import org.apache.doris.transaction.TransactionState.LoadJobSourceType;
 import org.apache.doris.transaction.TransactionState.TxnCoordinator;
 import org.apache.doris.transaction.TransactionState.TxnSourceType;
 import org.apache.doris.transaction.TransactionStatus;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -114,10 +119,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2807,7 +2808,6 @@ public class Load {
         long jobId = job.getId();
         long dbId = job.getDbId();
         Database db = Catalog.getCurrentCatalog().getDb(dbId);
-        Table table = db.getTable(job.getTableId());
         String errMsg = msg;
         if (db == null) {
             // if db is null, update job to cancelled
@@ -2822,7 +2822,7 @@ public class Load {
                 writeUnlock();
             }
         } else {
-            table.writeLock();
+            db.writeLock();
             try {
                 writeLock();
                 try {
@@ -2835,7 +2835,7 @@ public class Load {
                     Set<JobState> destStates = STATE_CHANGE_MAP.get(srcState);
                     if (!destStates.contains(destState)) {
                         LOG.warn("state change error. src state: {}, dest state: {}",
-                                 srcState.name(), destState.name());
+                                srcState.name(), destState.name());
                         return false;
                     }
 
@@ -2879,7 +2879,7 @@ public class Load {
                                     TableCommitInfo tableCommitInfo = transactionState.getTableCommitInfo(deleteInfo.getTableId());
                                     PartitionCommitInfo partitionCommitInfo = tableCommitInfo.getPartitionCommitInfo(deleteInfo.getPartitionId());
                                     deleteInfo.updatePartitionVersionInfo(partitionCommitInfo.getVersion(),
-                                                                          partitionCommitInfo.getVersionHash());
+                                            partitionCommitInfo.getVersionHash());
                                 }
                             }
                             MetricRepo.COUNTER_LOAD_FINISHED.increase(1L);
@@ -2891,8 +2891,8 @@ public class Load {
                             // clear push tasks
                             for (PushTask pushTask : job.getPushTasks()) {
                                 AgentTaskQueue.removePushTask(pushTask.getBackendId(), pushTask.getSignature(),
-                                                              pushTask.getVersion(), pushTask.getVersionHash(),
-                                                              pushTask.getPushType(), pushTask.getTaskType());
+                                        pushTask.getVersion(), pushTask.getVersionHash(),
+                                        pushTask.getPushType(), pushTask.getTaskType());
                             }
                             // Clear the Map and Set in this job, reduce the memory cost for finished load job.
                             // for delete job, keep the map and set because some of them is used in show proc method
@@ -2913,7 +2913,7 @@ public class Load {
                     writeUnlock();
                 }
             } finally {
-                table.writeUnlock();
+                db.writeUnlock();
             }
         }
 
