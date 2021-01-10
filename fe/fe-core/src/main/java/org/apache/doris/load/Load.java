@@ -2553,24 +2553,9 @@ public class Load {
     public void replayFinishLoadJob(LoadJob job, Catalog catalog) {
         // TODO: need to call this.writeLock()?
         Database db = catalog.getDb(job.getDbId());
-
-        List<Long> tableIds = Lists.newArrayList();
-        long tblId = job.getTableId();
-        if (tblId > 0) {
-            tableIds.add(tblId);
-        } else {
-            tableIds.addAll(job.getIdToTableLoadInfo().keySet());
-        }
-
-        List<Table> tables = null;
-        try {
-            tables = db.getTablesOnIdOrderOrThrowException(tableIds);
-        } catch (MetaNotFoundException e) {
-            LOG.error("should not happen", e);
-            return;
-        }
-
-        MetaLockUtils.writeLockTables(tables);
+        // After finish, the idToTableLoadInfo in load job will be set to null.
+        // We lost table info. So we have to use db lock here.
+        db.writeUnlock();
         try {
             writeLock();
             try {
@@ -2579,7 +2564,7 @@ public class Load {
                 writeUnlock();
             }
         } finally {
-            MetaLockUtils.writeUnlockTables(tables);
+            db.writeUnlock();
         }
     }
 
