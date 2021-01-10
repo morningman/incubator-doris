@@ -81,6 +81,7 @@ import org.apache.doris.common.MetaNotFoundException;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.ListComparator;
+import org.apache.doris.common.util.MetaLockUtils;
 import org.apache.doris.common.util.TimeUtils;
 import org.apache.doris.load.AsyncDeleteJob.DeleteState;
 import org.apache.doris.load.FailMsg.CancelType;
@@ -2467,8 +2468,24 @@ public class Load {
     public void replayQuorumLoadJob(LoadJob job, Catalog catalog) throws DdlException {
         // TODO: need to call this.writeLock()?
         Database db = catalog.getDb(job.getDbId());
-        Table table = db.getTable(job.getTableId());
-        table.writeLock();
+
+        List<Long> tableIds = Lists.newArrayList();
+        long tblId = job.getTableId();
+        if (tblId > 0) {
+            tableIds.add(tblId);
+        } else {
+            tableIds.addAll(job.getIdToTableLoadInfo().keySet());
+        }
+
+        List<Table> tables = null;
+        try {
+            tables = db.getTablesOnIdOrderOrThrowException(tableIds);
+        } catch (MetaNotFoundException e) {
+            LOG.error("should not happen", e);
+            return;
+        }
+
+        MetaLockUtils.writeLockTables(tables);
         try {
             writeLock();
             try {
@@ -2477,7 +2494,7 @@ public class Load {
                 writeUnlock();
             }
         } finally {
-            table.writeUnlock();
+            MetaLockUtils.writeUnlockTables(tables);
         }
     }
 
@@ -2536,8 +2553,24 @@ public class Load {
     public void replayFinishLoadJob(LoadJob job, Catalog catalog) {
         // TODO: need to call this.writeLock()?
         Database db = catalog.getDb(job.getDbId());
-        Table table = db.getTable(job.getTableId());
-        table.writeLock();
+
+        List<Long> tableIds = Lists.newArrayList();
+        long tblId = job.getTableId();
+        if (tblId > 0) {
+            tableIds.add(tblId);
+        } else {
+            tableIds.addAll(job.getIdToTableLoadInfo().keySet());
+        }
+
+        List<Table> tables = null;
+        try {
+            tables = db.getTablesOnIdOrderOrThrowException(tableIds);
+        } catch (MetaNotFoundException e) {
+            LOG.error("should not happen", e);
+            return;
+        }
+
+        MetaLockUtils.writeLockTables(tables);
         try {
             writeLock();
             try {
@@ -2546,7 +2579,7 @@ public class Load {
                 writeUnlock();
             }
         } finally {
-            table.writeUnlock();
+            MetaLockUtils.writeUnlockTables(tables);
         }
     }
 
