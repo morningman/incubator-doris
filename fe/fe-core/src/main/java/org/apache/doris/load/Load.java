@@ -2555,7 +2555,7 @@ public class Load {
         Database db = catalog.getDb(job.getDbId());
         // After finish, the idToTableLoadInfo in load job will be set to null.
         // We lost table info. So we have to use db lock here.
-        db.writeUnlock();
+        db.writeLock();
         try {
             writeLock();
             try {
