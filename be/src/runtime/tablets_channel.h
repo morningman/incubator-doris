@@ -79,6 +79,7 @@ public:
     // return Status::OK if mem is reduced.
     // no-op when this channel has been closed or cancelled
     Status reduce_mem_usage();
+    Status reduce_mem_usage2();
 
     int64_t mem_consumption() const { return _mem_tracker->consumption(); }
 

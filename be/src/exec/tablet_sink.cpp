@@ -208,6 +208,13 @@ Status NodeChannel::add_row(Tuple* input_tuple, int64_t tablet_id) {
     auto row_no = _cur_batch->add_row();
     if (row_no == RowBatch::INVALID_ROW_INDEX) {
         {
+#if 0
+            {
+                SCOPED_ATOMIC_TIMER(&_serialize_batch_ns);
+                _cur_batch->serialize(_cur_add_batch_request.mutable_row_batch());
+            }
+#endif
+
             SCOPED_ATOMIC_TIMER(&_queue_push_lock_ns);
             std::lock_guard<std::mutex> l(_pending_batches_lock);
             //To simplify the add_row logic, postpone adding batch into req until the time of sending req
@@ -306,7 +313,7 @@ void NodeChannel::cancel() {
     request.release_id();
 }
 
-int NodeChannel::try_send_and_fetch_status() {
+int NodeChannel::try_send_and_fetch_status(bool* has_pending_batch) {
     auto st = none_of({_cancelled, _send_finished});
     if (!st.ok()) {
         return 0;
@@ -320,8 +327,10 @@ int NodeChannel::try_send_and_fetch_status() {
             std::lock_guard<std::mutex> l(_pending_batches_lock);
             DCHECK(!_pending_batches.empty());
             send_batch = std::move(_pending_batches.front());
+            LOG_EVERY_N(INFO, 100) << "cmy get _pending_batches.size: " << _pending_batches.size();
             _pending_batches.pop();
             _pending_batches_num--;
+            *has_pending_batch = _pending_batches_num > 0;
         }
 
         auto row_batch = std::move(send_batch.first);
@@ -562,12 +571,14 @@ Status OlapTableSink::prepare(RuntimeState* state) {
     _output_rows_counter = ADD_COUNTER(_profile, "RowsReturned", TUnit::UNIT);
     _filtered_rows_counter = ADD_COUNTER(_profile, "RowsFiltered", TUnit::UNIT);
     _send_data_timer = ADD_TIMER(_profile, "SendDataTime");
+    _wait_mem_limit_timer = ADD_CHILD_TIMER(_profile, "WaitMemLimitTime", "SendDataTime");
     _convert_batch_timer = ADD_TIMER(_profile, "ConvertBatchTime");
     _validate_data_timer = ADD_TIMER(_profile, "ValidateDataTime");
     _open_timer = ADD_TIMER(_profile, "OpenTime");
     _close_timer = ADD_TIMER(_profile, "CloseWaitTime");
     _non_blocking_send_timer = ADD_TIMER(_profile, "NonBlockingSendTime");
-    _serialize_batch_timer = ADD_TIMER(_profile, "SerializeBatchTime");
+    _non_blocking_send_work_timer = ADD_CHILD_TIMER(_profile, "NonBlockingSendWorkTime", "NonBlockingSendTime");
+    _serialize_batch_timer = ADD_CHILD_TIMER(_profile, "SerializeBatchTime", "NonBlockingSendWorkTime");
     _load_mem_limit = state->get_load_mem_limit();
 
     // open all channels
@@ -732,9 +743,11 @@ Status OlapTableSink::close(RuntimeState* state, Status close_status) {
         COUNTER_SET(_output_rows_counter, _number_output_rows);
         COUNTER_SET(_filtered_rows_counter, _number_filtered_rows);
         COUNTER_SET(_send_data_timer, _send_data_ns);
+        COUNTER_SET(_wait_mem_limit_timer, mem_exceeded_block_ns);
         COUNTER_SET(_convert_batch_timer, _convert_batch_ns);
         COUNTER_SET(_validate_data_timer, _validate_data_ns);
         COUNTER_SET(_serialize_batch_timer, serialize_batch_ns);
+        COUNTER_SET(_non_blocking_send_work_timer, actual_consume_ns);
         // _number_input_rows don't contain num_rows_load_filtered and num_rows_load_unselected in scan node
         int64_t num_rows_load_total = _number_input_rows + state->num_rows_load_filtered() +
                                       state->num_rows_load_unselected();
@@ -940,12 +953,17 @@ int OlapTableSink::_validate_data(RuntimeState* state, RowBatch* batch, Bitmap* 
 
 void OlapTableSink::_send_batch_process() {
     SCOPED_TIMER(_non_blocking_send_timer);
+    bool has_more_pending_batch = false;
     do {
+        has_more_pending_batch = false;
         int running_channels_num = 0;
         for (auto index_channel : _channels) {
-            index_channel->for_each_node_channel([&running_channels_num](NodeChannel* ch) {
-                running_channels_num += ch->try_send_and_fetch_status();
+            bool has_pending_batch = false;
+            index_channel->for_each_node_channel([&running_channels_num, &has_pending_batch](NodeChannel* ch) {
+                running_channels_num += ch->try_send_and_fetch_status(&has_pending_batch);
             });
+
+            has_more_pending_batch |= has_pending_batch;
         }
 
         if (running_channels_num == 0) {
@@ -953,7 +971,7 @@ void OlapTableSink::_send_batch_process() {
                          "consumer thread exit.";
             return;
         }
-    } while (!_stop_background_threads_latch.wait_for(
+    } while (has_more_pending_batch || !_stop_background_threads_latch.wait_for(
             MonoDelta::FromMilliseconds(config::olap_table_sink_send_interval_ms)));
 }
 

@@ -73,11 +73,16 @@ public:
     // submit current memtable to flush queue, and wait all memtables in flush queue
     // to be flushed.
     // This is currently for reducing mem consumption of this delta writer.
-    OLAPStatus flush_memtable_and_wait();
+    // If need_wait is true, it will wait for all memtable in flush queue to be flushed.
+    // Otherwise, it will just put memtables to the flush queue and return.
+    OLAPStatus flush_memtable_and_wait(bool need_wait);
 
     int64_t partition_id() const;
 
     int64_t mem_consumption() const;
+
+    // Wait all memtable in flush queue to be flushed
+    OLAPStatus wait_flush();
 
 private:
     DeltaWriter(WriteRequest* req, const std::shared_ptr<MemTracker>& parent,

@@ -109,6 +109,7 @@ void PInternalServiceImpl<T>::tablet_writer_add_batch(google::protobuf::RpcContr
             }
             st.to_protobuf(response->mutable_status());
         }
+        LOG_EVERY_N(INFO, 100) << "cmy add batch cost: " << execution_time_ns / 1000;
         response->set_execution_time_us(execution_time_ns / 1000);
         response->set_wait_lock_time_us(wait_lock_time_ns / 1000);
     });

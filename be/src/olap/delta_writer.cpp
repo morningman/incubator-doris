@@ -196,7 +196,11 @@ OLAPStatus DeltaWriter::_flush_memtable_async() {
     return _flush_token->submit(_mem_table);
 }
 
-OLAPStatus DeltaWriter::flush_memtable_and_wait() {
+OLAPStatus DeltaWriter::flush_memtable_and_wait(bool need_wait) {
+    if (!_is_init) {
+        // This writer is not initialized before flushing. Do nothing
+        return OLAP_SUCCESS;
+    }
     if (mem_consumption() == _mem_table->memory_usage()) {
         // equal means there is no memtable in flush queue, just flush this memtable
         VLOG_NOTICE << "flush memtable to reduce mem consumption. memtable size: "
@@ -208,7 +212,18 @@ OLAPStatus DeltaWriter::flush_memtable_and_wait() {
         DCHECK(mem_consumption() > _mem_table->memory_usage());
         // this means there should be at least one memtable in flush queue.
     }
-    // wait all memtables in flush queue to be flushed.
+
+    if (need_wait) {
+        // wait all memtables in flush queue to be flushed.
+        RETURN_NOT_OK(_flush_token->wait());
+    }
+    return OLAP_SUCCESS;
+}
+
+OLAPStatus DeltaWriter::wait_flush() {
+    if (!_is_init) {
+        return OLAP_SUCCESS;
+    }
     RETURN_NOT_OK(_flush_token->wait());
     return OLAP_SUCCESS;
 }

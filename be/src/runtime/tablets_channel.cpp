@@ -200,12 +200,37 @@ Status TabletsChannel::reduce_mem_usage() {
 
     VLOG_NOTICE << "pick the delte writer to flush, with mem consumption: " << max_consume
             << ", channel key: " << _key;
-    OLAPStatus st = writer->flush_memtable_and_wait();
+    OLAPStatus st = writer->flush_memtable_and_wait(true);
     if (st != OLAP_SUCCESS) {
         // flush failed, return error
         std::stringstream ss;
         ss << "failed to reduce mem consumption by flushing memtable. err: " << st;
         return Status::InternalError(ss.str());
+    }
+    return Status::OK();
+}
+
+Status TabletsChannel::reduce_mem_usage2() {
+    std::lock_guard<std::mutex> l(_lock);
+    if (_state == kFinished) {
+        // TabletsChannel is closed without LoadChannel's lock,
+        // therefore it's possible for reduce_mem_usage() to be called right after close()
+        return _close_status;
+    }
+
+    // Flush all memtables
+    for (auto& it : _tablet_writers) {
+        it.second->flush_memtable_and_wait(false);
+    }
+
+    for (auto& it : _tablet_writers) {
+        OLAPStatus st = it.second->wait_flush();
+        if (st != OLAP_SUCCESS) {
+            // flush failed, return error
+            std::stringstream ss;
+            ss << "failed to reduce mem consumption by flushing memtable. err: " << st;
+            return Status::InternalError(ss.str());
+        }
     }
     return Status::OK();
 }

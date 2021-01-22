@@ -169,7 +169,7 @@ public:
     // 1: running, haven't reach eos.
     // only allow 1 rpc in flight
     // plz make sure, this func should be called after open_wait().
-    int try_send_and_fetch_status();
+    int try_send_and_fetch_status(bool* has_pending_batch);
 
     void time_report(std::unordered_map<int64_t, AddBatchCounter>* add_batch_counter_map,
                      int64_t* serialize_batch_ns, int64_t* mem_exceeded_block_ns,
@@ -382,11 +382,13 @@ private:
     RuntimeProfile::Counter* _output_rows_counter = nullptr;
     RuntimeProfile::Counter* _filtered_rows_counter = nullptr;
     RuntimeProfile::Counter* _send_data_timer = nullptr;
+    RuntimeProfile::Counter* _wait_mem_limit_timer = nullptr;
     RuntimeProfile::Counter* _convert_batch_timer = nullptr;
     RuntimeProfile::Counter* _validate_data_timer = nullptr;
     RuntimeProfile::Counter* _open_timer = nullptr;
     RuntimeProfile::Counter* _close_timer = nullptr;
     RuntimeProfile::Counter* _non_blocking_send_timer = nullptr;
+    RuntimeProfile::Counter* _non_blocking_send_work_timer = nullptr;
     RuntimeProfile::Counter* _serialize_batch_timer = nullptr;
 
     // load mem limit is for remote load channel
