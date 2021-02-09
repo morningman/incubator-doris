@@ -92,6 +92,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class ReportHandler extends Daemon {
     private static final Logger LOG = LogManager.getLogger(ReportHandler.class);
@@ -906,7 +907,9 @@ public class ReportHandler extends Daemon {
                 if (olapTable == null) {
                     continue;
                 }
-                olapTable.readLock();
+                if (!olapTable.tryReadLock(2, TimeUnit.SECONDS)) {
+                    continue;
+                }
                 try {
                     Partition partition = olapTable.getPartition(partitionId);
                     if (partition == null) {

@@ -211,7 +211,6 @@ public class RestoreJob extends AbstractJob {
         return false;
     }
 
-
     public synchronized boolean finishTabletDownloadTask(DownloadTask task, TFinishTaskRequest request) {
         if (checkTaskStatus(task, task.getJobId(), request)) {
             return false;
