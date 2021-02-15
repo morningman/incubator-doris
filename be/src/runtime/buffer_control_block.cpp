@@ -50,7 +50,12 @@ void GetResultBatchCtx::on_data(TFetchDataResult* t_result, int64_t packet_seq, 
     ThriftSerializer ser(false, 4096);
     auto st = ser.serialize(&t_result->result_batch, &len, &buf);
     if (st.ok()) {
-        cntl->response_attachment().append(buf, len);
+        if (resp_in_attachment) {
+            // TODO(yangzhengguo) this is just for compatible with old version, this should be removed in the release 0.15
+            cntl->response_attachment().append(buf, len);
+        } else {
+            result->set_row_batch(std::string((const char*)buf, len));
+        }
         result->set_packet_seq(packet_seq);
         result->set_eos(eos);
     } else {
