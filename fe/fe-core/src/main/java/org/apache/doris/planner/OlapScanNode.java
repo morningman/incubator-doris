@@ -230,9 +230,13 @@ public class OlapScanNode extends ScanNode {
             this.isPreAggregation = isPreAggregation;
             this.reasonOfPreAggregation = reasonOfDisable;
             updateColumnType();
-            LOG.info("Using the new scan range info instead of the old one. {}, {}", situation ,scanRangeInfo);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Using the new scan range info instead of the old one. {}, {}", situation ,scanRangeInfo);
+            }
         } else {
-            LOG.warn("Using the old scan range info instead of the new one. {}, {}", situation, scanRangeInfo);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Using the old scan range info instead of the new one. {}, {}", situation, scanRangeInfo);
+            }
         }
     }
 
