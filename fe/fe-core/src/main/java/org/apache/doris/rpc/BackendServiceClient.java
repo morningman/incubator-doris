@@ -36,7 +36,7 @@ public class BackendServiceClient {
     }
 
     private BackendServiceClient(ManagedChannelBuilder<?> channelBuilder) {
-        channel = channelBuilder.enableRetry().maxRetryAttempts(MAX_RETRY_NUM).build();
+        channel = channelBuilder.maxInboundMessageSize(100 * 1024 * 1024).enableRetry().maxRetryAttempts(MAX_RETRY_NUM).build();
         stub = PBackendServiceGrpc.newFutureStub(channel);
     }
 
