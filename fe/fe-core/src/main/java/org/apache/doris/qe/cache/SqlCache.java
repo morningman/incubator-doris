@@ -24,6 +24,7 @@ import org.apache.doris.metric.MetricRepo;
 import org.apache.doris.proto.InternalService;
 import org.apache.doris.qe.RowBatch;
 import org.apache.doris.thrift.TUniqueId;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,7 +49,7 @@ public class SqlCache extends Cache {
                 .build();
 
         InternalService.PFetchCacheResult cacheResult = proxy.fetchCache(request, 10000, status);
-        if (status.ok() && cacheResult != null) {
+        if (status.ok() && cacheResult != null && cacheResult.getStatus() == InternalService.PCacheStatus.CACHE_OK) {
             cacheResult = cacheResult.toBuilder().setAllCount(1).build();
             MetricRepo.COUNTER_CACHE_HIT_SQL.increase(1L);
             hitRange = HitRange.Full;

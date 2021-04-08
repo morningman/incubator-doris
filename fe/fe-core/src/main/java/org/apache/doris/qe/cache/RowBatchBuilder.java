@@ -22,6 +22,10 @@ import org.apache.doris.catalog.Column;
 import org.apache.doris.catalog.Type;
 import org.apache.doris.proto.InternalService;
 import org.apache.doris.qe.RowBatch;
+
+import com.google.common.collect.Lists;
+import com.google.protobuf.ByteString;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,9 +35,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import com.google.common.collect.Lists;
-import com.google.protobuf.ByteString;
 
 /**
  * According to the query partition range and cache hit, the rowbatch to update the cache is constructed
@@ -109,7 +110,7 @@ public class RowBatchBuilder {
                                 .setPartitionKey(partitionKey)
                                 .setLastVersion(lastVersion)
                                 .setLastVersionTime(lastestTime)
-                                .build()).addAllRows(
+                                .build()).setDataSize(dataSize).addAllRows(
                                 rowList.stream().map(row -> ByteString.copyFrom(row))
                                         .collect(Collectors.toList()))).build();
         return updateRequest;
@@ -175,3 +176,4 @@ public class RowBatchBuilder {
         return updateRequest;
     }
 }
+

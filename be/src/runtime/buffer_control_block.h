@@ -44,7 +44,7 @@ class PFetchDataResult;
 
 struct GetResultBatchCtx {
     brpc::Controller* cntl = nullptr;
-    // In version 0.15, we change jprotobuf to grpc.
+    // In version 0.15, we change brpc client from jprotobuf to grpc.
     // And the response data is moved from rpc attachment to protobuf boby.
     // This variables is for backwards compatibility when upgrading Doris.
     // If set to true, the response data is still transferred as attachment.

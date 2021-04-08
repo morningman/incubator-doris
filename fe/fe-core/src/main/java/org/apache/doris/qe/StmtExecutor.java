@@ -88,14 +88,14 @@ import org.apache.doris.transaction.TabletCommitInfo;
 import org.apache.doris.transaction.TransactionCommitFailedException;
 import org.apache.doris.transaction.TransactionStatus;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.glassfish.jersey.internal.guava.Sets;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.internal.guava.Sets;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -639,6 +639,7 @@ public class StmtExecutor {
             }
             resultBatch.setPacketSeq(1);
             resultBatch.setIsCompressed(false);
+            batch = new RowBatch();
             batch.setBatch(resultBatch);
             batch.setEos(true);
             if (!isSend) {
@@ -654,7 +655,6 @@ public class StmtExecutor {
 
         if (isEos) {
             if (batch != null) {
-
                 statisticsForAuditLog = batch.getQueryStatistics() == null ? null : batch.getQueryStatistics().toBuilder();
             }
             if (!isSend) {
@@ -1139,3 +1139,4 @@ public class StmtExecutor {
         return exprs.stream().map(e -> e.getType().getPrimitiveType()).collect(Collectors.toList());
     }
 }
+

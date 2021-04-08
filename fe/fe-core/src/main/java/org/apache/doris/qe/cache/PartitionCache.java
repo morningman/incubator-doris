@@ -94,7 +94,7 @@ public class PartitionCache extends Cache {
                                 .build()).collect(Collectors.toList())
                 ).build();
         InternalService.PFetchCacheResult cacheResult = proxy.fetchCache(request, 10000, status);
-        if (status.ok() && cacheResult != null) {
+        if (status.ok() && cacheResult != null && cacheResult.getStatus() == InternalService.PCacheStatus.CACHE_OK) {
             for (InternalService.PCacheValue value : cacheResult.getValuesList()) {
                 range.setCacheFlag(value.getParam().getPartitionKey());
             }

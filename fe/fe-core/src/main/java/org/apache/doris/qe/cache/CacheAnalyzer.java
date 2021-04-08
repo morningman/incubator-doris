@@ -278,13 +278,13 @@ public class CacheAnalyzer {
         }
         Status status = new Status();
         InternalService.PFetchCacheResult cacheResult = cache.getCacheData(status);
-        int rowCount = 0;
-        int dataSize = 0;
-        for (InternalService.PCacheValue value : cacheResult.getValuesList()) {
-            rowCount += value.getRowsCount();
-            dataSize += value.getDataSize();
-        }
-        if (status.ok() && cacheResult != null) {
+        if (status.ok() && cacheResult != null && cacheResult.getStatus() == InternalService.PCacheStatus.CACHE_OK) {
+            int rowCount = 0;
+            int dataSize = 0;
+            for (InternalService.PCacheValue value : cacheResult.getValuesList()) {
+                rowCount += value.getRowsCount();
+                dataSize += value.getDataSize();
+            }
             LOG.debug("hit cache, mode {}, queryid {}, all count {}, value count {}, row count {}, data size {}",
                     cacheMode, DebugUtil.printId(queryId),
                     cacheResult.getAllCount(), cacheResult.getValuesCount(),
