@@ -27,6 +27,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 public class BackendServiceClient {
+    private static final int MAX_RETRY_NUM = 3;
     private final PBackendServiceGrpc.PBackendServiceFutureStub stub;
     private final ManagedChannel channel;
 
@@ -34,8 +35,8 @@ public class BackendServiceClient {
         this(ManagedChannelBuilder.forAddress(address.getHostname(), address.getPort()).usePlaintext());
     }
 
-    public BackendServiceClient(ManagedChannelBuilder<?> channelBuilder) {
-        channel = channelBuilder.enableRetry().maxRetryAttempts(3).build();
+    private BackendServiceClient(ManagedChannelBuilder<?> channelBuilder) {
+        channel = channelBuilder.enableRetry().maxRetryAttempts(MAX_RETRY_NUM).build();
         stub = PBackendServiceGrpc.newFutureStub(channel);
     }
 

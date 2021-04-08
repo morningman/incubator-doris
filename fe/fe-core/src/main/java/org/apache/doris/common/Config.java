@@ -892,13 +892,6 @@ public class Config extends ConfigBase {
     // All frontends will get tablet stat from all backends at each interval
     @ConfField public static int tablet_stat_update_interval_second = 300;  // 5 min
 
-    // May be necessary to modify the following BRPC configurations in high concurrency scenarios. 
-    // The number of concurrent requests BRPC can processed
-    @ConfField public static int brpc_number_of_concurrent_requests_processed = 4096;
-
-    // BRPC idle wait time (ms)
-    @ConfField public static int brpc_idle_wait_max_time = 10000;
-    
     /**
      * if set to false, auth check will be disable, in case some goes wrong with the new privilege system. 
      */
