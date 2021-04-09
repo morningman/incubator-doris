@@ -57,6 +57,70 @@ public class ResultReceiver {
         this.timeoutTs = System.currentTimeMillis() + timeoutMs;
     }
 
+    public RowBatch getNext2(Status status) throws TException {
+        if (isDone) {
+            return null;
+        }
+        final RowBatch rowBatch = new RowBatch();
+        try {
+            while (!isDone && !isCancel) {
+                InternalService.PFetchDataRequest request = InternalService.PFetchDataRequest.newBuilder()
+                        .setFinstId(finstId)
+                        .setRespInAttachment(false)
+                        .setFirstRequest(firstRequest)
+                        .build();
+
+                firstRequest = false;
+
+                currentThread = Thread.currentThread();
+                InternalService.PFetchDataResult pResult = BackendServiceProxy.getInstance().fetchDataSync(address, request);
+                TStatusCode code = TStatusCode.findByValue(pResult.getStatus().getStatusCode());
+                if (code != TStatusCode.OK) {
+                    status.setPstatus(pResult.getStatus());
+                    return null;
+                }
+
+                rowBatch.setQueryStatistics(pResult.getQueryStatistics());
+
+                if (packetIdx != pResult.getPacketSeq()) {
+                    LOG.warn("receive packet failed, expect={}, receive={}", packetIdx, pResult.getPacketSeq());
+                    status.setRpcStatus("receive error packet");
+                    return null;
+                }
+
+                packetIdx++;
+                isDone = pResult.getEos();
+
+                if (pResult.hasEmptyBatch() && pResult.getEmptyBatch()) {
+                    LOG.info("get first empty rowbatch");
+                    rowBatch.setEos(false);
+                    return rowBatch;
+                } else if (pResult.hasRowBatch() && pResult.getRowBatch().size() > 0) {
+                    byte[] serialResult = pResult.getRowBatch().toByteArray();
+                    TResultBatch resultBatch = new TResultBatch();
+                    TDeserializer deserializer = new TDeserializer();
+                    deserializer.deserialize(resultBatch, serialResult);
+                    rowBatch.setBatch(resultBatch);
+                    rowBatch.setEos(pResult.getEos());
+                    return rowBatch;
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("fetch result rpc exception, finstId={}", finstId, e);
+            status.setRpcStatus(e.getMessage());
+            SimpleScheduler.addToBlacklist(backendId, e.getMessage());
+        } finally {
+            synchronized (this) {
+                currentThread = null;
+            }
+        }
+
+        if (isCancel) {
+            status.setStatus(Status.CANCELLED);
+        }
+        return rowBatch;
+    }
+
     public RowBatch getNext(Status status) throws TException {
         if (isDone) {
             return null;
@@ -110,6 +174,7 @@ public class ResultReceiver {
 
                 if (pResult.hasEmptyBatch() && pResult.getEmptyBatch()) {
                     LOG.info("get first empty rowbatch");
+                    rowBatch.setEos(false);
                     return rowBatch;
                 } else if (pResult.hasRowBatch() && pResult.getRowBatch().size() > 0) {
                     byte[] serialResult = pResult.getRowBatch().toByteArray();

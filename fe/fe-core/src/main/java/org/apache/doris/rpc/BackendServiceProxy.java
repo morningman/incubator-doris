@@ -22,16 +22,17 @@ import org.apache.doris.proto.Types;
 import org.apache.doris.thrift.TExecPlanFragmentParams;
 import org.apache.doris.thrift.TNetworkAddress;
 import org.apache.doris.thrift.TUniqueId;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.TSerializer;
 
-import java.util.Map;
-import java.util.concurrent.Future;
-
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
+
+import java.util.Map;
+import java.util.concurrent.Future;
 
 public class BackendServiceProxy {
     private static final Logger LOG = LogManager.getLogger(BackendServiceProxy.class);
@@ -101,6 +102,18 @@ public class BackendServiceProxy {
         try {
             final BackendServiceClient client = getProxy(address);
             return client.fetchDataAsync(request);
+        } catch (Throwable e) {
+            LOG.warn("fetch data catch a exception, address={}:{}",
+                    address.getHostname(), address.getPort(), e);
+            throw new RpcException(address.hostname, e.getMessage());
+        }
+    }
+
+    public InternalService.PFetchDataResult fetchDataSync(
+            TNetworkAddress address, InternalService.PFetchDataRequest request) throws RpcException {
+        try {
+            final BackendServiceClient client = getProxy(address);
+            return client.fetchDataSync(request);
         } catch (Throwable e) {
             LOG.warn("fetch data catch a exception, address={}:{}",
                     address.getHostname(), address.getPort(), e);

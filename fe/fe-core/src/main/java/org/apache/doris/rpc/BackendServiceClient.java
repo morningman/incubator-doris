@@ -29,6 +29,7 @@ import io.grpc.ManagedChannelBuilder;
 public class BackendServiceClient {
     private static final int MAX_RETRY_NUM = 3;
     private final PBackendServiceGrpc.PBackendServiceFutureStub stub;
+    private final PBackendServiceGrpc.PBackendServiceBlockingStub blockingStub;
     private final ManagedChannel channel;
 
     public BackendServiceClient(TNetworkAddress address) {
@@ -38,6 +39,7 @@ public class BackendServiceClient {
     private BackendServiceClient(ManagedChannelBuilder<?> channelBuilder) {
         channel = channelBuilder.maxInboundMessageSize(100 * 1024 * 1024).enableRetry().maxRetryAttempts(MAX_RETRY_NUM).build();
         stub = PBackendServiceGrpc.newFutureStub(channel);
+        blockingStub = PBackendServiceGrpc.newBlockingStub(channel);
     }
 
     public Future<InternalService.PExecPlanFragmentResult> execPlanFragmentAsync(
@@ -52,6 +54,10 @@ public class BackendServiceClient {
 
     public Future<InternalService.PFetchDataResult> fetchDataAsync(InternalService.PFetchDataRequest request) {
         return stub.fetchData(request);
+    }
+
+    public InternalService.PFetchDataResult fetchDataSync(InternalService.PFetchDataRequest request) {
+        return blockingStub.fetchData(request);
     }
 
     public Future<InternalService.PCacheResponse> updateCache(InternalService.PUpdateCacheRequest request) {

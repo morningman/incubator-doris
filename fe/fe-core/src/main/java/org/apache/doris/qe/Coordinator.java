@@ -682,7 +682,7 @@ public class Coordinator {
         RowBatch resultBatch;
         Status status = new Status();
 
-        resultBatch = receiver.getNext(status);
+        resultBatch = receiver.getNext2(status);
         if (!status.ok()) {
             LOG.warn("get next fail, need cancel. query id: {}", DebugUtil.printId(queryId));
         }
@@ -725,7 +725,7 @@ public class Coordinator {
                 LOG.debug("no block query, return num >= limit rows, need cancel");
                 cancelInternal(InternalService.PPlanFragmentCancelReason.LIMIT_REACH);
             }
-        } else {
+        } else if (resultBatch.getBatch() != null) {
             numReceivedRows += resultBatch.getBatch().getRowsSize();
         }
 
