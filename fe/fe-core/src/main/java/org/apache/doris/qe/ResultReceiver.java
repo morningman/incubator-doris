@@ -48,6 +48,8 @@ public class ResultReceiver {
     private Long backendId;
     private Thread currentThread;
 
+    private boolean firstRequest = true;
+
     public ResultReceiver(TUniqueId tid, Long backendId, TNetworkAddress address, int timeoutMs) {
         this.finstId = Types.PUniqueId.newBuilder().setHi(tid.hi).setLo(tid.lo).build();
         this.backendId = backendId;
@@ -65,7 +67,10 @@ public class ResultReceiver {
                 InternalService.PFetchDataRequest request = InternalService.PFetchDataRequest.newBuilder()
                         .setFinstId(finstId)
                         .setRespInAttachment(false)
+                        .setFirstRequest(firstRequest)
                         .build();
+
+                firstRequest = false;
 
                 currentThread = Thread.currentThread();
                 Future<InternalService.PFetchDataResult> future = BackendServiceProxy.getInstance().fetchDataAsync(address, request);
@@ -103,7 +108,10 @@ public class ResultReceiver {
                 packetIdx++;
                 isDone = pResult.getEos();
 
-                if (pResult.hasRowBatch() && pResult.getRowBatch().size() > 0) {
+                if (pResult.hasEmptyBatch() && pResult.getEmptyBatch()) {
+                    LOG.info("get first empty rowbatch");
+                    return rowBatch;
+                } else if (pResult.hasRowBatch() && pResult.getRowBatch().size() > 0) {
                     byte[] serialResult = pResult.getRowBatch().toByteArray();
                     TResultBatch resultBatch = new TResultBatch();
                     TDeserializer deserializer = new TDeserializer();

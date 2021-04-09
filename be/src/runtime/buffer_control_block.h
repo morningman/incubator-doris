@@ -50,12 +50,13 @@ struct GetResultBatchCtx {
     // If set to true, the response data is still transferred as attachment.
     // If set to false, the response data is transferred in protobuf body.
     bool resp_in_attachment = true;
+    bool first_request = false;
     PFetchDataResult* result = nullptr;
     google::protobuf::Closure* done = nullptr;
 
-    GetResultBatchCtx(brpc::Controller* cntl_, bool resp_in_attachment_, PFetchDataResult* result_,
+    GetResultBatchCtx(brpc::Controller* cntl_, bool resp_in_attachment_, bool first_request_, PFetchDataResult* result_,
                       google::protobuf::Closure* done_)
-            : cntl(cntl_), resp_in_attachment(resp_in_attachment_), result(result_), done(done_) {}
+            : cntl(cntl_), resp_in_attachment(resp_in_attachment_), first_request(first_request_), result(result_), done(done_) {}
 
     void on_failure(const Status& status);
     void on_close(int64_t packet_seq, QueryStatistics* statistics = nullptr);

@@ -139,6 +139,7 @@ message PCancelPlanFragmentResult {
 message PFetchDataRequest {
     required PUniqueId finst_id = 1;
     optional bool resp_in_attachment = 2;
+    optional bool first_request = 3;
 };
 
 message PFetchDataResult {
@@ -148,6 +149,7 @@ message PFetchDataResult {
     optional bool eos = 3;
     optional PQueryStatistics query_statistics = 4;
     optional bytes row_batch = 5;
+    optional bool empty_batch = 6;
 };
 
 //Add message definition to fetch and update cache
