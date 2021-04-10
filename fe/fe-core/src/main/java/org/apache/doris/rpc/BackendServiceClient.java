@@ -39,7 +39,7 @@ public class BackendServiceClient {
     private BackendServiceClient(ManagedChannelBuilder<?> channelBuilder) {
         channel = channelBuilder.maxInboundMessageSize(100 * 1024 * 1024).enableRetry().maxRetryAttempts(MAX_RETRY_NUM).build();
         stub = PBackendServiceGrpc.newFutureStub(channel);
-        blockingStub = PBackendServiceGrpc.newBlockingStub(channel);
+        blockingStub = PBackendServiceGrpc.newBlockingStub(channel).withMaxInboundMessageSize(100 * 1024 * 1024).withMaxOutboundMessageSize(100 * 1024 * 1024);
     }
 
     public Future<InternalService.PExecPlanFragmentResult> execPlanFragmentAsync(
