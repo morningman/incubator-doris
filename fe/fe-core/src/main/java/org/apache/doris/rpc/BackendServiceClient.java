@@ -60,6 +60,10 @@ public class BackendServiceClient {
         return blockingStub.fetchData(request);
     }
 
+    public InternalService.PTestResponse testDataSync(InternalService.PTestRequest request) {
+        return blockingStub.testGrpc(request);
+    }
+
     public Future<InternalService.PCacheResponse> updateCache(InternalService.PUpdateCacheRequest request) {
         return stub.updateCache(request);
     }

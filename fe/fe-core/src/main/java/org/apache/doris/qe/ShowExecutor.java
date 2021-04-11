@@ -65,6 +65,7 @@ import org.apache.doris.analysis.ShowStmt;
 import org.apache.doris.analysis.ShowTableStatusStmt;
 import org.apache.doris.analysis.ShowTableStmt;
 import org.apache.doris.analysis.ShowTabletStmt;
+import org.apache.doris.analysis.ShowTestData;
 import org.apache.doris.analysis.ShowTransactionStmt;
 import org.apache.doris.analysis.ShowUserPropertyStmt;
 import org.apache.doris.analysis.ShowVariablesStmt;
@@ -129,20 +130,24 @@ import org.apache.doris.load.LoadJob;
 import org.apache.doris.load.LoadJob.JobState;
 import org.apache.doris.load.routineload.RoutineLoadJob;
 import org.apache.doris.mysql.privilege.PrivPredicate;
+import org.apache.doris.proto.InternalService;
+import org.apache.doris.rpc.BackendServiceProxy;
+import org.apache.doris.rpc.RpcException;
 import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
+import org.apache.doris.thrift.TNetworkAddress;
 import org.apache.doris.thrift.TUnit;
 import org.apache.doris.transaction.GlobalTransactionMgr;
+
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import org.apache.commons.lang3.tuple.Triple;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -273,6 +278,8 @@ public class ShowExecutor {
             handleShowPlugins();
         } else if (stmt instanceof ShowQueryProfileStmt) {
             handleShowQueryProfile();
+        } else if (stmt instanceof ShowTestData) {
+            handleShowTestData();
         } else {
             handleEmtpy();
         }
@@ -1673,6 +1680,26 @@ public class ShowExecutor {
         resultSet = new ShowResultSet(showStmt.getMetaData(), rows);
     }
 
+    private void handleShowTestData() throws AnalysisException {
+        ShowTestData showStmt = (ShowTestData) stmt;
+        long size = showStmt.getSize();
+        List<List<String>> results = Lists.newArrayList();
+
+        Backend be = Catalog.getCurrentSystemInfo().getClusterBackends(SystemInfoService.DEFAULT_CLUSTER).get(0);
+        TNetworkAddress address = new TNetworkAddress(be.getHost(), be.getBrpcPort());
+        InternalService.PTestRequest request = InternalService.PTestRequest.newBuilder().setSize(size).build();
+        try {
+            InternalService.PTestResponse pResult = BackendServiceProxy.getInstance().testGrpcSync(address, request);
+            List<String> row = Lists.newArrayList();
+            row.add(pResult.getData().toStringUtf8());
+            results.add(row);
+        } catch (RpcException e) {
+            LOG.warn("failed to test", e);
+            throw new AnalysisException(e.getMessage());
+        }
+
+        resultSet = new ShowResultSet(showStmt.getMetaData(), results);
+    }
 }
 
 

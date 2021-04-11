@@ -241,6 +241,18 @@ void PInternalServiceImpl<T>::clear_cache(google::protobuf::RpcController* contr
     _exec_env->result_cache()->clear(request, response);
 }
 
+template <typename T>
+void PInternalServiceImpl<T>::test_grpc(google::protobuf::RpcController* controller, const PTestRequest* request,
+                     PTestResponse* response, google::protobuf::Closure* done) {
+    brpc::ClosureGuard closure_guard(done);
+    int64_t size = request->size();
+    std::stringstream ss;
+    for (int64_t i = 0; i < size; ++i) {
+        ss << "x";
+    }
+    response->set_data(ss.str());
+}
+
 template class PInternalServiceImpl<PBackendService>;
 template class PInternalServiceImpl<palo::PInternalService>;
 

@@ -121,6 +121,18 @@ public class BackendServiceProxy {
         }
     }
 
+    public InternalService.PTestResponse testGrpcSync(
+            TNetworkAddress address, InternalService.PTestRequest request) throws RpcException {
+        try {
+            final BackendServiceClient client = getProxy(address);
+            return client.testDataSync(request);
+        } catch (Throwable e) {
+            LOG.warn("fetch test catch a exception, address={}:{}",
+                    address.getHostname(), address.getPort(), e);
+            throw new RpcException(address.hostname, e.getMessage());
+        }
+    }
+
     public Future<InternalService.PCacheResponse> updateCache(
             TNetworkAddress address, InternalService.PUpdateCacheRequest request) throws RpcException {
         try {

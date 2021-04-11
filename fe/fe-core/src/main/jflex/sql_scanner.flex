@@ -351,6 +351,7 @@ import org.apache.doris.qe.SqlModeHelper;
         keywordMap.put("sync", new Integer(SqlParserSymbols.KW_SYNC));
         keywordMap.put("system", new Integer(SqlParserSymbols.KW_SYSTEM));
         keywordMap.put("table", new Integer(SqlParserSymbols.KW_TABLE));
+        keywordMap.put("test", new Integer(SqlParserSymbols.KW_TEST));
         keywordMap.put("tables", new Integer(SqlParserSymbols.KW_TABLES));
         keywordMap.put("tablet", new Integer(SqlParserSymbols.KW_TABLET));
         keywordMap.put("task", new Integer(SqlParserSymbols.KW_TASK));
