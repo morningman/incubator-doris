@@ -473,14 +473,15 @@ build_leveldb() {
 build_brpc() {
     check_if_source_exist $BRPC_SOURCE
 
+    TMP_TP_INSTALL_DIR=/home/disk1/cmy/git/doris/thirdparty-gcc10/installed/
     cd $TP_SOURCE_DIR/$BRPC_SOURCE
     mkdir -p $BUILD_DIR && cd $BUILD_DIR
     rm -rf CMakeCache.txt CMakeFiles/
     LDFLAGS="-L${TP_LIB_DIR} -static-libstdc++ -static-libgcc" \
     ${CMAKE_CMD} -G "${GENERATOR}" -DBUILD_SHARED_LIBS=0 -DCMAKE_INSTALL_PREFIX=$TP_INSTALL_DIR \
-    -DBRPC_WITH_GLOG=ON -DWITH_GLOG=ON -DGFLAGS_LIBRARY=$TP_INSTALL_DIR/lib/libgflags.a -DGLOG_LIB=$TP_INSTALL_DIR/lib \
-    -DGFLAGS_INCLUDE_DIR=$TP_INSTALL_DIR/include -DGLOG_LIB=$TP_INSTALL_DIR/lib/libglog.a -DCMAKE_INCLUDE_PATH="$TP_INSTALL_DIR/include" \
-    -DPROTOBUF_PROTOC_EXECUTABLE=$TP_INSTALL_DIR/bin/protoc .. 
+    -DBRPC_WITH_GLOG=ON -DWITH_GLOG=ON -DGFLAGS_LIBRARY=$TMP_TP_INSTALL_DIR/lib/libgflags.a -DGLOG_LIB=$TMP_TP_INSTALL_DIR/lib \
+    -DGFLAGS_INCLUDE_DIR=$TMP_TP_INSTALL_DIR/include -DGLOG_LIB=$TMP_TP_INSTALL_DIR/lib/libglog.a -DCMAKE_INCLUDE_PATH="$TMP_TP_INSTALL_DIR/include" \
+    -DPROTOBUF_PROTOC_EXECUTABLE=$TMP_TP_INSTALL_DIR/bin/protoc .. 
     ${BUILD_SYSTEM} -j $PARALLEL && ${BUILD_SYSTEM} install
 }
 
@@ -809,45 +810,45 @@ build_aws_sdk() {
 # we just comment it, instead of remove it.
 # build_llvm
 
-build_libunixodbc
-build_libevent
-build_zlib
-build_lz4
-build_bzip
-build_lzo2
-build_openssl
-build_boost # must before thrift
-build_protobuf
-build_gflags
-build_gtest
-build_glog
-build_rapidjson
-build_snappy
-build_gperftools
-build_curl
-build_re2
-build_thrift
-build_leveldb
+#build_libunixodbc
+#build_libevent
+#build_zlib
+#build_lz4
+#build_bzip
+#build_lzo2
+#build_openssl
+#build_boost # must before thrift
+#build_protobuf
+#build_gflags
+#build_gtest
+#build_glog
+#build_rapidjson
+#build_snappy
+#build_gperftools
+#build_curl
+#build_re2
+#build_thrift
+#build_leveldb
 build_brpc
-build_rocksdb
-build_librdkafka
-build_flatbuffers
-build_arrow
-build_s2
-build_bitshuffle
-build_croaringbitmap
-build_fmt
-build_orc
-build_cctz
-build_tsan_header
-build_mysql
-build_aws_c_common
-build_aws_s2n
-build_aws_c_cal
-build_aws_c_io
-build_aws_checksums
-build_aws_c_event_stream
-build_aws_sdk
-build_js_and_css
+#build_rocksdb
+#build_librdkafka
+#build_flatbuffers
+#build_arrow
+#build_s2
+#build_bitshuffle
+#build_croaringbitmap
+#build_fmt
+#build_orc
+#build_cctz
+#build_tsan_header
+#build_mysql
+#build_aws_c_common
+#build_aws_s2n
+#build_aws_c_cal
+#build_aws_c_io
+#build_aws_checksums
+#build_aws_c_event_stream
+#build_aws_sdk
+#build_js_and_css
 
 echo "Finished to build all thirdparties"

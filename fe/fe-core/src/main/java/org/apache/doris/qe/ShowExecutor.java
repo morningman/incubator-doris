@@ -1691,7 +1691,8 @@ public class ShowExecutor {
         try {
             InternalService.PTestResponse pResult = BackendServiceProxy.getInstance().testGrpcSync(address, request);
             List<String> row = Lists.newArrayList();
-            row.add(pResult.getData().toStringUtf8());
+            int dataSize = pResult.getData().toStringUtf8().length();
+            row.add(String.valueOf(dataSize));
             results.add(row);
         } catch (RpcException e) {
             LOG.warn("failed to test", e);

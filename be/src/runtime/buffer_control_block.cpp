@@ -45,7 +45,8 @@ void GetResultBatchCtx::on_close(int64_t packet_seq, QueryStatistics* statistics
 }
 
 void GetResultBatchCtx::on_data(TFetchDataResult* t_result, int64_t packet_seq, bool eos) {
-    if (t_result != nullptr)
+    Status st = Status::OK();
+    if (t_result != nullptr) {
         uint8_t* buf = nullptr;
         uint32_t len = 0;
         ThriftSerializer ser(false, 4096);
