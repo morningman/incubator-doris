@@ -369,7 +369,7 @@ public class StmtExecutor {
             } catch (DdlException e) {
                 LOG.warn("failed to revert Session value.", e);
                 context.getState().setError(e.getMessage());
-            }
+	    }
 	    VariableMgr.setIsSingleSetVar(false);
 	    VariableMgr.clearMapSessionOriginValue();
 	    if (parsedStmt instanceof InsertStmt) {
