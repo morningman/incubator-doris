@@ -368,7 +368,7 @@ public class StmtExecutor {
                 VariableMgr.revertSessionValue(sessionVariable);
                 // origin value init
                 sessionVariable.setIsSingleSetVar(false);
-                sessionVariable.clearMapSessionOriginValue();
+                sessionVariable.clearSessionOriginValue();
             } catch (DdlException e) {
                 LOG.warn("failed to revert Session value.", e);
                 context.getState().setError(e.getMessage());
