@@ -264,6 +264,8 @@ public class ReportHandler extends Daemon {
 
         Set<Pair<Long, Integer>> tabletWithoutPartitionId = Sets.newHashSet();
 
+        List<Triple<Long, Integer, Boolean>> tabletToInMemory = Lists.newArrayList();
+
         // 1. do the diff. find out (intersection) / (be - meta) / (meta - be)
         Catalog.getCurrentInvertedIndex().tabletReport(backendId, backendTablets, storageMediumMap,
                 tabletSyncMap,
@@ -274,7 +276,8 @@ public class ReportHandler extends Daemon {
                 transactionsToPublish,
                 transactionsToClear,
                 tabletRecoveryMap,
-                tabletWithoutPartitionId);
+                tabletWithoutPartitionId,
+                tabletToInMemory);
 
         // 2. sync
         sync(backendTablets, tabletSyncMap, backendId, backendReportVersion);
@@ -302,7 +305,7 @@ public class ReportHandler extends Daemon {
         handleSetTabletPartitionId(backendId, tabletWithoutPartitionId);
 
         // 10. send set tablet in memory to be
-        handleSetTabletInMemory(backendId, backendTablets);
+        handleSetTabletInMemory2(backendId, tabletToInMemory);
 
         final SystemInfoService currentSystemInfo = Catalog.getCurrentSystemInfo();
         Backend reportBackend = currentSystemInfo.getBackend(backendId);
@@ -878,6 +881,17 @@ public class ReportHandler extends Daemon {
                 backendId, tabletWithoutPartitionId, TTabletMetaType.PARTITIONID);
         batchTask.addTask(task);
         AgentTaskExecutor.submit(batchTask);
+    }
+
+    private static void handleSetTabletInMemory2(long backendId, List<Triple<Long, Integer, Boolean>> tabletToInMemory) {
+        LOG.info("find [{}] tablets need set in memory meta", tabletToInMemory.size());
+        // When report, needn't synchronous
+        if (!tabletToInMemory.isEmpty()) {
+            AgentBatchTask batchTask = new AgentBatchTask();
+            UpdateTabletMetaInfoTask task = new UpdateTabletMetaInfoTask(backendId, tabletToInMemory);
+            batchTask.addTask(task);
+            AgentTaskExecutor.submit(batchTask);
+        }
     }
 
     private static void handleSetTabletInMemory(long backendId, Map<Long, TTablet> backendTablets) {

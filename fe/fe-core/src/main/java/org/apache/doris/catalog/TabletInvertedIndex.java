@@ -39,10 +39,13 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.collect.TreeMultimap;
 
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +66,8 @@ public class TabletInvertedIndex {
 
     public static final TabletMeta NOT_EXIST_TABLET_META = new TabletMeta(NOT_EXIST_VALUE, NOT_EXIST_VALUE,
             NOT_EXIST_VALUE, NOT_EXIST_VALUE, NOT_EXIST_VALUE, TStorageMedium.HDD);
+
+    private static final long PARTITION_META_UPDATE_INTERVAL_MS = 3600 * 1000L; // 1hour
 
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -89,6 +94,16 @@ public class TabletInvertedIndex {
     // backend id -> (tablet id -> replica)
     private Table<Long, Long, Replica> backingReplicaMetaTable = HashBasedTable.create();
 
+    private Map<Long, PartitionMeta> partitionMetaMap = Maps.newHashMap();
+    private long lastPartitionMetaUpdateTime = -1;
+
+    private static class PartitionMeta {
+        public boolean isInMemory;
+        public PartitionMeta(boolean isInMemory) {
+            this.isInMemory = isInMemory;
+        }
+    }
+
     public TabletInvertedIndex() {
     }
 
@@ -108,6 +123,42 @@ public class TabletInvertedIndex {
         this.lock.writeLock().unlock();
     }
 
+    // update the partition meta info index at fix interval
+    // so that we don't need to get partition meta info from table at every report process.
+    private void updatePartitionInvertedIndexIfNecessary() {
+        if (lastPartitionMetaUpdateTime != -1
+                && System.currentTimeMillis() - lastPartitionMetaUpdateTime < PARTITION_META_UPDATE_INTERVAL_MS) {
+            return;
+        }
+
+        partitionMetaMap.clear();
+        Catalog catalog = Catalog.getCurrentCatalog();
+        List<Long> dbIds = catalog.getDbIds();
+        for (Long dbId : dbIds) {
+            Database db = catalog.getDb(dbId);
+            if (db == null) {
+                return;
+            }
+            List<org.apache.doris.catalog.Table> tables = db.getTables();
+            for (org.apache.doris.catalog.Table table : tables) {
+                if (table.getType() != org.apache.doris.catalog.Table.TableType.OLAP) {
+                    continue;
+                }
+                PartitionInfo partitionInfo = ((OlapTable) table).getPartitionInfo();
+                table.readLock();
+                try {
+                    for (Map.Entry<Long, Boolean> entry : partitionInfo.idToInMemory.entrySet()) {
+                        partitionMetaMap.put(entry.getKey(), new PartitionMeta(entry.getValue()));
+                    }
+                } finally {
+                    table.readUnlock();
+                }
+            }
+        }
+
+        lastPartitionMetaUpdateTime = System.currentTimeMillis();
+    }
+
     public void tabletReport(long backendId, Map<Long, TTablet> backendTablets,
                              final HashMap<Long, TStorageMedium> storageMediumMap,
                              ListMultimap<Long, Long> tabletSyncMap,
@@ -118,7 +169,8 @@ public class TabletInvertedIndex {
                              Map<Long, ListMultimap<Long, TPartitionVersionInfo>> transactionsToPublish,
                              ListMultimap<Long, Long> transactionsToClear,
                              ListMultimap<Long, Long> tabletRecoveryMap,
-                             Set<Pair<Long, Integer>> tabletWithoutPartitionId) {
+                             Set<Pair<Long, Integer>> tabletWithoutPartitionId,
+                             List<Triple<Long, Integer, Boolean>> tabletToInMemory) {
 
         for (TTablet backendTablet : backendTablets.values()) {
             for (TTabletInfo tabletInfo : backendTablet.tablet_infos) {
@@ -127,6 +179,8 @@ public class TabletInvertedIndex {
                 }
             }
         }
+
+        updatePartitionInvertedIndexIfNecessary();
 
         readLock();
         long start = System.currentTimeMillis();
@@ -146,6 +200,12 @@ public class TabletInvertedIndex {
                         for (TTabletInfo backendTabletInfo : backendTablet.getTabletInfos()) {
                             if (tabletMeta.containsSchemaHash(backendTabletInfo.getSchemaHash())) {
                                 foundTabletsWithValidSchema.add(tabletId);
+                                // check in memory
+                                PartitionMeta partitionMeta = partitionMetaMap.get(tabletMeta.getPartitionId());
+                                if (partitionMeta != null && partitionMeta.isInMemory != backendTabletInfo.is_in_memory) {
+                                    tabletToInMemory.add(new ImmutableTriple<>(tabletId, backendTabletInfo.getSchemaHash(),  partitionMeta.isInMemory));
+                                }
+
                                 // 1. (intersection)
                                 if (needSync(replica, backendTabletInfo)) {
                                     // need sync
@@ -254,9 +314,10 @@ public class TabletInvertedIndex {
         long end = System.currentTimeMillis();
         LOG.info("finished to do tablet diff with backend[{}]. sync: {}. metaDel: {}. foundValid: {}. foundInvalid: {}."
                         + " migration: {}. found invalid transactions {}. found republish transactions {} "
-                        + " cost: {} ms", backendId, tabletSyncMap.size(),
+                        + " need change in memory {}, cost: {} ms", backendId, tabletSyncMap.size(),
                 tabletDeleteFromMeta.size(), foundTabletsWithValidSchema.size(), foundTabletsWithInvalidSchema.size(),
-                tabletMigrationMap.size(), transactionsToClear.size(), transactionsToPublish.size(), (end - start));
+                tabletMigrationMap.size(), transactionsToClear.size(), transactionsToPublish.size(), tabletToInMemory.size(),
+                (end - start));
     }
 
     public Long getTabletIdByReplica(long replicaId) {
