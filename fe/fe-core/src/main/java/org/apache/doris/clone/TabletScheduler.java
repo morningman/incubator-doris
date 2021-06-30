@@ -30,6 +30,7 @@ import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.Partition.PartitionState;
 import org.apache.doris.catalog.Replica;
 import org.apache.doris.catalog.Replica.ReplicaState;
+import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.Tablet;
 import org.apache.doris.catalog.Tablet.TabletStatus;
 import org.apache.doris.catalog.TabletInvertedIndex;
@@ -41,6 +42,7 @@ import org.apache.doris.common.Config;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.util.MasterDaemon;
 import org.apache.doris.persist.ReplicaPersistInfo;
+import org.apache.doris.resource.Tag;
 import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.task.AgentBatchTask;
@@ -51,15 +53,15 @@ import org.apache.doris.task.CloneTask;
 import org.apache.doris.task.DropReplicaTask;
 import org.apache.doris.thrift.TFinishTaskRequest;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
 import java.util.List;
@@ -559,24 +561,27 @@ public class TabletScheduler extends MasterDaemon {
             throws SchedException {
         if (tabletCtx.getType() == Type.REPAIR) {
             switch (status) {
-            case REPLICA_MISSING:
-                handleReplicaMissing(tabletCtx, batchTask);
-                break;
-            case VERSION_INCOMPLETE:
-            case NEED_FURTHER_REPAIR: // same as version incomplete, it prefer to the dest replica which need further repair
-                handleReplicaVersionIncomplete(tabletCtx, batchTask);
-                break;
-            case REPLICA_RELOCATING:
-                handleReplicaRelocating(tabletCtx, batchTask);
-                break;
-            case REDUNDANT:
-                handleRedundantReplica(tabletCtx, false);
-                break;
-            case FORCE_REDUNDANT:
-                handleRedundantReplica(tabletCtx, true);
-                break;
+                case REPLICA_MISSING:
+                    handleReplicaMissing(tabletCtx, batchTask);
+                    break;
+                case VERSION_INCOMPLETE:
+                case NEED_FURTHER_REPAIR: // same as version incomplete, it prefer to the dest replica which need further repair
+                    handleReplicaVersionIncomplete(tabletCtx, batchTask);
+                    break;
+                case REPLICA_RELOCATING:
+                    handleReplicaRelocating(tabletCtx, batchTask);
+                    break;
+                case REDUNDANT:
+                    handleRedundantReplica(tabletCtx, false);
+                    break;
+                case FORCE_REDUNDANT:
+                    handleRedundantReplica(tabletCtx, true);
+                    break;
                 case REPLICA_MISSING_IN_CLUSTER:
                     handleReplicaClusterMigration(tabletCtx, batchTask);
+                    break;
+                case REPLICA_MISSING_FOR_TAG:
+                    handleReplicaMissingForTag(tabletCtx, batchTask);
                     break;
                 case COLOCATE_MISMATCH:
                     handleColocateMismatch(tabletCtx, batchTask);
@@ -601,9 +606,10 @@ public class TabletScheduler extends MasterDaemon {
      * 1. find an available path in a backend as destination:
      *      1. backend need to be alive.
      *      2. backend of existing replicas should be excluded. (should not be on same host either)
-     *      3. backend has available slot for clone.
-     *      4. replica can fit in the path (consider the threshold of disk capacity and usage percent).
-     *      5. try to find a path with lowest load score.
+     *      3. backend with proper tag.
+     *      4. backend has available slot for clone.
+     *      5. replica can fit in the path (consider the threshold of disk capacity and usage percent).
+     *      6. try to find a path with lowest load score.
      * 2. find an appropriate source replica:
      *      1. source replica should be healthy
      *      2. backend of source replica has available slot for clone.
@@ -612,8 +618,10 @@ public class TabletScheduler extends MasterDaemon {
      */
     private void handleReplicaMissing(TabletSchedCtx tabletCtx, AgentBatchTask batchTask) throws SchedException {
         stat.counterReplicaMissingErr.incrementAndGet();
+        // find proper tag
+        Tag tag = chooseProperTag(tabletCtx);
         // find an available dest backend and path
-        RootPathLoadStatistic destPath = chooseAvailableDestPath(tabletCtx, false /* not for colocate */);
+        RootPathLoadStatistic destPath = chooseAvailableDestPath(tabletCtx, tag, false /* not for colocate */);
         Preconditions.checkNotNull(destPath);
         tabletCtx.setDest(destPath.getBeId(), destPath.getPathHash());
 
@@ -622,6 +630,13 @@ public class TabletScheduler extends MasterDaemon {
 
         // create clone task
         batchTask.addTask(tabletCtx.createCloneReplicaAndTask());
+    }
+
+    private Tag chooseProperTag(TabletSchedCtx tabletCtx) {
+        Tablet tablet = tabletCtx.getTablet();
+        List<Replica> replicas = tablet.getReplicas();
+        ReplicaAllocation replicaAlloc = tabletCtx.getReplicaAlloc();
+        
     }
 
     /**
@@ -1010,6 +1025,16 @@ public class TabletScheduler extends MasterDaemon {
     }
 
     /**
+     * Missing for tag, which means some of replicas of this tablet are allocated in wrong backend with specified tag.
+     * Treat it as replica missing, and in handleReplicaMissing(), it will find a property backend to create new replica.
+     */
+    private void handleReplicaMissingForTag(TabletSchedCtx tabletCtx, AgentBatchTask batchTask)
+            throws SchedException {
+        stat.counterReplicaMissingForTagErr.incrementAndGet();
+        handleReplicaMissing(tabletCtx, batchTask);
+    }
+
+    /**
      * Replicas of colocate table's tablet does not locate on right backends set.
      *      backends set:       1,2,3
      *      tablet replicas:    1,2,5
@@ -1068,7 +1093,7 @@ public class TabletScheduler extends MasterDaemon {
     }
 
     // choose a path on a backend which is fit for the tablet
-    private RootPathLoadStatistic chooseAvailableDestPath(TabletSchedCtx tabletCtx, boolean forColocate)
+    private RootPathLoadStatistic chooseAvailableDestPath(TabletSchedCtx tabletCtx, Tag tag, boolean forColocate)
             throws SchedException {
         ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster());
         if (statistic == null) {

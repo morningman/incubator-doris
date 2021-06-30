@@ -46,12 +46,12 @@ import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.thrift.TTabletInfo;
 import org.apache.doris.thrift.TTaskType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -203,9 +203,11 @@ public class TabletSchedCtx implements Comparable<TabletSchedCtx> {
     private int tabletOrderIdx = -1;
 
     private SystemInfoService infoService;
+
+    private ReplicaAllocation replicaAlloc;
     
     public TabletSchedCtx(Type type, String cluster, long dbId, long tblId, long partId,
-            long idxId, long tabletId, long createTime) {
+                          long idxId, long tabletId, ReplicaAllocation replicaAlloc, long createTime) {
         this.type = type;
         this.cluster = cluster;
         this.dbId = dbId;
@@ -216,8 +218,13 @@ public class TabletSchedCtx implements Comparable<TabletSchedCtx> {
         this.createTime = createTime;
         this.infoService = Catalog.getCurrentSystemInfo();
         this.state = State.PENDING;
+        this.replicaAlloc = replicaAlloc;
     }
-    
+
+    public ReplicaAllocation getReplicaAlloc() {
+        return replicaAlloc;
+    }
+
     public void setType(Type type) {
         this.type = type;
     }

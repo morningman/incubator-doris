@@ -60,7 +60,7 @@ public class ReplicaAllocation implements Writable {
         allocMap.put(Tag.DEFAULT_BACKEND_TAG, replicaNum);
     }
 
-    public ReplicaAllocation (Map<Tag, Short> allocMap) {
+    public ReplicaAllocation(Map<Tag, Short> allocMap) {
         this.allocMap = allocMap;
     }
 

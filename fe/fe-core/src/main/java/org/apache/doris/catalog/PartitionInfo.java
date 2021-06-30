@@ -25,12 +25,12 @@ import org.apache.doris.common.io.Writable;
 import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.thrift.TTabletType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -210,6 +210,7 @@ public class PartitionInfo implements Writable {
     public ReplicaAllocation getReplicaAllocation(long partitionId) {
         if (!idToReplicaAllocation.containsKey(partitionId)) {
             LOG.debug("failed to get replica allocation for partition: {}", partitionId);
+            return ReplicaAllocation.DEFAULT_ALLOCATION;
         }
         return idToReplicaAllocation.get(partitionId);
     }
