@@ -52,6 +52,9 @@ import org.apache.doris.task.CloneTask;
 import org.apache.doris.task.DropReplicaTask;
 import org.apache.doris.thrift.TFinishTaskRequest;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.HashBasedTable;
@@ -60,9 +63,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
 import java.util.List;
@@ -619,7 +619,7 @@ public class TabletScheduler extends MasterDaemon {
     private void handleReplicaMissing(TabletSchedCtx tabletCtx, AgentBatchTask batchTask) throws SchedException {
         stat.counterReplicaMissingErr.incrementAndGet();
         // find proper tag
-        Tag tag = chooseProperTag(tabletCtx);
+        Tag tag = chooseProperTag(tabletCtx, true);
         // find an available dest backend and path
         RootPathLoadStatistic destPath = chooseAvailableDestPath(tabletCtx, tag, false /* not for colocate */);
         Preconditions.checkNotNull(destPath);
@@ -635,7 +635,8 @@ public class TabletScheduler extends MasterDaemon {
     // In dealing with the case of missing replicas, we need to select a tag with missing replicas
     // according to the distribution of replicas.
     // If no replica of the tag is missing, an exception is thrown.
-    private Tag chooseProperTag(TabletSchedCtx tabletCtx) throws SchedException {
+    // And for deleting redundant replica, also find out a tag which has redundant replica.
+    private Tag chooseProperTag(TabletSchedCtx tabletCtx, boolean forMissingReplica) throws SchedException {
         Tablet tablet = tabletCtx.getTablet();
         List<Replica> replicas = tablet.getReplicas();
         Map<Tag, Short> allocMap = tabletCtx.getReplicaAlloc().getAllocMap();
@@ -649,12 +650,16 @@ public class TabletScheduler extends MasterDaemon {
         }
 
         for (Map.Entry<Tag, Short> entry : allocMap.entrySet()) {
-            if (currentAllocMap.getOrDefault(entry.getKey(), (short) 0) < entry.getValue()) {
+            short curNum = currentAllocMap.getOrDefault(entry.getKey(), (short) 0);
+            if (forMissingReplica && curNum < entry.getValue()) {
+                return entry.getKey();
+            }
+            if (!forMissingReplica && curNum > entry.getValue()) {
                 return entry.getKey();
             }
         }
 
-        throw new SchedException(Status.UNRECOVERABLE, "tablet " + tablet.getId() + "has enough replicas");
+        throw new SchedException(Status.UNRECOVERABLE, "no proper tag is chose for tablet " + tablet.getId());
     }
 
     /**
@@ -668,10 +673,6 @@ public class TabletScheduler extends MasterDaemon {
     private void handleReplicaVersionIncomplete(TabletSchedCtx tabletCtx, AgentBatchTask batchTask)
             throws SchedException {
         stat.counterReplicaVersionMissingErr.incrementAndGet();
-        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster());
-        if (statistic == null) {
-            throw new SchedException(Status.UNRECOVERABLE, "cluster does not exist");
-        }
 
         try {
             tabletCtx.chooseDestReplicaForVersionIncomplete(backendsWorkingSlots);
@@ -839,11 +840,6 @@ public class TabletScheduler extends MasterDaemon {
     }
 
     private boolean deleteReplicaOnSameHost(TabletSchedCtx tabletCtx, boolean force) throws SchedException {
-        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster());
-        if (statistic == null) {
-            return false;
-        }
-
         // collect replicas of this tablet.
         // host -> (replicas on same host)
         Map<String, List<Replica>> hostToReplicas = Maps.newHashMap();
@@ -866,6 +862,11 @@ public class TabletScheduler extends MasterDaemon {
             if (replicas.size() > 1) {
                 // delete one replica from replicas on same host.
                 // better to choose high load backend
+                Tag tag = chooseProperTag(tabletCtx, false);
+                ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster(), tag);
+                if (statistic == null) {
+                    return false;
+                }
                 return deleteFromHighLoadBackend(tabletCtx, replicas, force, statistic);
             }
         }
@@ -902,7 +903,8 @@ public class TabletScheduler extends MasterDaemon {
     }
 
     private boolean deleteReplicaOnHighLoadBackend(TabletSchedCtx tabletCtx, boolean force) throws SchedException {
-        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster());
+        Tag tag = chooseProperTag(tabletCtx, false);
+        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster(), tag);
         if (statistic == null) {
             return false;
         }
@@ -1113,7 +1115,7 @@ public class TabletScheduler extends MasterDaemon {
     // choose a path on a backend which is fit for the tablet
     private RootPathLoadStatistic chooseAvailableDestPath(TabletSchedCtx tabletCtx, Tag tag, boolean forColocate)
             throws SchedException {
-        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster());
+        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster(), tag);
         if (statistic == null) {
             throw new SchedException(Status.UNRECOVERABLE, "cluster does not exist");
         }

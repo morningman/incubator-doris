@@ -38,13 +38,14 @@ import org.apache.doris.resource.Tag;
 import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.google.common.collect.Table;
 
 import java.util.List;
 import java.util.Map;
@@ -72,7 +73,8 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
                 if (INSTANCE == null) {
                     INSTANCE = new ColocateTableCheckerAndBalancer(CHECK_INTERVAL_MS);
                 }
-            } }
+            }
+        }
         return INSTANCE;
     }
 
@@ -148,7 +150,7 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
                 continue;
             }
 
-            Map<String, ClusterLoadStatistic> statisticMap = catalog.getTabletScheduler().getStatisticMap();
+            Table<String, Tag, ClusterLoadStatistic> statisticMap = catalog.getTabletScheduler().getStatisticMap();
             if (statisticMap == null) {
                 continue;
             }
