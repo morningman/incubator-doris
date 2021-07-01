@@ -30,7 +30,6 @@ import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.Partition.PartitionState;
 import org.apache.doris.catalog.Replica;
 import org.apache.doris.catalog.Replica.ReplicaState;
-import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.Tablet;
 import org.apache.doris.catalog.Tablet.TabletStatus;
 import org.apache.doris.catalog.TabletInvertedIndex;
@@ -53,15 +52,17 @@ import org.apache.doris.task.CloneTask;
 import org.apache.doris.task.DropReplicaTask;
 import org.apache.doris.thrift.TFinishTaskRequest;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.EvictingQueue;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Table;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
 import java.util.List;
@@ -119,8 +120,8 @@ public class TabletScheduler extends MasterDaemon {
 
     // be id -> #working slots
     private Map<Long, PathSlot> backendsWorkingSlots = Maps.newConcurrentMap();
-    // cluster name -> load statistic
-    private Map<String, ClusterLoadStatistic> statisticMap = Maps.newConcurrentMap();
+    // cluster name -> Tag -> load statistic
+    private Table<String, Tag, ClusterLoadStatistic> statisticMap = HashBasedTable.create();
     private long lastStatUpdateTime = 0;
 
     private long lastSlotAdjustTime = 0;
@@ -305,20 +306,23 @@ public class TabletScheduler extends MasterDaemon {
      * because we already limit the total number of running clone jobs in cluster by 'backend slots'
      */
     private void updateClusterLoadStatistic() {
-        Map<String, ClusterLoadStatistic> newStatisticMap = Maps.newConcurrentMap();
+        Table<String, Tag, ClusterLoadStatistic> newStatisticMap = HashBasedTable.create();
         Set<String> clusterNames = infoService.getClusterNames();
         for (String clusterName : clusterNames) {
-            ClusterLoadStatistic clusterLoadStatistic = new ClusterLoadStatistic(clusterName,
-                    infoService, invertedIndex);
-            clusterLoadStatistic.init();
-            newStatisticMap.put(clusterName, clusterLoadStatistic);
-            LOG.info("update cluster {} load statistic:\n{}", clusterName, clusterLoadStatistic.getBrief());
+            Set<Tag> tags = infoService.getTagsByCluster(clusterName);
+            for (Tag tag : tags) {
+                ClusterLoadStatistic clusterLoadStatistic = new ClusterLoadStatistic(clusterName, tag,
+                        infoService, invertedIndex);
+                clusterLoadStatistic.init();
+                newStatisticMap.put(clusterName, tag, clusterLoadStatistic);
+                LOG.info("update cluster {} load statistic:\n{}", clusterName, clusterLoadStatistic.getBrief());
+            }
         }
 
         this.statisticMap = newStatisticMap;
     }
 
-    public Map<String, ClusterLoadStatistic> getStatisticMap() {
+    public Table<String, Tag, ClusterLoadStatistic> getStatisticMap() {
         return statisticMap;
     }
 
@@ -535,12 +539,8 @@ public class TabletScheduler extends MasterDaemon {
             } else if (statusPair.first != TabletStatus.HEALTHY
                     && tabletCtx.getType() == TabletSchedCtx.Type.BALANCE) {
                 // we select an unhealthy tablet to do balance, which is not right.
-                // so here we change it to a REPAIR task, and also reset its priority
-                tabletCtx.releaseResource(this);
-                tabletCtx.setType(TabletSchedCtx.Type.REPAIR);
-                tabletCtx.setOrigPriority(statusPair.second);
-                tabletCtx.setLastSchedTime(currentTime);
-                tabletCtx.setLastVisitedTime(currentTime);
+                // so here we stop this task.
+                throw new SchedException(Status.UNRECOVERABLE, "tablet is unhealthy when doing balance");
             }
 
             // we do not concern priority here.
@@ -632,11 +632,29 @@ public class TabletScheduler extends MasterDaemon {
         batchTask.addTask(tabletCtx.createCloneReplicaAndTask());
     }
 
-    private Tag chooseProperTag(TabletSchedCtx tabletCtx) {
+    // In dealing with the case of missing replicas, we need to select a tag with missing replicas
+    // according to the distribution of replicas.
+    // If no replica of the tag is missing, an exception is thrown.
+    private Tag chooseProperTag(TabletSchedCtx tabletCtx) throws SchedException {
         Tablet tablet = tabletCtx.getTablet();
         List<Replica> replicas = tablet.getReplicas();
-        ReplicaAllocation replicaAlloc = tabletCtx.getReplicaAlloc();
-        
+        Map<Tag, Short> allocMap = tabletCtx.getReplicaAlloc().getAllocMap();
+        Map<Tag, Short> currentAllocMap = Maps.newHashMap();
+        for (Replica replica : replicas) {
+            Backend be = infoService.getBackend(replica.getId());
+            if (be != null) {
+                Short num = currentAllocMap.getOrDefault(be.getTag(), (short) 0);
+                currentAllocMap.put(be.getTag(), (short) (num + 1));
+            }
+        }
+
+        for (Map.Entry<Tag, Short> entry : allocMap.entrySet()) {
+            if (currentAllocMap.getOrDefault(entry.getKey(), (short) 0) < entry.getValue()) {
+                return entry.getKey();
+            }
+        }
+
+        throw new SchedException(Status.UNRECOVERABLE, "tablet " + tablet.getId() + "has enough replicas");
     }
 
     /**
@@ -1083,7 +1101,7 @@ public class TabletScheduler extends MasterDaemon {
             addTablet(tabletCtx, false);
         }
     }
-
+ 
     /**
      * Try to create a balance task for a tablet.
      */
@@ -1105,9 +1123,10 @@ public class TabletScheduler extends MasterDaemon {
         // beStatistics is sorted by mix load score in ascend order, so select from first to last.
         List<RootPathLoadStatistic> allFitPaths = Lists.newArrayList();
         for (BackendLoadStatistic bes : beStatistics) {
-            if (!bes.isAvailable()) {
+            if (!bes.isAvailable() || !bes.getTag().equals(tag)) {
                 continue;
             }
+
             // exclude host which already has replica of this tablet
             if (tabletCtx.containsBE(bes.getBeId())) {
                 continue;

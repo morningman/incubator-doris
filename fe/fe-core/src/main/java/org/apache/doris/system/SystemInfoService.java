@@ -1229,5 +1229,19 @@ public class SystemInfoService {
             }
         }
     }
+
+    public Set<Tag> getTagsByCluster(String clusterName) {
+        List<Backend> bes = getClusterBackends(clusterName);
+        Set<Tag> tags = Sets.newHashSet();
+        for (Backend be : bes) {
+            tags.add(be.getTag());
+        }
+        return tags;
+    }
+
+    public List<Backend> getBackendsByTagInCluster(String clusterName, Tag tag) {
+        List<Backend> bes = getClusterBackends(clusterName);
+        return bes.stream().filter(b -> b.getTag().equals(tag)).collect(Collectors.toList());
+    }
 }
 

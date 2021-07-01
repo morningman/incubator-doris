@@ -35,6 +35,7 @@ import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.util.TimeUtils;
 import org.apache.doris.persist.ReplicaPersistInfo;
+import org.apache.doris.resource.Tag;
 import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.task.AgentTaskQueue;
@@ -46,12 +47,12 @@ import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.thrift.TTabletInfo;
 import org.apache.doris.thrift.TTaskType;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -204,8 +205,11 @@ public class TabletSchedCtx implements Comparable<TabletSchedCtx> {
 
     private SystemInfoService infoService;
 
+    // replicaAlloc is only set for REPAIR task
     private ReplicaAllocation replicaAlloc;
-    
+    // tag is only set for BALANCE task, used to identify which resource group this Balance job is in
+    private Tag tag;
+
     public TabletSchedCtx(Type type, String cluster, long dbId, long tblId, long partId,
                           long idxId, long tabletId, ReplicaAllocation replicaAlloc, long createTime) {
         this.type = type;
@@ -223,6 +227,14 @@ public class TabletSchedCtx implements Comparable<TabletSchedCtx> {
 
     public ReplicaAllocation getReplicaAlloc() {
         return replicaAlloc;
+    }
+
+    public void setTag(Tag tag) {
+        this.tag = tag;
+    }
+
+    public Tag getTag() {
+        return tag;
     }
 
     public void setType(Type type) {

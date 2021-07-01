@@ -93,11 +93,15 @@ public class Tag implements Writable {
         return new Tag(type, value);
     }
 
+    public String toKey() {
+        return type + "_" + value;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(type, value);
     }
-    
+
     @Override
     public boolean equals(Object other) {
         if (other == this) return true;
@@ -110,7 +114,7 @@ public class Tag implements Writable {
 
     @Override
     public String toString() {
-        return "{\"" + type.toString() + "\" : \"" + value + "\"}";
+        return "{\"" + type + "\" : \"" + value + "\"}";
     }
 
     @Override

@@ -304,7 +304,7 @@ public class ColocateTableCheckerAndBalancerTest {
     public final class FakeBackendLoadStatistic extends BackendLoadStatistic {
         public FakeBackendLoadStatistic(long beId, String clusterName, SystemInfoService infoService,
                                     TabletInvertedIndex invertedIndex) {
-            super(beId, clusterName, infoService, invertedIndex);
+            super(beId, clusterName, Tag.DEFAULT_BACKEND_TAG, infoService, invertedIndex);
         }
 
         @Override
