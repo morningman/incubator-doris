@@ -569,7 +569,8 @@ public class Tablet extends MetaObject implements Writable {
      * If not, unavailable backends will be relocated by CalocateTableBalancer first.
      */
     public TabletStatus getColocateHealthStatus(long visibleVersion, ReplicaAllocation replicaAlloc, Set<Long> backendsSet) {
-        // FIXME(cmy): need to be aware of the tag info
+        // Here we don't need to care about tag. Because the replicas of the colocate table has been confirmed
+        // in ColocateTableCheckerAndBalancer.
         Short totalReplicaNum = replicaAlloc.getTotalReplicaNum();
         // 1. check if replicas' backends are mismatch
         Set<Long> replicaBackendIds = getBackendIds();

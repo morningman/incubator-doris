@@ -1070,7 +1070,7 @@ public class TabletScheduler extends MasterDaemon {
 
         stat.counterReplicaColocateMismatch.incrementAndGet();
         // find an available dest backend and path
-        RootPathLoadStatistic destPath = chooseAvailableDestPath(tabletCtx, true /* for colocate */);
+        RootPathLoadStatistic destPath = chooseAvailableDestPath(tabletCtx, null, true /* for colocate */);
         Preconditions.checkNotNull(destPath);
         tabletCtx.setDest(destPath.getBeId(), destPath.getPathHash());
 
@@ -1113,6 +1113,7 @@ public class TabletScheduler extends MasterDaemon {
     }
 
     // choose a path on a backend which is fit for the tablet
+    // if forColocate is false, the tag must be set.
     private RootPathLoadStatistic chooseAvailableDestPath(TabletSchedCtx tabletCtx, Tag tag, boolean forColocate)
             throws SchedException {
         ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster(), tag);
@@ -1125,7 +1126,7 @@ public class TabletScheduler extends MasterDaemon {
         // beStatistics is sorted by mix load score in ascend order, so select from first to last.
         List<RootPathLoadStatistic> allFitPaths = Lists.newArrayList();
         for (BackendLoadStatistic bes : beStatistics) {
-            if (!bes.isAvailable() || !bes.getTag().equals(tag)) {
+            if (!bes.isAvailable()) {
                 continue;
             }
 
@@ -1134,9 +1135,16 @@ public class TabletScheduler extends MasterDaemon {
                 continue;
             }
 
-            if (forColocate && !tabletCtx.getColocateBackendsSet().contains(bes.getBeId())) {
+            // If this for colocate table, only choose backend in colocate backend set.
+            // Else, check the tag.
+            if (forColocate) {
+                if (!tabletCtx.getColocateBackendsSet().contains(bes.getBeId())) {
+                    continue;
+                }
+            } else if (!bes.getTag().equals(tag)) {
                 continue;
             }
+
 
             List<RootPathLoadStatistic> resultPaths = Lists.newArrayList();
             BalanceStatus st = bes.isFit(tabletCtx.getTabletSize(), tabletCtx.getStorageMedium(),

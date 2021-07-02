@@ -88,6 +88,10 @@ public class ReplicaAllocation implements Writable {
         return this.equals(NOT_SET);
     }
 
+    public Short getReplicaNumByTag(Tag tag) {
+        return allocMap.getOrDefault(tag, (short) 0);
+    }
+
     public static ReplicaAllocation read(DataInput in) throws IOException {
         String json = Text.readString(in);
         return GsonUtils.GSON.fromJson(json, ReplicaAllocation.class);

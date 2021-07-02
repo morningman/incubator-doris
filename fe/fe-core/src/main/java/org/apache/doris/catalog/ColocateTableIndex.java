@@ -24,6 +24,9 @@ import org.apache.doris.persist.ColocatePersistInfo;
 import org.apache.doris.persist.gson.GsonUtils;
 import org.apache.doris.resource.Tag;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -35,9 +38,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import com.google.gson.annotations.SerializedName;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -371,6 +371,21 @@ public class ColocateTableIndex implements Writable {
             readUnlock();
         }
     }
+
+
+    public Object getBackendsPerBucketSeqByTag(GroupId groupId, Tag tag) {
+        readLock();
+        try {
+            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId);
+            if (backendsPerBucketSeq == null) {
+                return Lists.newArrayList();
+            }
+            return backendsPerBucketSeq;
+        } finally {
+            readUnlock();
+        }
+    }
+
 
     public List<Set<Long>> getBackendsPerBucketSeqSet(GroupId groupId) {
         readLock();

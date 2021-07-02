@@ -154,29 +154,30 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
             if (statisticMap == null) {
                 continue;
             }
-            ClusterLoadStatistic statistic = statisticMap.get(db.getClusterName());
-            if (statistic == null) {
-                continue;
-            }
 
-            // FIXME(cmy): consider tag
-            Map<Tag, List<List<Long>>> backendsPerBucketSeqMap = colocateIndex.getBackendsPerBucketSeq(groupId);
-            List<List<Long>> backendsPerBucketSeq = backendsPerBucketSeqMap.get(Tag.DEFAULT_BACKEND_TAG);
-            if (backendsPerBucketSeq.isEmpty()) {
-                continue;
-            }
+            ColocateGroupSchema groupSchema = colocateIndex.getGroupSchema(groupId);
+            ReplicaAllocation replicaAlloc = groupSchema.getReplicaAlloc();
+            Map<Tag, Short> allocMap = replicaAlloc.getAllocMap();
 
-            Set<Long> unavailableBeIdsInGroup = getUnavailableBeIdsInGroup(infoService, colocateIndex, groupId);
-            List<Long> availableBeIds = getAvailableBeIds(db.getClusterName(), infoService);
-            List<List<Long>> balancedBackendsPerBucketSeq = Lists.newArrayList();
-            if (relocateAndBalance(groupId, unavailableBeIdsInGroup, availableBeIds, colocateIndex, infoService, statistic, balancedBackendsPerBucketSeq)) {
-                // FIXME(cmy): consider tag
-                Map<Tag, List<List<Long>>> balancedBackendsPerBucketSeqMap = Maps.newHashMap();
-                balancedBackendsPerBucketSeqMap.put(Tag.DEFAULT_BACKEND_TAG, balancedBackendsPerBucketSeq);
-                colocateIndex.addBackendsPerBucketSeq(groupId, balancedBackendsPerBucketSeqMap);
-                ColocatePersistInfo info = ColocatePersistInfo.createForBackendsPerBucketSeq(groupId, balancedBackendsPerBucketSeqMap);
-                catalog.getEditLog().logColocateBackendsPerBucketSeq(info);
-                LOG.info("balance group {}. now backends per bucket sequence is: {}", groupId, balancedBackendsPerBucketSeq);
+            for (Map.Entry<Tag, Short> entry : allocMap.entrySet()) {
+                ClusterLoadStatistic statistic = statisticMap.get(db.getClusterName(), entry.getKey());
+                if (statistic == null) {
+                    continue;
+                }
+                List<List<Long>> backendsPerBucketSeq = colocateIndex.getBackendsPerBucketSeq(groupId);
+                if (backendsPerBucketSeq.isEmpty()) {
+                    continue;
+                }
+
+                Set<Long> unavailableBeIdsInGroup = getUnavailableBeIdsInGroup(infoService, colocateIndex, groupId, entry.getKey());
+                List<Long> availableBeIds = getAvailableBeIds(db.getClusterName(), entry.getKey(), infoService);
+                List<List<Long>> balancedBackendsPerBucketSeq = Lists.newArrayList();
+                if (relocateAndBalance(groupId, unavailableBeIdsInGroup, availableBeIds, colocateIndex, infoService, statistic, balancedBackendsPerBucketSeq)) {
+                    colocateIndex.addBackendsPerBucketSeq(groupId, balancedBackendsPerBucketSeq);
+                    ColocatePersistInfo info = ColocatePersistInfo.createForBackendsPerBucketSeq(groupId, balancedBackendsPerBucketSeq);
+                    catalog.getEditLog().logColocateBackendsPerBucketSeq(info);
+                    LOG.info("balance group {}. now backends per bucket sequence is: {}", groupId, balancedBackendsPerBucketSeq);
+                }
             }
         }
     }
@@ -217,7 +218,6 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
                         ReplicaAllocation replicaAlloc = olapTable.getPartitionInfo().getReplicaAllocation(partition.getId());
                         short replicationNum = replicaAlloc.getTotalReplicaNum();
                         long visibleVersion = partition.getVisibleVersion();
-                        long visibleVersionHash = partition.getVisibleVersionHash();
                         // Here we only get VISIBLE indexes. All other indexes are not queryable.
                         // So it does not matter if tablets of other indexes are not matched.
                         for (MaterializedIndex index : partition.getMaterializedIndices(IndexExtState.VISIBLE)) {
@@ -236,6 +236,7 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
                                     TabletSchedCtx tabletCtx = new TabletSchedCtx(
                                             TabletSchedCtx.Type.REPAIR, db.getClusterName(),
                                             db.getId(), tableId, partition.getId(), index.getId(), tablet.getId(),
+                                            olapTable.getPartitionInfo().getReplicaAllocation(partition.getId()),
                                             System.currentTimeMillis());
                                     // the tablet status will be set again when being scheduled
                                     tabletCtx.setTabletStatus(st);
@@ -314,13 +315,12 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
      *  Return true if backends per bucket sequence change and new sequence is saved in balancedBackendsPerBucketSeq.
      *  Return false if nothing changed.
      */
-    private boolean relocateAndBalance(GroupId groupId, Set<Long> unavailableBeIds, List<Long> availableBeIds,
+    private boolean relocateAndBalance(GroupId groupId, Tag tag, Set<Long> unavailableBeIds, List<Long> availableBeIds,
                                        ColocateTableIndex colocateIndex, SystemInfoService infoService,
                                        ClusterLoadStatistic statistic, List<List<Long>> balancedBackendsPerBucketSeq) {
         ColocateGroupSchema groupSchema = colocateIndex.getGroupSchema(groupId);
-        // FIXME(cmy): should be aware of tag info
-        int replicationNum = groupSchema.getReplicaAlloc().getTotalReplicaNum();
-        List<List<Long>> backendsPerBucketSeq = Lists.newArrayList(colocateIndex.getBackendsPerBucketSeq(groupId).get(Tag.DEFAULT_BACKEND_TAG));
+        short replicaNum = groupSchema.getReplicaAlloc().getReplicaNumByTag(tag);
+        List<List<Long>> backendsPerBucketSeq = Lists.newArrayList(colocateIndex.getBackendsPerBucketSeqByTag(groupId, tag));
         // [[A,B,C],[B,C,D]] -> [A,B,C,B,C,D]
         List<Long> flatBackendsPerBucketSeq = backendsPerBucketSeq.stream().flatMap(List::stream).collect(Collectors.toList());
 
@@ -328,7 +328,7 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
         OUT:
         while (true) {
             // update backends and hosts at each round
-            backendsPerBucketSeq = Lists.partition(flatBackendsPerBucketSeq, replicationNum);
+            backendsPerBucketSeq = Lists.partition(flatBackendsPerBucketSeq, replicaNum);
             List<List<String>> hostsPerBucketSeq = getHostsPerBucketSeq(backendsPerBucketSeq, infoService);
             if (hostsPerBucketSeq == null) {
                 // error happens, change nothing
@@ -505,24 +505,25 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
                 idx -> flatBackendsPerBucketSeq.get(idx).equals(beId)).collect(Collectors.toList());
     }
 
-    private Set<Long> getUnavailableBeIdsInGroup(SystemInfoService infoService, ColocateTableIndex colocateIndex, GroupId groupId) {
+    private Set<Long> getUnavailableBeIdsInGroup(SystemInfoService infoService, ColocateTableIndex colocateIndex,
+                                                 GroupId groupId, Tag tag) {
         Set<Long> backends = colocateIndex.getBackendsByGroup(groupId);
         Set<Long> unavailableBeIds = Sets.newHashSet();
         for (Long backendId : backends) {
-            if (!checkBackendAvailable(backendId, infoService)) {
+            if (!checkBackendAvailable(backendId, tag, infoService)) {
                 unavailableBeIds.add(backendId);
             }
         }
         return unavailableBeIds;
     }
 
-    private List<Long> getAvailableBeIds(String cluster, SystemInfoService infoService) {
+    private List<Long> getAvailableBeIds(String cluster, Tag tag, SystemInfoService infoService) {
         // get all backends to allBackendIds, and check be availability using checkBackendAvailable
         // backend stopped for a short period of time is still considered available
         List<Long> allBackendIds = infoService.getClusterBackendIds(cluster, false);
         List<Long> availableBeIds = Lists.newArrayList();
         for (Long backendId : allBackendIds) {
-            if (checkBackendAvailable(backendId, infoService)) {
+            if (checkBackendAvailable(backendId, tag, infoService)) {
                 availableBeIds.add(backendId);
             }
         }
@@ -533,7 +534,7 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
      * check backend available
      * backend stopped for a short period of time is still considered available
      */
-    private boolean checkBackendAvailable(Long backendId, SystemInfoService infoService) {
+    private boolean checkBackendAvailable(Long backendId, Tag tag, SystemInfoService infoService) {
         long currTime = System.currentTimeMillis();
         Backend be = infoService.getBackend(backendId);
         if (be == null) {
@@ -542,7 +543,7 @@ public class ColocateTableCheckerAndBalancer extends MasterDaemon {
             // 1. BE is dead for a long time
             // 2. BE is under decommission
             if ((!be.isAlive() && (currTime - be.getLastUpdateMs()) > Config.tablet_repair_delay_factor_second * 1000 * 2)
-                    || be.isDecommissioned()) {
+                    || be.isDecommissioned() || !be.getTag().equals(tag)) {
                 return false;
             }
         }
