@@ -59,19 +59,21 @@ import org.apache.doris.thrift.TStatus;
 import org.apache.doris.thrift.TStatusCode;
 import org.apache.doris.thrift.TStreamLoadRecordResult;
 import org.apache.doris.thrift.TTabletStatResult;
+import org.apache.doris.thrift.TTaskType;
 import org.apache.doris.thrift.TTransmitDataParams;
 import org.apache.doris.thrift.TTransmitDataResult;
 import org.apache.doris.thrift.TUniqueId;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-import io.grpc.stub.StreamObserver;
 
 import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+
+import io.grpc.stub.StreamObserver;
 
 /*
  * This class is used to create mock backends.
@@ -156,7 +158,17 @@ public class MockedBackendFactory {
                                     + ", signature: " + request.getSignature() + ", fe addr: " + backend.getFeAddress());
                             TFinishTaskRequest finishTaskRequest = new TFinishTaskRequest(tBackend,
                                     request.getTaskType(), request.getSignature(), new TStatus(TStatusCode.OK));
-                            finishTaskRequest.setReportVersion(++reportVersion);
+                            TTaskType taskType = request.getTaskType();
+                            switch (taskType) {
+                                case CREATE:
+                                case PUSH:
+                                case ALTER:
+                                    ++reportVersion;
+                                    break;
+                                default:
+                                    break;
+                            }
+                            finishTaskRequest.setReportVersion(reportVersion);
 
                             FrontendService.Client client = ClientPool.frontendPool.borrowObject(backend.getFeAddress(), 2000);
                             System.out.println("get fe " + backend.getFeAddress() + " client: " + client);

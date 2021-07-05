@@ -176,7 +176,6 @@ public class RebalanceTest {
             olapTable.getPartitionInfo().addPartition(id, new DataProperty(TStorageMedium.HDD),
                     ReplicaAllocation.DEFAULT_ALLOCATION, false);
         });
-
     }
 
     @Test

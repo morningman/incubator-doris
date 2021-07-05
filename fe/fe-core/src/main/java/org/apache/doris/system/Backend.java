@@ -21,6 +21,7 @@ import org.apache.doris.alter.DecommissionBackendJob.DecommissionType;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.DiskInfo;
 import org.apache.doris.catalog.DiskInfo.DiskState;
+import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
@@ -630,17 +631,17 @@ public class Backend implements Writable {
                 this.version = hbResponse.getVersion();
             }
 
-            if (this.bePort != hbResponse.getBePort()) {
+            if (this.bePort != hbResponse.getBePort() && !FeConstants.runningUnitTest) {
                 isChanged = true;
                 this.bePort = hbResponse.getBePort();
             }
 
-            if (this.httpPort != hbResponse.getHttpPort()) {
+            if (this.httpPort != hbResponse.getHttpPort() && !FeConstants.runningUnitTest) {
                 isChanged = true;
                 this.httpPort = hbResponse.getHttpPort();
             }
 
-            if (this.brpcPort != hbResponse.getBrpcPort()) {
+            if (this.brpcPort != hbResponse.getBrpcPort() && !FeConstants.runningUnitTest) {
                 isChanged = true;
                 this.brpcPort = hbResponse.getBrpcPort();
             }

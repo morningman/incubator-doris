@@ -287,12 +287,9 @@ public class PartitionRebalancer extends Rebalancer {
 
     @Override
     public Long getToDeleteReplicaId(TabletSchedCtx tabletCtx) {
-        MovesCacheMap.MovesCache movesInProgress = movesCacheMap.getCache(
-                tabletCtx.getCluster(), tabletCtx.getTag(), tabletCtx.getStorageMedium());
-
         // We don't invalidate the cached move here, cuz the redundant repair progress is just started.
         // The move should be invalidated by TTL or Algo.CheckMoveCompleted()
-        Pair<TabletMove, Long> pair = movesInProgress.get().getIfPresent(tabletCtx.getTabletId());
+        Pair<TabletMove, Long> pair = movesCacheMap.getTabletMove(tabletCtx);
         if (pair != null) {
             Preconditions.checkState(pair.second != -1L);
             return pair.second;

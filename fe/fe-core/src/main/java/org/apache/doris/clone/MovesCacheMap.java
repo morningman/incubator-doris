@@ -92,6 +92,23 @@ public class MovesCacheMap {
         return null;
     }
 
+    // For given tablet ctx, find it in cacheMap
+    public Pair<PartitionRebalancer.TabletMove, Long> getTabletMove(TabletSchedCtx tabletCtx) {
+        Map<Tag, Map<TStorageMedium, MovesCache>> tagMap = cacheMap.row(tabletCtx.getCluster());
+        if (tagMap == null) {
+            return null;
+        }
+        for (Map<TStorageMedium, MovesCache> mediumMap : tagMap.values()) {
+            MovesCache cache = mediumMap.get(tabletCtx.getStorageMedium());
+            if (cache == null) {
+                continue;
+            }
+            return cache.get().getIfPresent(tabletCtx.getTabletId());
+        }
+        return null;
+    }
+
+
     // For each MovesCache, performs any pending maintenance operations needed by the cache.
     public void maintain() {
         cacheMap.values().forEach(maps -> maps.values().forEach(map -> map.get().cleanUp()));
