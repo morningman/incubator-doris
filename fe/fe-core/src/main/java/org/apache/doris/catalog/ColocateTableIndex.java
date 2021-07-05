@@ -24,9 +24,6 @@ import org.apache.doris.persist.ColocatePersistInfo;
 import org.apache.doris.persist.gson.GsonUtils;
 import org.apache.doris.resource.Tag;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -38,6 +35,9 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import com.google.gson.annotations.SerializedName;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -128,6 +128,8 @@ public class ColocateTableIndex implements Writable {
     private Table<GroupId, Tag, List<List<Long>>> group2BackendsPerBucketSeq = HashBasedTable.create();
     // the colocate group is unstable
     private Set<GroupId> unstableGroups = Sets.newHashSet();
+    // save some error msg of the group for show. no need to persist
+    private Map<GroupId, String> group2ErrMsgs = Maps.newHashMap();
 
     private transient ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -189,6 +191,15 @@ public class ColocateTableIndex implements Writable {
             for (Map.Entry<Tag, List<List<Long>>> entry : backendsPerBucketSeq.entrySet()) {
                 group2BackendsPerBucketSeq.put(groupId, entry.getKey(), entry.getValue());
             }
+        } finally {
+            writeUnlock();
+        }
+    }
+
+    public void addBackendsPerBucketSeqByTag(GroupId groupId, Tag tag, List<List<Long>> backendsPerBucketSeq) {
+        writeLock();
+        try {
+            group2BackendsPerBucketSeq.put(groupId, tag, backendsPerBucketSeq);
         } finally {
             writeUnlock();
         }
@@ -372,15 +383,38 @@ public class ColocateTableIndex implements Writable {
         }
     }
 
-
-    public Object getBackendsPerBucketSeqByTag(GroupId groupId, Tag tag) {
+    public List<List<Long>> getBackendsPerBucketSeqByTag(GroupId groupId, Tag tag) {
         readLock();
         try {
-            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId);
+            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId, tag);
             if (backendsPerBucketSeq == null) {
                 return Lists.newArrayList();
             }
             return backendsPerBucketSeq;
+        } finally {
+            readUnlock();
+        }
+    }
+
+    // Get all backend ids except for the given tag
+    public Set<Long> getBackendIdsExceptForTag(GroupId groupId, Tag tag) {
+        Set<Long> beIds = Sets.newHashSet();
+        readLock();
+        try {
+            Map<Tag, List<List<Long>>> backendsPerBucketSeq = group2BackendsPerBucketSeq.row(groupId);
+            if (backendsPerBucketSeq == null) {
+                return beIds;
+            }
+
+            for (Map.Entry<Tag, List<List<Long>>> entry : backendsPerBucketSeq.entrySet()) {
+                if (entry.getKey().equals(tag)) {
+                    continue;
+                }
+                for (List<Long> list : entry.getValue()) {
+                    beIds.addAll(list);
+                }
+            }
+            return beIds;
         } finally {
             readUnlock();
         }
@@ -538,6 +572,7 @@ public class ColocateTableIndex implements Writable {
                         e -> e.toSql()).collect(Collectors.toList());
                 info.add(Joiner.on(", ").join(cols));
                 info.add(String.valueOf(!unstableGroups.contains(groupId)));
+                info.add(Strings.nullToEmpty(group2ErrMsgs.get(groupId)));
                 infos.add(info);
             }
         } finally {
@@ -641,10 +676,13 @@ public class ColocateTableIndex implements Writable {
             }
         }
     }
-    
+
+    public void setErrMsgForGroup(GroupId groupId, String message) {
+        group2ErrMsgs.put(groupId, message);
+    }
+
     // just for ut
     public Map<Long, GroupId> getTable2Group() {
         return table2Group;
     }
-
 }

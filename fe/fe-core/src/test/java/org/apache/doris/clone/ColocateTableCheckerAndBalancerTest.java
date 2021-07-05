@@ -24,6 +24,7 @@ import org.apache.doris.catalog.Column;
 import org.apache.doris.catalog.PrimitiveType;
 import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.TabletInvertedIndex;
+import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.jmockit.Deencapsulation;
 import org.apache.doris.resource.Tag;
@@ -151,7 +152,8 @@ public class ColocateTableCheckerAndBalancerTest {
 
         List<List<Long>> balancedBackendsPerBucketSeq = Lists.newArrayList();
         List<Long> allAvailBackendIds = Lists.newArrayList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L);
-        boolean changed = (Boolean) Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, new HashSet<Long>(), allAvailBackendIds,
+        boolean changed = (Boolean) Deencapsulation.invoke(balancer, "relocateAndBalance", groupId,
+                Tag.DEFAULT_BACKEND_TAG, new HashSet<Long>(), allAvailBackendIds,
                 colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
         List<List<Long>> expected = Lists.partition(
                 Lists.newArrayList(9L, 5L, 3L, 4L, 6L, 8L, 7L, 6L, 1L, 2L, 9L, 4L, 1L, 2L, 3L), 3);
@@ -163,7 +165,8 @@ public class ColocateTableCheckerAndBalancerTest {
                 Lists.newArrayList(9L, 8L, 7L, 8L, 6L, 5L, 9L, 4L, 1L, 2L, 3L, 4L, 1L, 2L, 3L));
         Deencapsulation.setField(colocateTableIndex, "group2Schema", group2Schema);
         balancedBackendsPerBucketSeq.clear();
-        changed = (Boolean) Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, new HashSet<Long>(), allAvailBackendIds,
+        changed = (Boolean) Deencapsulation.invoke(balancer, "relocateAndBalance", groupId,
+                Tag.DEFAULT_BACKEND_TAG, new HashSet<Long>(), allAvailBackendIds,
                 colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
         System.out.println(balancedBackendsPerBucketSeq);
         Assert.assertFalse(changed);
@@ -222,8 +225,8 @@ public class ColocateTableCheckerAndBalancerTest {
 
         List<List<Long>> balancedBackendsPerBucketSeq = Lists.newArrayList();
         List<Long> allAvailBackendIds = Lists.newArrayList(7L);
-        boolean changed = Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, new HashSet<Long>(), allAvailBackendIds,
-                                                 colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
+        boolean changed = Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, Tag.DEFAULT_BACKEND_TAG,
+                new HashSet<Long>(), allAvailBackendIds, colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
         Assert.assertFalse(changed);
 
         // 2. all backends are checked but this round is not changed
@@ -234,8 +237,8 @@ public class ColocateTableCheckerAndBalancerTest {
 
         balancedBackendsPerBucketSeq = Lists.newArrayList();
         allAvailBackendIds = Lists.newArrayList(7L, 8L, 9L);
-        changed = Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, new HashSet<Long>(), allAvailBackendIds,
-                                         colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
+        changed = Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, Tag.DEFAULT_BACKEND_TAG,
+                new HashSet<Long>(), allAvailBackendIds, colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
         Assert.assertFalse(changed);
     }
 
@@ -265,8 +268,8 @@ public class ColocateTableCheckerAndBalancerTest {
         List<List<Long>> balancedBackendsPerBucketSeq = Lists.newArrayList();
         Set<Long> unAvailBackendIds = Sets.newHashSet(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L);
         List<Long> availBackendIds = Lists.newArrayList();
-        boolean changed = (Boolean) Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, unAvailBackendIds, availBackendIds,
-                colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
+        boolean changed = (Boolean) Deencapsulation.invoke(balancer, "relocateAndBalance", groupId, Tag.DEFAULT_BACKEND_TAG,
+                unAvailBackendIds, availBackendIds, colocateTableIndex, infoService, statistic, balancedBackendsPerBucketSeq);
         Assert.assertFalse(changed);
     }
 
@@ -344,6 +347,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 myBackend2.isAvailable();
                 result = true;
                 minTimes = 0;
+                myBackend2.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
 
                 // backend3 not available, and dead for a long time
                 infoService.getBackend(3L);
@@ -357,6 +363,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 minTimes = 0;
                 myBackend3.getLastUpdateMs();
                 result = System.currentTimeMillis() - Config.tablet_repair_delay_factor_second * 1000 * 20;
+                minTimes = 0;
+                myBackend3.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
                 minTimes = 0;
 
                 // backend4 not available, and dead for a short time
@@ -372,6 +381,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 myBackend4.getLastUpdateMs();
                 result = System.currentTimeMillis();
                 minTimes = 0;
+                myBackend4.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
 
                 // backend5 not available, and in decommission
                 infoService.getBackend(5L);
@@ -386,6 +398,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 myBackend5.isDecommissioned();
                 result = true;
                 minTimes = 0;
+                myBackend5.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
 
                 colocateTableIndex.getBackendsByGroup(groupId);
                 result = allBackendsInGroup;
@@ -393,19 +408,22 @@ public class ColocateTableCheckerAndBalancerTest {
             }
         };
 
-        Set<Long> unavailableBeIds = Deencapsulation.invoke(balancer, "getUnavailableBeIdsInGroup", infoService, colocateTableIndex, groupId);
+        Set<Long> unavailableBeIds = Deencapsulation.invoke(balancer, "getUnavailableBeIdsInGroup",
+                infoService, colocateTableIndex, groupId, Tag.DEFAULT_BACKEND_TAG);
         System.out.println(unavailableBeIds);
-        Assert.assertArrayEquals(new long[]{1L, 3L, 5L}, unavailableBeIds.stream().mapToLong(i->i).sorted().toArray());
+        Assert.assertArrayEquals(new long[]{1L, 3L, 5L}, unavailableBeIds.stream().mapToLong(i -> i).sorted().toArray());
     }
 
     @Test
     public void testGetAvailableBeIds(@Mocked SystemInfoService infoService,
-                                             @Mocked Backend myBackend2,
-                                             @Mocked Backend myBackend3,
-                                             @Mocked Backend myBackend4,
-                                             @Mocked Backend myBackend5) {
+                                      @Mocked Backend myBackend2,
+                                      @Mocked Backend myBackend3,
+                                      @Mocked Backend myBackend4,
+                                      @Mocked Backend myBackend5,
+                                      @Mocked Backend myBackend6,
+                                      @Mocked Backend myBackend7) throws AnalysisException {
         List<Long> clusterBackendIds = Lists.newArrayList(1L, 2L, 3L, 4L, 5L);
-        new Expectations(){
+        new Expectations() {
             {
                 infoService.getClusterBackendIds("cluster1", false);
                 result = clusterBackendIds;
@@ -422,6 +440,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 myBackend2.isAvailable();
                 result = true;
                 minTimes = 0;
+                myBackend2.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
 
                 // backend3 not available, and dead for a long time
                 infoService.getBackend(3L);
@@ -435,6 +456,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 minTimes = 0;
                 myBackend3.getLastUpdateMs();
                 result = System.currentTimeMillis() - Config.tablet_repair_delay_factor_second * 1000 * 20;
+                minTimes = 0;
+                myBackend3.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
                 minTimes = 0;
 
                 // backend4 available, not alive but dead for a short time
@@ -450,6 +474,9 @@ public class ColocateTableCheckerAndBalancerTest {
                 myBackend4.getLastUpdateMs();
                 result = System.currentTimeMillis();
                 minTimes = 0;
+                myBackend4.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
 
                 // backend5 not available, and in decommission
                 infoService.getBackend(5L);
@@ -464,10 +491,52 @@ public class ColocateTableCheckerAndBalancerTest {
                 myBackend5.isDecommissioned();
                 result = true;
                 minTimes = 0;
+                myBackend5.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
+
+                // backend6 is available, but with different tag
+                infoService.getBackend(5L);
+                result = myBackend6;
+                minTimes = 0;
+                myBackend6.isAvailable();
+                result = false;
+                minTimes = 0;
+                myBackend6.isAlive();
+                result = true;
+                minTimes = 0;
+                myBackend6.isDecommissioned();
+                result = false;
+                minTimes = 0;
+                myBackend6.getTag();
+                result = Tag.create(Tag.TYPE_LOCATION, "new_loc");
+                minTimes = 0;
+
+                // backend7 is available, but in exclude sets
+                infoService.getBackend(5L);
+                result = myBackend7;
+                minTimes = 0;
+                myBackend7.isAvailable();
+                result = false;
+                minTimes = 0;
+                myBackend7.isAlive();
+                result = true;
+                minTimes = 0;
+                myBackend7.isDecommissioned();
+                result = false;
+                minTimes = 0;
+                myBackend7.getTag();
+                result = Tag.DEFAULT_BACKEND_TAG;
+                minTimes = 0;
+                myBackend7.getId();
+                result = 999L;
+                minTimes = 0;
             }
         };
 
-        List<Long> availableBeIds = Deencapsulation.invoke(balancer, "getAvailableBeIds","cluster1", infoService);
-        Assert.assertArrayEquals(new long[]{2L, 4L}, availableBeIds.stream().mapToLong(i->i).sorted().toArray());
+        List<Long> availableBeIds = Deencapsulation.invoke(balancer, "getAvailableBeIds", "cluster1",
+                Tag.DEFAULT_BACKEND_TAG, Sets.newHashSet(999L), infoService);
+        System.out.println(availableBeIds);
+        Assert.assertArrayEquals(new long[]{2L, 4L}, availableBeIds.stream().mapToLong(i -> i).sorted().toArray());
     }
 }

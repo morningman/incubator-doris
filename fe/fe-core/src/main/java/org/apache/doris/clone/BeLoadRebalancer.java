@@ -163,7 +163,7 @@ public class BeLoadRebalancer extends Rebalancer {
 
                     TabletSchedCtx tabletCtx = new TabletSchedCtx(TabletSchedCtx.Type.BALANCE, clusterName,
                             tabletMeta.getDbId(), tabletMeta.getTableId(), tabletMeta.getPartitionId(),
-                            tabletMeta.getIndexId(), tabletId, null /* replcai alloc is not used for balance*/,
+                            tabletMeta.getIndexId(), tabletId, null /* replica alloc is not used for balance*/,
                             System.currentTimeMillis());
                     tabletCtx.setTag(clusterStat.getTag());
                     // balance task's priority is always LOW
