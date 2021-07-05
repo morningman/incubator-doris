@@ -23,24 +23,26 @@ import org.apache.doris.analysis.CreateDbStmt;
 import org.apache.doris.analysis.CreateTableStmt;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.Database;
+import org.apache.doris.catalog.DiskInfo;
 import org.apache.doris.catalog.OlapTable;
 import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.Replica;
 import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.TabletInvertedIndex;
+import org.apache.doris.catalog.TabletMeta;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.ExceptionChecker;
 import org.apache.doris.common.FeConstants;
+import org.apache.doris.common.UserException;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.DdlExecutor;
 import org.apache.doris.resource.Tag;
 import org.apache.doris.system.Backend;
 import org.apache.doris.system.SystemInfoService;
+import org.apache.doris.thrift.TDisk;
+import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.utframe.UtFrameUtils;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Table;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,7 +51,14 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
+
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -61,6 +70,8 @@ public class TabletRepairAndBalanceTest {
     private static String runningDirBase = "fe";
     private static String runningDir = runningDirBase + "/mocked/TabletRepairAndBalanceTest/" + UUID.randomUUID().toString() + "/";
     private static ConnectContext connectContext;
+
+    private static Random random = new Random(System.currentTimeMillis());
 
     private static List<Backend> backends = Lists.newArrayList();
 
@@ -83,6 +94,33 @@ public class TabletRepairAndBalanceTest {
         String createDbStmtStr = "create database test;";
         CreateDbStmt createDbStmt = (CreateDbStmt) UtFrameUtils.parseAndAnalyzeStmt(createDbStmtStr, connectContext);
         Catalog.getCurrentCatalog().createDb(createDbStmt);
+
+        // must set disk info, or the tablet scheduler won't work
+        backends = Catalog.getCurrentSystemInfo().getClusterBackends(SystemInfoService.DEFAULT_CLUSTER);
+        for (Backend be : backends) {
+            Map<String, TDisk> backendDisks = Maps.newHashMap();
+            TDisk tDisk1 = new TDisk();
+            tDisk1.setRootPath("/home/doris.HDD");
+            tDisk1.setDiskTotalCapacity(2000000000);
+            tDisk1.setDataUsedCapacity(1);
+            tDisk1.setUsed(true);
+            tDisk1.setDiskAvailableCapacity(tDisk1.disk_total_capacity - tDisk1.data_used_capacity);
+            tDisk1.setPathHash(random.nextLong());
+            tDisk1.setStorageMedium(TStorageMedium.HDD);
+            backendDisks.put(tDisk1.getRootPath(), tDisk1);
+
+            TDisk tDisk2 = new TDisk();
+            tDisk2.setRootPath("/home/doris.SSD");
+            tDisk2.setDiskTotalCapacity(2000000000);
+            tDisk2.setDataUsedCapacity(1);
+            tDisk2.setUsed(true);
+            tDisk2.setDiskAvailableCapacity(tDisk2.disk_total_capacity - tDisk2.data_used_capacity);
+            tDisk2.setPathHash(random.nextLong());
+            tDisk2.setStorageMedium(TStorageMedium.SSD);
+            backendDisks.put(tDisk2.getRootPath(), tDisk2);
+
+            be.updateDisks(backendDisks);
+        }
     }
 
     @AfterClass
@@ -93,6 +131,28 @@ public class TabletRepairAndBalanceTest {
     private static void createTable(String sql) throws Exception {
         CreateTableStmt createTableStmt = (CreateTableStmt) UtFrameUtils.parseAndAnalyzeStmt(sql, connectContext);
         Catalog.getCurrentCatalog().createTable(createTableStmt);
+        // must set replicas' path hash, or the tablet scheduler won't work
+        updateReplicaPathHash();
+    }
+
+    private static void updateReplicaPathHash() {
+        Table<Long, Long, Replica> replicaMetaTable = Catalog.getCurrentInvertedIndex().getReplicaMetaTable();
+        for (Table.Cell<Long, Long, Replica> cell : replicaMetaTable.cellSet()) {
+            long beId = cell.getColumnKey();
+            Backend be = Catalog.getCurrentSystemInfo().getBackend(beId);
+            if (be == null) {
+                continue;
+            }
+            Replica replica = cell.getValue();
+            TabletMeta tabletMeta = Catalog.getCurrentInvertedIndex().getTabletMeta(cell.getRowKey());
+            ImmutableMap<String, DiskInfo> diskMap = be.getDisks();
+            for (DiskInfo diskInfo : diskMap.values()) {
+                if (diskInfo.getStorageMedium() == tabletMeta.getStorageMedium()) {
+                    replica.setPathHash(diskInfo.getPathHash());
+                    break;
+                }
+            }
+        }
     }
 
     private static void alterTable(String sql) throws Exception {
@@ -102,7 +162,8 @@ public class TabletRepairAndBalanceTest {
 
     @Test
     public void test1() throws Exception {
-        backends = Catalog.getCurrentSystemInfo().getClusterBackends(SystemInfoService.DEFAULT_CLUSTER);
+
+
         Assert.assertEquals(5, backends.size());
 
         // set tag for all backends. 0-2 to zone1, 4 and 5 to zone2
@@ -188,6 +249,7 @@ public class TabletRepairAndBalanceTest {
         Assert.assertEquals(3, p1ReplicaAlloc.getTotalReplicaNum());
         Assert.assertEquals(Short.valueOf((short) 1), p1ReplicaAlloc.getReplicaNumByTag(Tag.create(Tag.TYPE_LOCATION, "zone1")));
         Assert.assertEquals(Short.valueOf((short) 2), p1ReplicaAlloc.getReplicaNumByTag(Tag.create(Tag.TYPE_LOCATION, "zone2")));
+        ExceptionChecker.expectThrows(UserException.class, () -> tbl.checkReplicaAllocation());
 
         // check backend get() methods
         SystemInfoService infoService = Catalog.getCurrentSystemInfo();
@@ -199,10 +261,20 @@ public class TabletRepairAndBalanceTest {
         Table<Long, Long, Replica> replicaMetaTable = invertedIndex.getReplicaMetaTable();
         Assert.assertEquals(30, replicaMetaTable.rowKeySet().size());
         Assert.assertEquals(5, replicaMetaTable.columnKeySet().size());
-        while(true) {
-            Thread.sleep(2000);
-            System.out.println("sleep 2");
+
+        int maxLoop = 30;
+        while (maxLoop-- > 0) {
+            try {
+                tbl.checkReplicaAllocation();
+                break;
+            } catch (UserException e) {
+
+            }
+            Thread.sleep(1000);
+            System.out.println("wait table to be stable");
         }
+        Assert.assertEquals(90, replicaMetaTable.cellSet().size());
+        ExceptionChecker.expectThrowsNoException(() -> tbl.checkReplicaAllocation());
     }
 }
 

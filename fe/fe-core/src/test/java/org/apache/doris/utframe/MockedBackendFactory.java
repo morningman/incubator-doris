@@ -32,6 +32,7 @@ import org.apache.doris.thrift.TBackend;
 import org.apache.doris.thrift.TBackendInfo;
 import org.apache.doris.thrift.TCancelPlanFragmentParams;
 import org.apache.doris.thrift.TCancelPlanFragmentResult;
+import org.apache.doris.thrift.TCloneReq;
 import org.apache.doris.thrift.TDeleteEtlFilesRequest;
 import org.apache.doris.thrift.TEtlState;
 import org.apache.doris.thrift.TExecPlanFragmentParams;
@@ -58,16 +59,18 @@ import org.apache.doris.thrift.TSnapshotRequest;
 import org.apache.doris.thrift.TStatus;
 import org.apache.doris.thrift.TStatusCode;
 import org.apache.doris.thrift.TStreamLoadRecordResult;
+import org.apache.doris.thrift.TTabletInfo;
 import org.apache.doris.thrift.TTabletStatResult;
 import org.apache.doris.thrift.TTaskType;
 import org.apache.doris.thrift.TTransmitDataParams;
 import org.apache.doris.thrift.TTransmitDataResult;
 import org.apache.doris.thrift.TUniqueId;
 
+import org.apache.thrift.TException;
+
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-
-import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.util.List;
@@ -165,6 +168,9 @@ public class MockedBackendFactory {
                                 case ALTER:
                                     ++reportVersion;
                                     break;
+                                case CLONE:
+                                    handleClone(request, finishTaskRequest);
+                                    break;
                                 default:
                                     break;
                             }
@@ -177,6 +183,18 @@ public class MockedBackendFactory {
                             e.printStackTrace();
                         }
                     }
+                }
+
+                private void handleClone(TAgentTaskRequest request, TFinishTaskRequest finishTaskRequest) {
+                    TCloneReq req = request.getCloneReq();
+                    List<TTabletInfo> tabletInfos = Lists.newArrayList();
+                    TTabletInfo tabletInfo = new TTabletInfo(req.tablet_id, req.schema_hash, req.committed_version,
+                            req.committed_version_hash, 1, 1);
+                    tabletInfo.setStorageMedium(req.storage_medium);
+                    tabletInfo.setPathHash(req.dest_path_hash);
+                    tabletInfo.setUsed(true);
+                    tabletInfos.add(tabletInfo);
+                    finishTaskRequest.setFinishTabletInfos(tabletInfos);
                 }
             }).start();
         }
