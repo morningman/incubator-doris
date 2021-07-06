@@ -529,7 +529,8 @@ public class Tablet extends MetaObject implements Writable {
 
         // 5. got enough healthy replicas, check tag
         for (Map.Entry<Tag, Short> alloc : allocMap.entrySet()) {
-            if (currentAllocMap.get(alloc.getKey()) < alloc.getValue()) {
+            if (!currentAllocMap.containsKey(alloc.getKey())
+                    || currentAllocMap.get(alloc.getKey()) < alloc.getValue()) {
                 return Pair.create(TabletStatus.REPLICA_MISSING_FOR_TAG, TabletSchedCtx.Priority.NORMAL);
             }
         }

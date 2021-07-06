@@ -22,6 +22,8 @@ import org.apache.doris.analysis.AlterTableStmt;
 import org.apache.doris.analysis.CreateDbStmt;
 import org.apache.doris.analysis.CreateTableStmt;
 import org.apache.doris.catalog.Catalog;
+import org.apache.doris.catalog.ColocateGroupSchema;
+import org.apache.doris.catalog.ColocateTableIndex;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.DiskInfo;
 import org.apache.doris.catalog.OlapTable;
@@ -30,6 +32,7 @@ import org.apache.doris.catalog.Replica;
 import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.TabletInvertedIndex;
 import org.apache.doris.catalog.TabletMeta;
+import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.ExceptionChecker;
@@ -74,6 +77,18 @@ public class TabletRepairAndBalanceTest {
     private static Random random = new Random(System.currentTimeMillis());
 
     private static List<Backend> backends = Lists.newArrayList();
+
+    private static Tag tag1;
+    private static Tag tag2;
+
+    static {
+        try {
+            tag1 = Tag.create(Tag.TYPE_LOCATION, "zone1");
+            tag2 = Tag.create(Tag.TYPE_LOCATION, "zone2");
+        } catch (AnalysisException e) {
+            e.printStackTrace();
+        }
+    }
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -161,9 +176,7 @@ public class TabletRepairAndBalanceTest {
     }
 
     @Test
-    public void test1() throws Exception {
-
-
+    public void test() throws Exception {
         Assert.assertEquals(5, backends.size());
 
         // set tag for all backends. 0-2 to zone1, 4 and 5 to zone2
@@ -187,7 +200,7 @@ public class TabletRepairAndBalanceTest {
         Assert.assertEquals(zone2, backends.get(4).getTag());
 
         // create table
-        // 1. no default tag
+        // 1. no default tag, create will fail
         String createStr = "create table test.tbl1\n" +
                 "(k1 date, k2 int)\n" +
                 "partition by range(k1)\n" +
@@ -199,7 +212,7 @@ public class TabletRepairAndBalanceTest {
                 "distributed by hash(k2) buckets 10;";
         ExceptionChecker.expectThrows(DdlException.class, () -> createTable(createStr));
 
-        // nodes of zone2 not enough
+        // nodes of zone2 not enough, create will fail
         String createStr2 = "create table test.tbl1\n" +
                 "(k1 date, k2 int)\n" +
                 "partition by range(k1)\n" +
@@ -215,7 +228,7 @@ public class TabletRepairAndBalanceTest {
                 ")";
         ExceptionChecker.expectThrows(DdlException.class, () -> createTable(createStr2));
 
-        // normal
+        // normal, create success
         String createStr3 = "create table test.tbl1\n" +
                 "(k1 date, k2 int)\n" +
                 "partition by range(k1)\n" +
@@ -233,13 +246,13 @@ public class TabletRepairAndBalanceTest {
         Database db = Catalog.getCurrentCatalog().getDb("default_cluster:test");
         OlapTable tbl = (OlapTable)db.getTable("tbl1");
 
-        // alter table's replica allocation failed
+        // alter table's replica allocation failed, tag not enough
         String alterStr = "alter table test.tbl1 set (\"replication_allocation\" = \"tag.location.zone1: 2, tag.location.zone2: 3\");";
         ExceptionChecker.expectThrows(DdlException.class, () -> alterTable(alterStr));
         ReplicaAllocation tblReplicaAlloc = tbl.getDefaultReplicaAllocation();
         Assert.assertEquals(3, tblReplicaAlloc.getTotalReplicaNum());
-        Assert.assertEquals(Short.valueOf((short) 2), tblReplicaAlloc.getReplicaNumByTag(Tag.create(Tag.TYPE_LOCATION, "zone1")));
-        Assert.assertEquals(Short.valueOf((short) 1), tblReplicaAlloc.getReplicaNumByTag(Tag.create(Tag.TYPE_LOCATION, "zone2")));
+        Assert.assertEquals(Short.valueOf((short) 2), tblReplicaAlloc.getReplicaNumByTag(tag1));
+        Assert.assertEquals(Short.valueOf((short) 1), tblReplicaAlloc.getReplicaNumByTag(tag2));
 
         // alter partition's replica allocation succeed
         String alterStr2 = "alter table test.tbl1 modify partition p1 set (\"replication_allocation\" = \"tag.location.zone1: 1, tag.location.zone2: 2\");";
@@ -247,8 +260,8 @@ public class TabletRepairAndBalanceTest {
         Partition p1 = tbl.getPartition("p1");
         ReplicaAllocation p1ReplicaAlloc = tbl.getPartitionInfo().getReplicaAllocation(p1.getId());
         Assert.assertEquals(3, p1ReplicaAlloc.getTotalReplicaNum());
-        Assert.assertEquals(Short.valueOf((short) 1), p1ReplicaAlloc.getReplicaNumByTag(Tag.create(Tag.TYPE_LOCATION, "zone1")));
-        Assert.assertEquals(Short.valueOf((short) 2), p1ReplicaAlloc.getReplicaNumByTag(Tag.create(Tag.TYPE_LOCATION, "zone2")));
+        Assert.assertEquals(Short.valueOf((short) 1), p1ReplicaAlloc.getReplicaNumByTag(tag1));
+        Assert.assertEquals(Short.valueOf((short) 2), p1ReplicaAlloc.getReplicaNumByTag(tag2));
         ExceptionChecker.expectThrows(UserException.class, () -> tbl.checkReplicaAllocation());
 
         // check backend get() methods
@@ -262,19 +275,109 @@ public class TabletRepairAndBalanceTest {
         Assert.assertEquals(30, replicaMetaTable.rowKeySet().size());
         Assert.assertEquals(5, replicaMetaTable.columnKeySet().size());
 
-        int maxLoop = 30;
+        // wait all replica reallocating to correct backend
+        checkTableReplicaAllocation(tbl);
+        Assert.assertEquals(90, replicaMetaTable.cellSet().size());
+
+        // for now, tbl has 3 partitions:
+        // p1: zone1: 1, zone2: 2
+        // p2: zone1: 2, zone2: 1
+        // p3: zone1: 2, zone2: 1
+        // Backends:
+        // [0, 1, 2]: zone1
+        // [3, 4]:    zone2
+
+        // change backend 2 to zone2
+        // set tag for all backends. 0-2 to zone1, 4 and 5 to zone2
+        // and wait all replica reallocating to correct backend
+        Backend be = backends.get(2);
+        String stmtStr = "alter system modify backend \"" + be.getHost() + ":" + be.getHeartbeatPort()
+                + "\" set ('tag.location' = 'zone2')";
+        AlterSystemStmt stmt = (AlterSystemStmt) UtFrameUtils.parseAndAnalyzeStmt(stmtStr, connectContext);
+        DdlExecutor.execute(Catalog.getCurrentCatalog(), stmt);
+        Assert.assertEquals(tag2, be.getTag());
+        ExceptionChecker.expectThrows(UserException.class, () -> tbl.checkReplicaAllocation());
+        checkTableReplicaAllocation(tbl);
+        Assert.assertEquals(90, replicaMetaTable.cellSet().size());
+
+        // For now, Backends:
+        // [0, 1]:      zone1
+        // [2, 3, 4]:   zone2
+        // begin to test colocation table
+        String createStr4 = "create table test.col_tbl1\n" +
+                "(k1 date, k2 int)\n" +
+                "partition by range(k1)\n" +
+                "(\n" +
+                " partition p1 values less than(\"2021-06-01\"),\n" +
+                " partition p2 values less than(\"2021-07-01\"),\n" +
+                " partition p3 values less than(\"2021-08-01\")\n" +
+                ")\n" +
+                "distributed by hash(k2) buckets 10\n" +
+                "properties\n" +
+                "(\n" +
+                "    \"replication_allocation\" = \"tag.location.zone1: 2, tag.location.zone2: 1\",\n" +
+                "    \"colocate_with\" = \"g1\"\n" +
+                ")";
+        ExceptionChecker.expectThrowsNoException(() -> createTable(createStr4));
+        String createStr5 = "create table test.col_tbl2\n" +
+                "(k1 date, k2 int)\n" +
+                "partition by range(k1)\n" +
+                "(\n" +
+                " partition p1 values less than(\"2021-06-01\"),\n" +
+                " partition p2 values less than(\"2021-07-01\"),\n" +
+                " partition p3 values less than(\"2021-08-01\")\n" +
+                ")\n" +
+                "distributed by hash(k2) buckets 10\n" +
+                "properties\n" +
+                "(\n" +
+                "    \"replication_allocation\" = \"tag.location.zone1: 2, tag.location.zone2: 1\",\n" +
+                "    \"colocate_with\" = \"g1\"\n" +
+                ")";
+        ExceptionChecker.expectThrowsNoException(() -> createTable(createStr5));
+
+        OlapTable colTbl1 = (OlapTable) db.getTable("col_tbl1");
+        OlapTable colTbl2 = (OlapTable) db.getTable("col_tbl2");
+        Assert.assertNotNull(colTbl1);
+        Assert.assertNotNull(colTbl2);
+        ColocateTableIndex colocateTableIndex = Catalog.getCurrentColocateIndex();
+        ColocateTableIndex.GroupId groupId = colocateTableIndex.getGroup(colTbl1.getId());
+        Assert.assertEquals(groupId, colocateTableIndex.getGroup(colTbl2.getId()));
+        ColocateGroupSchema groupSchema = colocateTableIndex.getGroupSchema(groupId);
+        ReplicaAllocation groupReplicaAlloc = groupSchema.getReplicaAlloc();
+        Assert.assertEquals(groupReplicaAlloc, colTbl1.getDefaultReplicaAllocation());
+        Assert.assertEquals(groupReplicaAlloc, colTbl2.getDefaultReplicaAllocation());
+        checkTableReplicaAllocation(colTbl1);
+        checkTableReplicaAllocation(colTbl2);
+
+        // change backend4's tag to zone1:
+        // [0, 1, 4]: zone1
+        // [2, 3]:    zone2
+        be = backends.get(4);
+        stmtStr = "alter system modify backend \"" + be.getHost() + ":" + be.getHeartbeatPort()
+                + "\" set ('tag.location' = 'zone1')";
+        stmt = (AlterSystemStmt) UtFrameUtils.parseAndAnalyzeStmt(stmtStr, connectContext);
+        DdlExecutor.execute(Catalog.getCurrentCatalog(), stmt);
+        Assert.assertEquals(tag1, be.getTag());
+        ExceptionChecker.expectThrows(UserException.class, () -> tbl.checkReplicaAllocation());
+
+        checkTableReplicaAllocation(colTbl1);
+        checkTableReplicaAllocation(colTbl2);
+    }
+
+    private void checkTableReplicaAllocation(OlapTable tbl) throws InterruptedException {
+        int maxLoop = 300;
         while (maxLoop-- > 0) {
             try {
                 tbl.checkReplicaAllocation();
                 break;
             } catch (UserException e) {
-
+                System.out.println(e.getMessage());
             }
             Thread.sleep(1000);
-            System.out.println("wait table to be stable");
+            System.out.println("wait table " + tbl.getId() + " to be stable");
         }
-        Assert.assertEquals(90, replicaMetaTable.cellSet().size());
         ExceptionChecker.expectThrowsNoException(() -> tbl.checkReplicaAllocation());
+        System.out.println("table " + tbl.getId() + " is stable");
     }
 }
 

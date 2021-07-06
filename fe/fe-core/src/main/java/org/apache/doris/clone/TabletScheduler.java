@@ -1117,11 +1117,31 @@ public class TabletScheduler extends MasterDaemon {
     // if forColocate is false, the tag must be set.
     private RootPathLoadStatistic chooseAvailableDestPath(TabletSchedCtx tabletCtx, Tag tag, boolean forColocate)
             throws SchedException {
-        ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster(), tag);
-        if (statistic == null) {
-            throw new SchedException(Status.UNRECOVERABLE, "cluster does not exist");
+        List<BackendLoadStatistic> beStatistics;
+        if (tag != null) {
+            Preconditions.checkState(!forColocate);
+            ClusterLoadStatistic statistic = statisticMap.get(tabletCtx.getCluster(), tag);
+            if (statistic == null) {
+                throw new SchedException(Status.UNRECOVERABLE, "cluster does not exist");
+            }
+            beStatistics = statistic.getSortedBeLoadStats(null /* sorted ignore medium */);
+        } else {
+            // for colocate task, get BackendLoadStatistic by colocateBackendIds
+            Preconditions.checkState(forColocate);
+            Preconditions.checkState(tabletCtx.getColocateBackendsSet() != null);
+            Set<Long> colocateBackendIds = tabletCtx.getColocateBackendsSet();
+
+            beStatistics = Lists.newArrayList();
+            Map<Tag, ClusterLoadStatistic> map = statisticMap.row(tabletCtx.getCluster());
+            for (ClusterLoadStatistic clusterStatistic : map.values()) {
+                for (long beId : colocateBackendIds) {
+                    BackendLoadStatistic backendLoadStatistic = clusterStatistic.getBackendLoadStatistic(beId);
+                    if (backendLoadStatistic != null) {
+                        beStatistics.add(backendLoadStatistic);
+                    }
+                }
+            }
         }
-        List<BackendLoadStatistic> beStatistics = statistic.getSortedBeLoadStats(null /* sorted ignore medium */);
 
         // get all available paths which this tablet can fit in.
         // beStatistics is sorted by mix load score in ascend order, so select from first to last.

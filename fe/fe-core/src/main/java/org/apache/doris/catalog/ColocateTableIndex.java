@@ -24,6 +24,9 @@ import org.apache.doris.persist.ColocatePersistInfo;
 import org.apache.doris.persist.gson.GsonUtils;
 import org.apache.doris.resource.Tag;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -35,9 +38,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import com.google.gson.annotations.SerializedName;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -340,11 +340,11 @@ public class ColocateTableIndex implements Writable {
         }
     }
 
-    public Set<Long> getBackendsByGroup(GroupId groupId) {
+    public Set<Long> getBackendsByGroup(GroupId groupId, Tag tag) {
         readLock();
         try {
             Set<Long> allBackends = new HashSet<>();
-            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId, Tag.DEFAULT_BACKEND_TAG);
+            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId, tag);
             // if create colocate table with empty partition or create colocate table
             // with dynamic_partition will cause backendsPerBucketSeq == null
             if (backendsPerBucketSeq != null) {
@@ -424,15 +424,22 @@ public class ColocateTableIndex implements Writable {
     public List<Set<Long>> getBackendsPerBucketSeqSet(GroupId groupId) {
         readLock();
         try {
-            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId, Tag.DEFAULT_BACKEND_TAG);
-            if (backendsPerBucketSeq == null) {
+            Map<Tag, List<List<Long>>> backendsPerBucketSeqMap = group2BackendsPerBucketSeq.row(groupId);
+            if (backendsPerBucketSeqMap == null) {
                 return Lists.newArrayList();
             }
-            List<Set<Long>> sets = Lists.newArrayList();
-            for (List<Long> backends : backendsPerBucketSeq) {
-                sets.add(Sets.newHashSet(backends));
+            List<Set<Long>> list = Lists.newArrayList();
+
+            // Merge backend ids of all tags
+            for (Map.Entry<Tag, List<List<Long>>> backendsPerBucketSeq : backendsPerBucketSeqMap.entrySet()) {
+                for (int i = 0; i < backendsPerBucketSeq.getValue().size(); ++i) {
+                    if (list.size() == i) {
+                        list.add(Sets.newHashSet());
+                    }
+                    list.get(i).addAll(backendsPerBucketSeq.getValue().get(i));
+                }
             }
-            return sets;
+            return list;
         } finally {
             readUnlock();
         }
@@ -441,15 +448,21 @@ public class ColocateTableIndex implements Writable {
     public Set<Long> getTabletBackendsByGroup(GroupId groupId, int tabletOrderIdx) {
         readLock();
         try {
-            List<List<Long>> backendsPerBucketSeq = group2BackendsPerBucketSeq.get(groupId, Tag.DEFAULT_BACKEND_TAG);
-            if (backendsPerBucketSeq == null) {
-                return Sets.newHashSet();
-            }
-            if (tabletOrderIdx >= backendsPerBucketSeq.size()) {
+            Map<Tag, List<List<Long>>> backendsPerBucketSeqMap = group2BackendsPerBucketSeq.row(groupId);
+            if (backendsPerBucketSeqMap == null) {
                 return Sets.newHashSet();
             }
 
-            return Sets.newHashSet(backendsPerBucketSeq.get(tabletOrderIdx));
+            // Merge backend ids of all tags
+            Set<Long> beIds = Sets.newHashSet();
+            for (Map.Entry<Tag, List<List<Long>>> backendsPerBucketSeq : backendsPerBucketSeqMap.entrySet()) {
+                if (tabletOrderIdx >= backendsPerBucketSeq.getValue().size()) {
+                    return Sets.newHashSet();
+                }
+                beIds.addAll(backendsPerBucketSeq.getValue().get(tabletOrderIdx));
+            }
+
+            return beIds;
         } finally {
             readUnlock();
         }
