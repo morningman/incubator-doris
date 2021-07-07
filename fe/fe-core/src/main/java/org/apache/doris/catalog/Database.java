@@ -33,14 +33,14 @@ import org.apache.doris.common.util.DebugUtil;
 import org.apache.doris.persist.CreateTableInfo;
 import org.apache.doris.system.SystemInfoService;
 
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -99,6 +99,8 @@ public class Database extends MetaObject implements Writable {
 
     private String attachDbName;
     private DbState dbState;
+
+    private DatabaseProperty dbProperties = new DatabaseProperty();
 
     public Database() {
         this(0, null);
@@ -514,6 +516,7 @@ public class Database extends MetaObject implements Writable {
         }
 
         out.writeLong(replicaQuotaSize);
+        dbProperties.write(out);
     }
 
     @Override
@@ -562,6 +565,10 @@ public class Database extends MetaObject implements Writable {
             replicaQuotaSize = in.readLong();
         } else {
             replicaQuotaSize = FeConstants.default_db_replica_quota_size;
+        }
+
+        if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_100) {
+            dbProperties = DatabaseProperty.read(in);
         }
     }
 

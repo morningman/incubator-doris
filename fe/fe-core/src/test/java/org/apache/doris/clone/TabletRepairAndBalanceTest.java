@@ -21,6 +21,7 @@ import org.apache.doris.analysis.AlterSystemStmt;
 import org.apache.doris.analysis.AlterTableStmt;
 import org.apache.doris.analysis.CreateDbStmt;
 import org.apache.doris.analysis.CreateTableStmt;
+import org.apache.doris.analysis.DropTableStmt;
 import org.apache.doris.catalog.Catalog;
 import org.apache.doris.catalog.ColocateGroupSchema;
 import org.apache.doris.catalog.ColocateTableIndex;
@@ -148,6 +149,11 @@ public class TabletRepairAndBalanceTest {
         Catalog.getCurrentCatalog().createTable(createTableStmt);
         // must set replicas' path hash, or the tablet scheduler won't work
         updateReplicaPathHash();
+    }
+
+    private static void dropTable(String sql) throws Exception {
+        DropTableStmt dropTableStmt = (DropTableStmt) UtFrameUtils.parseAndAnalyzeStmt(sql, connectContext);
+        Catalog.getCurrentCatalog().dropTable(dropTableStmt);
     }
 
     private static void updateReplicaPathHash() {
@@ -362,6 +368,71 @@ public class TabletRepairAndBalanceTest {
 
         checkTableReplicaAllocation(colTbl1);
         checkTableReplicaAllocation(colTbl2);
+
+        // for now,
+        // backends' tag:
+        // [0, 1, 4]: zone1
+        // [2, 3]:    zone2
+        //
+        // colocate group(col_tbl1, col_tbl2) replica allocation is: zone1:2, zone2:1
+        // tbl1's replica allocation is:
+        //      p1: zone1:1, zone2:2
+        //      p2,p2: zone1:2, zone2:1
+
+        // change tbl1's default replica allocation to zone1:4, which is allowed
+        String alterStr3 = "alter table test.tbl1 set ('default.replication_allocation' = 'tag.location.zone1:4')";
+        ExceptionChecker.expectThrowsNoException(() -> alterTable(alterStr3));
+
+        // change tbl1's p1's replica allocation to zone1:4, which is forbidden
+        String alterStr4 = "alter table test.tbl1 modify partition p1 set ('replication_allocation' = 'tag.location.zone1:4')";
+        ExceptionChecker.expectThrows(DdlException.class, () -> alterTable(alterStr4));
+
+        // change col_tbl1's default replica allocation to zone2:4, which is allowed
+        String alterStr5 = "alter table test.col_tbl1 set ('default.replication_allocation' = 'tag.location.zone2:4')";
+        ExceptionChecker.expectThrowsNoException(() -> alterTable(alterStr5));
+
+        // Drop all tables
+        String dropStmt1 = "drop table test.tbl1 force";
+        String dropStmt2 = "drop table test.col_tbl1 force";
+        String dropStmt3 = "drop table test.col_tbl2 force";
+        ExceptionChecker.expectThrowsNoException(() -> dropTable(dropStmt1));
+        ExceptionChecker.expectThrowsNoException(() -> dropTable(dropStmt2));
+        ExceptionChecker.expectThrowsNoException(() -> dropTable(dropStmt3));
+        Assert.assertEquals(0, replicaMetaTable.size());
+
+        // set all backends' tag to default
+        for (int i = 0; i < backends.size(); ++i) {
+            Backend backend = backends.get(i);
+            String backendStmt = "alter system modify backend \"" + backend.getHost() + ":" + backend.getHeartbeatPort()
+                    + "\" set ('tag.location' = 'default')";
+            AlterSystemStmt systemStmt = (AlterSystemStmt) UtFrameUtils.parseAndAnalyzeStmt(backendStmt, connectContext);
+            DdlExecutor.execute(Catalog.getCurrentCatalog(), systemStmt);
+        }
+        Assert.assertEquals(Tag.DEFAULT_BACKEND_TAG, backends.get(0).getTag());
+        Assert.assertEquals(Tag.DEFAULT_BACKEND_TAG, backends.get(1).getTag());
+        Assert.assertEquals(Tag.DEFAULT_BACKEND_TAG, backends.get(2).getTag());
+        Assert.assertEquals(Tag.DEFAULT_BACKEND_TAG, backends.get(3).getTag());
+        Assert.assertEquals(Tag.DEFAULT_BACKEND_TAG, backends.get(4).getTag());
+
+        // create table tbl2 with "replication_num" property
+        String createStmt = "create table test.tbl2\n" +
+                "(k1 date, k2 int)\n" +
+                "partition by range(k1)\n" +
+                "(\n" +
+                " partition p1 values less than(\"2021-06-01\"),\n" +
+                " partition p2 values less than(\"2021-07-01\"),\n" +
+                " partition p3 values less than(\"2021-08-01\")\n" +
+                ")\n" +
+                "distributed by hash(k2) buckets 10;";
+        ExceptionChecker.expectThrowsNoException(() -> createTable(createStmt));
+        OlapTable tbl2 = (OlapTable) db.getTable("tbl2");
+        ReplicaAllocation defaultAlloc = new ReplicaAllocation((short) 3);
+        Assert.assertEquals(defaultAlloc, tbl2.getDefaultReplicaAllocation());
+        for (Partition partition : tbl2.getPartitions()) {
+            Assert.assertEquals(defaultAlloc, tbl2.getPartitionInfo().getReplicaAllocation(partition.getId()));
+        }
+
+
     }
 
     private void checkTableReplicaAllocation(OlapTable tbl) throws InterruptedException {
