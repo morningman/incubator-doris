@@ -29,6 +29,7 @@ import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.DiskInfo;
 import org.apache.doris.catalog.OlapTable;
 import org.apache.doris.catalog.Partition;
+import org.apache.doris.catalog.PartitionInfo;
 import org.apache.doris.catalog.Replica;
 import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.TabletInvertedIndex;
@@ -48,17 +49,17 @@ import org.apache.doris.thrift.TDisk;
 import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.utframe.UtFrameUtils;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Table;
 
 import java.util.List;
 import java.util.Map;
@@ -432,7 +433,18 @@ public class TabletRepairAndBalanceTest {
             Assert.assertEquals(defaultAlloc, tbl2.getPartitionInfo().getReplicaAllocation(partition.getId()));
         }
 
+        // add new partition to tbl2
+        String alterStr6 = "alter table test.tbl2 add partition p4 values less than('2021-09-01')";
+        ExceptionChecker.expectThrowsNoException(() -> alterTable(alterStr6));
+        Assert.assertEquals(4, tbl2.getPartitionNames().size());
+        PartitionInfo partitionInfo = tbl2.getPartitionInfo();
+        Assert.assertEquals(ReplicaAllocation.DEFAULT_ALLOCATION, partitionInfo.getReplicaAllocation(tbl2.getPartition("p4").getId()));
 
+        // change tbl2 to a colocate table
+        String alterStr7 = "alter table test.tbl2 SET (\"colocate_with\"=\"newg\")";
+        ExceptionChecker.expectThrowsNoException(() -> alterTable(alterStr7));
+        ColocateTableIndex.GroupId groupId1 = colocateTableIndex.getGroup(tbl2.getId());
+        Assert.assertEquals(ReplicaAllocation.DEFAULT_ALLOCATION, colocateTableIndex.getGroupSchema(groupId1).getReplicaAlloc());
     }
 
     private void checkTableReplicaAllocation(OlapTable tbl) throws InterruptedException {
