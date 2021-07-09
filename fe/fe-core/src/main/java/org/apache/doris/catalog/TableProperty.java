@@ -139,6 +139,9 @@ public class TableProperty implements Writable {
 
     public void setReplicaAlloc(ReplicaAllocation replicaAlloc) {
         this.replicaAlloc = replicaAlloc;
+        // set it to "properties" so that this info can be persisted
+        properties.put("default." + PropertyAnalyzer.PROPERTIES_REPLICATION_ALLOCATION,
+                replicaAlloc.toCreateStmt());
     }
 
     public ReplicaAllocation getReplicaAllocation() {

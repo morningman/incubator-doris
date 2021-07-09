@@ -61,6 +61,7 @@ public class TablePropertyTest {
         properties.put(DynamicPartitionProperty.BUCKETS, "30");
         properties.put("otherProperty", "unknownProperty");
         TableProperty tableProperty = new TableProperty(properties);
+        tableProperty.setReplicaAlloc(ReplicaAllocation.DEFAULT_ALLOCATION);
         tableProperty.write(out);
         out.flush();
         out.close();
@@ -77,6 +78,7 @@ public class TablePropertyTest {
         Assert.assertEquals(readDynamicPartitionProperty.getStart(), dynamicPartitionProperty.getStart());
         Assert.assertEquals(readDynamicPartitionProperty.getEnd(), dynamicPartitionProperty.getEnd());
         Assert.assertEquals(readDynamicPartitionProperty.getTimeUnit(), dynamicPartitionProperty.getTimeUnit());
+        Assert.assertEquals(ReplicaAllocation.DEFAULT_ALLOCATION, readTableProperty.getReplicaAllocation());
         in.close();
     }
 }

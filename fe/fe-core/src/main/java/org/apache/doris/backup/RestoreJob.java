@@ -1458,6 +1458,7 @@ public class RestoreJob extends AbstractJob {
         info.add(dbName);
         info.add(state.name());
         info.add(String.valueOf(allowLoad));
+        info.add(String.valueOf(replicaAlloc.getTotalReplicaNum()));
         info.add(replicaAlloc.toCreateStmt());
         info.add(getRestoreObjs());
         info.add(TimeUtils.longToTimeString(createTime));
