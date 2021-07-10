@@ -988,7 +988,14 @@ public class Coordinator {
 
             if (fragment.getDataPartition() == DataPartition.UNPARTITIONED) {
                 Reference<Long> backendIdRef = new Reference<Long>();
-                TNetworkAddress execHostport = SimpleScheduler.getHost(this.idToBackend, backendIdRef);
+                TNetworkAddress execHostport;
+                if (ConnectContext.get() != null && !ConnectContext.get().isDefaultResourceTag()) {
+                    // In this case, we only use the BE where the replica selected by the tag is located to execute this query.
+                    // Otherwise, except for the scan node, the rest of the execution nodes of the query can be executed on any BE.
+                    execHostport = SimpleScheduler.getHostByCurrentBackend(addressToBackendID);
+                } else {
+                    execHostport = SimpleScheduler.getHost(this.idToBackend, backendIdRef);
+                }
                 if (execHostport == null) {
                     LOG.warn("DataPartition UNPARTITIONED, no scanNode Backend");
                     throw new UserException("there is no scanNode Backend");
@@ -1105,7 +1112,14 @@ public class Coordinator {
 
             if (params.instanceExecParams.isEmpty()) {
                 Reference<Long> backendIdRef = new Reference<Long>();
-                TNetworkAddress execHostport = SimpleScheduler.getHost(this.idToBackend, backendIdRef);
+                TNetworkAddress execHostport;
+                if (ConnectContext.get() != null && !ConnectContext.get().isDefaultResourceTag()) {
+                    // In this case, we only use the BE where the replica selected by the tag is located to execute this query.
+                    // Otherwise, except for the scan node, the rest of the execution nodes of the query can be executed on any BE.
+                    execHostport = SimpleScheduler.getHostByCurrentBackend(addressToBackendID);
+                } else {
+                    execHostport = SimpleScheduler.getHost(this.idToBackend, backendIdRef);
+                }
                 if (execHostport == null) {
                     throw new UserException("there is no scanNode Backend");
                 }

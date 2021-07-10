@@ -62,6 +62,7 @@ public class Tag implements Writable {
     public static final String VALUE_COMPUTATION = "computation";
     public static final String VALUE_DEFAULT_CLUSTER = "default_cluster";
     public static final String VALUE_DEFAULT_TAG = "default";
+    public static final String VALUE_INVALID_TAG = "invalid";
 
     public static final ImmutableSet<String> RESERVED_TAG_TYPE = ImmutableSet.of(
             TYPE_ROLE, TYPE_FUNCTION, TYPE_LOCATION);
@@ -71,9 +72,11 @@ public class Tag implements Writable {
     private static final String TAG_REGEX = "^[a-z][a-z0-9_]{0,32}$";
 
     public static final Tag DEFAULT_BACKEND_TAG;
+    public static final Tag INVALID_TAG;
 
     static {
         DEFAULT_BACKEND_TAG = new Tag(TYPE_LOCATION, VALUE_DEFAULT_TAG);
+        INVALID_TAG = new Tag(TYPE_LOCATION, VALUE_INVALID_TAG);
     }
 
     @SerializedName(value = "type")

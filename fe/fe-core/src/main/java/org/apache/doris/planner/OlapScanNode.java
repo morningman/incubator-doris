@@ -51,6 +51,7 @@ import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.Util;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.SessionVariable;
+import org.apache.doris.resource.Tag;
 import org.apache.doris.service.FrontendOptions;
 import org.apache.doris.system.Backend;
 import org.apache.doris.thrift.TExplainLevel;
@@ -73,6 +74,7 @@ import com.google.common.collect.Maps;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.internal.guava.Sets;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -390,6 +392,12 @@ public class OlapScanNode extends ScanNode {
         String visibleVersionStr = String.valueOf(visibleVersion);
         String visibleVersionHashStr = String.valueOf(partition.getVisibleVersionHash());
 
+        Set<Tag> allowedTags = Sets.newHashSet();
+        boolean needCheckTags = false;
+        if (ConnectContext.get() != null) {
+            allowedTags = ConnectContext.get().getResourceTags();
+            needCheckTags = !ConnectContext.get().isDefaultResourceTag();
+        }
         for (Tablet tablet : tablets) {
             long tabletId = tablet.getId();
             LOG.debug("{} tabletId={}", (logNum++), tabletId);
@@ -428,10 +436,20 @@ public class OlapScanNode extends ScanNode {
             Collections.shuffle(replicas);
             boolean tabletIsNull = true;
             boolean collectedStat = false;
+            List<String> errs = Lists.newArrayList();
             for (Replica replica : replicas) {
                 Backend backend = Catalog.getCurrentSystemInfo().getBackend(replica.getBackendId());
                 if (backend == null) {
                     LOG.debug("replica {} not exists", replica.getBackendId());
+                    errs.add(replica.getId() + "'s backend " + replica.getBackendId() + " does not exist");
+                    continue;
+                }
+                if (needCheckTags && !allowedTags.isEmpty() && !allowedTags.contains(backend.getTag())) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Replica {} of tablet {} is on backend {}, which tag is {}, not contains in allowed tags: {}",
+                                replica.getId(), tabletId, backend.getId(), backend.getTag(), allowedTags);
+                    }
+                    errs.add("replica " + replica.getId() + "'s tag " + backend.getTag() + " is not allowed. backend: " + backend.getId());
                     continue;
                 }
                 String ip = backend.getHost();
@@ -442,7 +460,7 @@ public class OlapScanNode extends ScanNode {
                 paloRange.addToHosts(new TNetworkAddress(ip, port));
                 tabletIsNull = false;
 
-                //for CBO
+                // for CBO
                 if (!collectedStat && replica.getRowCount() != -1) {
                     cardinality += replica.getRowCount();
                     totalBytes += replica.getDataSize();
@@ -451,7 +469,7 @@ public class OlapScanNode extends ScanNode {
                 scanBackendIds.add(backend.getId());
             }
             if (tabletIsNull) {
-                throw new UserException(tabletId + "have no alive replicas");
+                throw new UserException(tabletId + " have no alive replicas. err: " + Joiner.on(", ").join(errs));
             }
             TScanRange scanRange = new TScanRange();
             scanRange.setPaloScanRange(paloRange);

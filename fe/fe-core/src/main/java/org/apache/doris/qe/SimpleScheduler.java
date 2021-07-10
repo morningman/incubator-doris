@@ -249,4 +249,13 @@ public class SimpleScheduler {
             }
         }
     }
+    
+    public static TNetworkAddress getHostByCurrentBackend(Map<TNetworkAddress, Long> addressToBackendID) {
+        int backendSize = addressToBackendID.size();
+        Long id = nextId.getAndIncrement() % backendSize;
+
+        List<TNetworkAddress> idToBackendId = Lists.newArrayList();
+        idToBackendId.addAll(addressToBackendID.keySet());
+        return idToBackendId.get(id.intValue());
+    }
 }
