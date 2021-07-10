@@ -39,7 +39,9 @@ import org.apache.doris.common.Config;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.ExceptionChecker;
 import org.apache.doris.common.FeConstants;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.UserException;
+import org.apache.doris.meta.MetaContext;
 import org.apache.doris.qe.ConnectContext;
 import org.apache.doris.qe.DdlExecutor;
 import org.apache.doris.resource.Tag;
@@ -49,11 +51,6 @@ import org.apache.doris.thrift.TDisk;
 import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.utframe.UtFrameUtils;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Table;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
@@ -61,6 +58,17 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -445,6 +453,46 @@ public class TabletRepairAndBalanceTest {
         ExceptionChecker.expectThrowsNoException(() -> alterTable(alterStr7));
         ColocateTableIndex.GroupId groupId1 = colocateTableIndex.getGroup(tbl2.getId());
         Assert.assertEquals(ReplicaAllocation.DEFAULT_ALLOCATION, colocateTableIndex.getGroupSchema(groupId1).getReplicaAlloc());
+
+        // test colocate table index persist
+        ExceptionChecker.expectThrowsNoException(() -> testColocateTableIndexSerialization(colocateTableIndex));
+    }
+
+    private void testColocateTableIndexSerialization(ColocateTableIndex colocateTableIndex) throws IOException {
+        MetaContext metaContext = new MetaContext();
+        metaContext.setMetaVersion(FeMetaVersion.VERSION_101);
+        metaContext.setThreadLocalInfo();
+
+        // 1. Write objects to file
+        File file = new File("./ColocateTableIndexPersist");
+        file.createNewFile();
+        DataOutputStream dos = new DataOutputStream(new FileOutputStream(file));
+        colocateTableIndex.write(dos);
+        dos.flush();
+        dos.close();
+
+        // 2. Read objects from file
+        DataInputStream dis = new DataInputStream(new FileInputStream(file));
+
+        ColocateTableIndex rColocateTableIndex = new ColocateTableIndex();
+        rColocateTableIndex.readFields(dis);
+
+        Assert.assertEquals(1, colocateTableIndex.getAllGroupIds().size());
+        Set<ColocateTableIndex.GroupId> allGroupIds = colocateTableIndex.getAllGroupIds();
+        for (ColocateTableIndex.GroupId groupId : allGroupIds) {
+            Map<Tag, List<List<Long>>> backendsPerBucketSeq = colocateTableIndex.getBackendsPerBucketSeq(groupId);
+            for (Map.Entry<Tag, List<List<Long>>> entry : backendsPerBucketSeq.entrySet()) {
+                List<List<Long>> seq = entry.getValue();
+                Assert.assertEquals(10, seq.size());
+                for (List<Long> beIds : seq) {
+                    Assert.assertEquals(3, beIds.size());
+                }
+            }
+        }
+
+        // 3. delete files
+        dis.close();
+        file.delete();
     }
 
     private void checkTableReplicaAllocation(OlapTable tbl) throws InterruptedException {
