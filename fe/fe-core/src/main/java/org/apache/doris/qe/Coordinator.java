@@ -989,7 +989,7 @@ public class Coordinator {
             if (fragment.getDataPartition() == DataPartition.UNPARTITIONED) {
                 Reference<Long> backendIdRef = new Reference<Long>();
                 TNetworkAddress execHostport;
-                if (ConnectContext.get() != null && !ConnectContext.get().isDefaultResourceTag()) {
+                if (ConnectContext.get() != null && !ConnectContext.get().isResourceTagsSet()) {
                     // In this case, we only use the BE where the replica selected by the tag is located to execute this query.
                     // Otherwise, except for the scan node, the rest of the execution nodes of the query can be executed on any BE.
                     execHostport = SimpleScheduler.getHostByCurrentBackend(addressToBackendID);
@@ -1113,7 +1113,7 @@ public class Coordinator {
             if (params.instanceExecParams.isEmpty()) {
                 Reference<Long> backendIdRef = new Reference<Long>();
                 TNetworkAddress execHostport;
-                if (ConnectContext.get() != null && !ConnectContext.get().isDefaultResourceTag()) {
+                if (ConnectContext.get() != null && !ConnectContext.get().isResourceTagsSet()) {
                     // In this case, we only use the BE where the replica selected by the tag is located to execute this query.
                     // Otherwise, except for the scan node, the rest of the execution nodes of the query can be executed on any BE.
                     execHostport = SimpleScheduler.getHostByCurrentBackend(addressToBackendID);

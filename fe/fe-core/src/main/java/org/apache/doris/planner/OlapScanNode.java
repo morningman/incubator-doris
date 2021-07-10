@@ -396,7 +396,7 @@ public class OlapScanNode extends ScanNode {
         boolean needCheckTags = false;
         if (ConnectContext.get() != null) {
             allowedTags = ConnectContext.get().getResourceTags();
-            needCheckTags = !ConnectContext.get().isDefaultResourceTag();
+            needCheckTags = ConnectContext.get().isResourceTagsSet();
         }
         for (Tablet tablet : tablets) {
             long tabletId = tablet.getId();
@@ -469,7 +469,7 @@ public class OlapScanNode extends ScanNode {
                 scanBackendIds.add(backend.getId());
             }
             if (tabletIsNull) {
-                throw new UserException(tabletId + " have no alive replicas. err: " + Joiner.on(", ").join(errs));
+                throw new UserException(tabletId + " have no queryable replicas. err: " + Joiner.on(", ").join(errs));
             }
             TScanRange scanRange = new TScanRange();
             scanRange.setPaloScanRange(paloRange);

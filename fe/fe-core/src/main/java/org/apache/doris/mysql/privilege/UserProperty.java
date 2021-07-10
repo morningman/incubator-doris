@@ -245,12 +245,14 @@ public class UserProperty implements Writable {
                     throw new DdlException(PROP_MAX_QUERY_INSTANCES + " is not number");
                 }
             } else if (keyArr[0].equalsIgnoreCase(PROP_RESOURCE_TAGS)) {
-                if (keyArr.length != 1) {
+                if (keyArr.length != 2) {
                     throw new DdlException(PROP_RESOURCE_TAGS + " format error");
                 }
-
+                if (!keyArr[1].equals(Tag.TYPE_LOCATION)) {
+                    throw new DdlException("Only support location tag now");
+                }
                 try {
-                    resourceTags = parseResoureTags(value);
+                    resourceTags = parseLocationResoureTags(value);
                 } catch (NumberFormatException e) {
                     throw new DdlException(PROP_RESOURCE_TAGS + " parse failed: " + e.getMessage());
                 }
@@ -272,15 +274,11 @@ public class UserProperty implements Writable {
         clusterToDppConfig = newDppConfigs;
     }
 
-    private Set<Tag> parseResoureTags(String value) throws AnalysisException {
+    private Set<Tag> parseLocationResoureTags(String value) throws AnalysisException {
         Set<Tag> tags = Sets.newHashSet();
         String[] parts = value.replaceAll(" ", "").split(",");
         for (String part : parts) {
-            String[] tagParts = part.split(".");
-            if (tagParts.length != 2) {
-                throw new AnalysisException("Invalid resource tag format: " + part);
-            }
-            Tag tag = Tag.create(tagParts[0], tagParts[1]);
+            Tag tag = Tag.create(Tag.TYPE_LOCATION, part);
             tags.add(tag);
         }
         return tags;
@@ -363,6 +361,9 @@ public class UserProperty implements Writable {
 
         // max query instance
         result.add(Lists.newArrayList(PROP_MAX_QUERY_INSTANCES, String.valueOf(commonProperties.getMaxQueryInstances())));
+
+        // resource tag
+        result.add(Lists.newArrayList(PROP_RESOURCE_TAGS, Joiner.on(", ").join(commonProperties.getResourceTags())));
 
         // resource
         ResourceGroup group = resource.getResource();

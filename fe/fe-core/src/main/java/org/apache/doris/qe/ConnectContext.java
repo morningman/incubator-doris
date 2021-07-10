@@ -111,10 +111,9 @@ public class ConnectContext {
     // This property is obtained from UserProperty when the client connection is created.
     // Only when the connection is created again, the new resource tags will be retrieved from the UserProperty
     private Set<Tag> resourceTags = Sets.newHashSet();
-    // If set to true, it means that the user uses the default resource group in this connection.
-    // In this case, the system will not restrict query resources.
-    // If set to false, the resource tags set in resourceTags will be used to limit the query resources.
-    private boolean isDefaultResourceTag = true;
+    // If set to true, the resource tags set in resourceTags will be used to limit the query resources.
+    // If set to false, the system will not restrict query resources.
+    private boolean isResourceTagsSet = false;
 
     public static ConnectContext get() {
         return threadLocalInfo.get();
@@ -411,8 +410,8 @@ public class ConnectContext {
         return threadInfo;
     }
 
-    public boolean isDefaultResourceTag() {
-        return isDefaultResourceTag;
+    public boolean isResourceTagsSet() {
+        return isResourceTagsSet;
     }
 
     public Set<Tag> getResourceTags() {
@@ -421,12 +420,7 @@ public class ConnectContext {
 
     public void setResourceTags(Set<Tag> resourceTags) {
         this.resourceTags = resourceTags;
-        for (Tag tag : resourceTags) {
-            if (!tag.equals(Tag.DEFAULT_BACKEND_TAG)) {
-                this.isDefaultResourceTag = false;
-                break;
-            }
-        }
+        this.isResourceTagsSet = !this.resourceTags.isEmpty();
     }
 
     public class ThreadInfo {
