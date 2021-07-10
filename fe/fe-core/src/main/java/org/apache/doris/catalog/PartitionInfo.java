@@ -25,12 +25,12 @@ import org.apache.doris.common.io.Writable;
 import org.apache.doris.thrift.TStorageMedium;
 import org.apache.doris.thrift.TTabletType;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -315,7 +315,7 @@ public class PartitionInfo implements Writable {
                 idToDataProperty.put(partitionId, DataProperty.read(in));
             }
 
-            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
                 short replicationNum = in.readShort();
                 ReplicaAllocation replicaAlloc = new ReplicaAllocation(replicationNum);
                 idToReplicaAllocation.put(partitionId, replicaAlloc);

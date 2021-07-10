@@ -127,7 +127,7 @@ public class PartitionPersistInfo implements Writable {
         }
 
         dataProperty = DataProperty.read(in);
-        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
             this.replicaAlloc = new ReplicaAllocation(in.readShort());
         } else {
             this.replicaAlloc = ReplicaAllocation.read(in);

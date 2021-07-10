@@ -191,7 +191,7 @@ public class TableProperty implements Writable {
                 .executeBuildDynamicProperty()
                 .buildInMemory()
                 .buildStorageFormat();
-        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
             // get replica num from property map and create replica allocation
             String repNum = tableProperty.properties.remove(PropertyAnalyzer.PROPERTIES_REPLICATION_NUM);
             if (!Strings.isNullOrEmpty(repNum)) {

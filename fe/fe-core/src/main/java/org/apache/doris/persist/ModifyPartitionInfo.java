@@ -88,7 +88,7 @@ public class ModifyPartitionInfo implements Writable {
     }
 
     public static ModifyPartitionInfo read(DataInput in) throws IOException {
-        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
             ModifyPartitionInfo info = new ModifyPartitionInfo();
             info.readFields(in);
             return info;

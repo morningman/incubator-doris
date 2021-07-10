@@ -91,7 +91,7 @@ public class ColocatePersistInfo implements Writable {
     }
 
     public static ColocatePersistInfo read(DataInput in) throws IOException {
-        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
             ColocatePersistInfo info = new ColocatePersistInfo();
             info.readFields(in);
             return info;

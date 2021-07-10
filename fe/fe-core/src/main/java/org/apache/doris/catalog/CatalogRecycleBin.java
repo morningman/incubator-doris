@@ -816,7 +816,7 @@ public class CatalogRecycleBin extends MasterDaemon implements Writable {
             }
 
             dataProperty = DataProperty.read(in);
-            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
                 short replicationNum = in.readShort();
                 replicaAlloc = new ReplicaAllocation(replicationNum);
             } else {

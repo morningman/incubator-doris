@@ -24,9 +24,6 @@ import org.apache.doris.persist.ColocatePersistInfo;
 import org.apache.doris.persist.gson.GsonUtils;
 import org.apache.doris.resource.Tag;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -38,6 +35,9 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import com.google.gson.annotations.SerializedName;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -72,7 +72,7 @@ public class ColocateTableIndex implements Writable {
         }
 
         public static GroupId read(DataInput in) throws IOException {
-            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+            if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
                 GroupId groupId = new GroupId();
                 groupId.readFields(in);
                 return groupId;
@@ -651,7 +651,7 @@ public class ColocateTableIndex implements Writable {
                 group2Schema.put(grpId, groupSchema);
 
                 // backends seqs
-                if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+                if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
                     List<List<Long>> bucketsSeq = Lists.newArrayList();
                     int beSize = in.readInt();
                     for (int j = 0; j < beSize; j++) {

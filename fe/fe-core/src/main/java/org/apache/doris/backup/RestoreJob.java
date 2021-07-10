@@ -1724,7 +1724,7 @@ public class RestoreJob extends AbstractJob {
         snapshotFinishedTime = in.readLong();
         downloadFinishedTime = in.readLong();
 
-        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_100) {
+        if (Catalog.getCurrentCatalogJournalVersion() < FeMetaVersion.VERSION_101) {
             int restoreReplicationNum = in.readInt();
             replicaAlloc = new ReplicaAllocation((short) restoreReplicationNum);
         } else {
