@@ -252,6 +252,9 @@ public class SimpleScheduler {
     
     public static TNetworkAddress getHostByCurrentBackend(Map<TNetworkAddress, Long> addressToBackendID) {
         int backendSize = addressToBackendID.size();
+        if (backendSize == 0) {
+            return null;
+        }
         Long id = nextId.getAndIncrement() % backendSize;
 
         List<TNetworkAddress> idToBackendId = Lists.newArrayList();

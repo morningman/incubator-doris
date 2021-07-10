@@ -445,11 +445,12 @@ public class OlapScanNode extends ScanNode {
                     continue;
                 }
                 if (needCheckTags && !allowedTags.isEmpty() && !allowedTags.contains(backend.getTag())) {
+                    String err = String.format("Replica on backend %d with tag %s, which is not in user's resource tags: %s",
+                            backend.getId(), backend.getTag(), allowedTags);
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Replica {} of tablet {} is on backend {}, which tag is {}, not contains in allowed tags: {}",
-                                replica.getId(), tabletId, backend.getId(), backend.getTag(), allowedTags);
+                        LOG.debug(err);
                     }
-                    errs.add("replica " + replica.getId() + "'s tag " + backend.getTag() + " is not allowed. backend: " + backend.getId());
+                    errs.add(err);
                     continue;
                 }
                 String ip = backend.getHost();
